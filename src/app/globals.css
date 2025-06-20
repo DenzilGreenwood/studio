@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 230 67% 97%; /* Very light indigo (#F0F2FA) */
+    --foreground: 220 15% 25%; /* Dark grayish blue for text */
+
+    --card: 230 67% 98%; /* Slightly off-white for cards */
+    --card-foreground: 220 15% 25%;
+
+    --popover: 230 67% 98%;
+    --popover-foreground: 220 15% 25%;
+
+    --primary: 235 88% 72%; /* Light indigo (#7983F5) */
+    --primary-foreground: 0 0% 100%; /* White for high contrast on primary */
+
+    --secondary: 230 50% 92%; /* Lighter indigo for secondary elements */
+    --secondary-foreground: 235 50% 30%;
+
+    --muted: 230 40% 88%; /* Muted indigo */
+    --muted-foreground: 230 30% 55%;
+
+    --accent: 199 94% 67%; /* Sky blue (#5AC8FA) */
+    --accent-foreground: 200 100% 15%; /* Dark blue for text on accent */
+
+    --destructive: 0 72% 51%; /* Standard destructive red */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 230 30% 90%; /* Light border color */
+    --input: 230 30% 92%; /* Input background */
+    --ring: 235 88% 72%; /* Ring color same as primary */
+
+    --radius: 0.5rem;
+
+    --chart-1: 235 88% 72%;
+    --chart-2: 199 94% 67%;
+    --chart-3: 220 70% 65%;
+    --chart-4: 210 75% 60%;
+    --chart-5: 200 80% 55%;
+
+    /* Sidebar specific colors */
+    --sidebar-background: 230 60% 94%; /* Slightly darker/muted than main bg */
+    --sidebar-foreground: 220 15% 35%; /* Darker text for sidebar */
+    --sidebar-primary: 235 88% 72%; /* Main primary color */
+    --sidebar-primary-foreground: 0 0% 100%; /* White text on sidebar primary */
+    --sidebar-accent: 199 94% 67%; /* Main accent color */
+    --sidebar-accent-foreground: 200 100% 15%; /* Dark text on sidebar accent */
+    --sidebar-border: 230 40% 85%; /* Sidebar border color */
+    --sidebar-ring: 235 88% 72%; /* Sidebar ring color */
+  }
+
+  .dark {
+    --background: 230 15% 10%; /* Dark indigo background */
+    --foreground: 230 30% 90%; /* Light text for dark mode */
+
+    --card: 230 15% 12%;
+    --card-foreground: 230 30% 90%;
+
+    --popover: 230 15% 12%;
+    --popover-foreground: 230 30% 90%;
+
+    --primary: 235 88% 72%; /* Light indigo, same as light mode */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 230 20% 20%;
+    --secondary-foreground: 230 30% 90%;
+
+    --muted: 230 20% 25%;
+    --muted-foreground: 230 30% 70%;
+
+    --accent: 199 94% 67%; /* Sky blue, same as light mode */
+    --accent-foreground: 200 100% 15%;
+
+    --destructive: 0 60% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 230 20% 30%;
+    --input: 230 20% 30%;
+    --ring: 235 88% 72%;
+
+    /* Dark Sidebar specific colors */
+    --sidebar-background: 230 15% 15%;
+    --sidebar-foreground: 230 30% 85%;
+    --sidebar-primary: 235 88% 72%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 199 94% 67%;
+    --sidebar-accent-foreground: 200 100% 15%;
+    --sidebar-border: 230 20% 25%;
+    --sidebar-ring: 235 88% 72%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
