@@ -42,7 +42,7 @@ export default function AppLayout({
       <AppHeader />
       <main className="flex-1">{children}</main>
       <footer className="py-6 text-center text-sm text-muted-foreground border-t">
-         &copy; {new Date().getFullYear()} CognitiveInsight. All rights reserved.
+         &copy; 2024 CognitiveInsight. All rights reserved.
       </footer>
     </div>
   );

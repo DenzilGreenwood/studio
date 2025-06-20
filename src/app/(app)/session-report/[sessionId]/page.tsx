@@ -633,7 +633,7 @@ export default function SessionReportPage() {
           </CardContent>
         </Card>
         <footer className="py-6 mt-4 text-center text-sm text-muted-foreground border-t">
-            &copy; {new Date().getFullYear()} CognitiveInsight. All rights reserved.
+            &copy; 2024 CognitiveInsight. All rights reserved.
         </footer>
       </div>
     </div>

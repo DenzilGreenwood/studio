@@ -52,7 +52,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <AppHeader />
             <main className="flex-1">{children}</main>
              <footer className="py-6 text-center text-sm text-muted-foreground border-t">
-                &copy; {new Date().getFullYear()} CognitiveInsight Admin Portal.
+                &copy; 2024 CognitiveInsight Admin Portal.
             </footer>
         </div>
     );

@@ -21,7 +21,7 @@ export default function NotFoundPage() {
         </Link>
       </Button>
       <footer className="absolute bottom-0 py-6 text-center text-sm text-muted-foreground">
-         &copy; {new Date().getFullYear()} <Link href="/" className="hover:underline text-primary">CognitiveInsight</Link>. All rights reserved.
+         &copy; 2024 <Link href="/" className="hover:underline text-primary">CognitiveInsight</Link>. All rights reserved.
       </footer>
     </div>
   );
