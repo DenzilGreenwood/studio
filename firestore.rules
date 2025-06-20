@@ -1,0 +1,57 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can only read and write their own profile
+    match /users/{userId} {
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
+    }
+    
+    // Users can read and write to their own subcollections
+    match /users/{userId}/{collection}/{docId} {
+      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId}/sessions/{sessionId} {
+      allow read, write: if request.auth.uid == userId;
+      
+      match /messages/{messageId} {
+        allow read, write: if request.auth.uid == userId;
+      }
+      
+      match /feedback/{feedbackId} {
+         allow read, write: if request.auth.uid == userId;
+      }
+
+      match /phases/{phaseId} {
+        allow read, write: if request.auth.uid == userId;
+      }
+    }
+    
+    // Feedback collection rules
+    match /feedback/{feedbackId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Reviews collection rules
+    match /reviews/{reviewId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // Admin access for sessions and reviews
+    function isAdmin() {
+      return request.auth.uid in ['YOUR_ADMIN_UID_HERE']; // IMPORTANT: Replace with actual Admin UID
+    }
+    
+    match /sessions/{sessionId} {
+      allow read: if isAdmin();
+    }
+    
+    match /reviews/{reviewId} {
+      allow read: if isAdmin();
+    }
+  }
+}
