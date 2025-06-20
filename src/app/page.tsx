@@ -203,32 +203,30 @@ export default function Home() {
                       Subject: "James," 54, a solution-focused individual with a
                       background in technology and a drive for meaningful work.
                     </p>
-                    <p>
-                      Initial Problem ("Where I Am"):
-                      <ul>
-                        <li>
-                          <strong>Professional Misalignment:</strong> Working a
-                          physically draining, low-skill job that conflicted
-                          with his abilities and self-worth.
-                        </li>
-                        <li>
-                          <strong>Project Stagnation:</strong> An in-progress AI
-                          application (the "dream") was not generating revenue,
-                          causing him to question its viability.
-                        </li>
-                        <li>
-                          <strong>Financial & Personal Pressure:</strong> A new
-                          30-year mortgage, unfinished Master's degree, and the
-                          general stress of building a life.
-                        </li>
-                        <li>
-                          <strong>Core Emotional State:</strong> Overwhelmed,
-                          exhausted, and feeling "out of order." He explicitly
-                          asked, "At what point should a dream die?" and later
-                          stated, "today I just want to give up on everything."
-                        </li>
-                      </ul>
-                    </p>
+                    <p>Initial Problem ("Where I Am"):</p>
+                    <ul>
+                      <li>
+                        <strong>Professional Misalignment:</strong> Working a
+                        physically draining, low-skill job that conflicted
+                        with his abilities and self-worth.
+                      </li>
+                      <li>
+                        <strong>Project Stagnation:</strong> An in-progress AI
+                        application (the "dream") was not generating revenue,
+                        causing him to question its viability.
+                      </li>
+                      <li>
+                        <strong>Financial & Personal Pressure:</strong> A new
+                        30-year mortgage, unfinished Master's degree, and the
+                        general stress of building a life.
+                      </li>
+                      <li>
+                        <strong>Core Emotional State:</strong> Overwhelmed,
+                        exhausted, and feeling "out of order." He explicitly
+                        asked, "At what point should a dream die?" and later
+                        stated, "today I just want to give up on everything."
+                      </li>
+                    </ul>
                     <h3 className="font-headline">The Objective</h3>
                     <p>
                       The primary objective was not merely to solve the
