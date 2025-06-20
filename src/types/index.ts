@@ -1,83 +1,84 @@
-import type {Timestamp} from 'firebase/firestore';
+// src/types/index.ts
+import type { Timestamp } from 'firebase/firestore';
 
+// User Profile Data stored in Firestore
 export interface UserProfile {
   uid: string;
-  email: string;
-  displayName: string;
+  email: string | null;
+  displayName: string | null;
   pseudonym?: string;
-  ageRange?: string;
-  primaryChallenge?: string;
-  createdAt: Timestamp | Date;
-  lastSessionAt?: Timestamp | Date;
-  hasConsentedToDataUse?: boolean;
-  isAdmin?: boolean;
+  ageRange?: string; // e.g., "25-34"
+  primaryChallenge?: string; // e.g., "Career", "Personal Growth"
+  createdAt: Timestamp | Date; // Stored as Timestamp, can be Date in client
+  lastSessionAt?: Timestamp | Date; // Stored as Timestamp, can be Date in client
+  fcmToken?: string; // For push notifications
+  sessionCount?: number;
+  hasConsentedToDataUse?: boolean; // New field for consent
 }
 
+// Individual Chat Message stored in Firestore subcollection
 export interface ChatMessage {
-  id: string;
-  text: string;
+  id: string; // Document ID from Firestore
   sender: 'user' | 'ai';
-  timestamp: Date;
-  phaseName: string;
+  text: string;
+  timestamp: Timestamp | Date; // Server timestamp
+  phaseName: string; // Name of the protocol phase
 }
 
-export interface KeyInteraction {
-  aiQuestion: string;
-  userResponse: string;
-}
-
-export interface ClaritySummaryContentType {
-  insightSummary: string;
-  actualReframedBelief: string;
-  actualLegacyStatement: string;
-  topEmotions: string;
-  reframedBeliefInteraction: KeyInteraction | null;
-  legacyStatementInteraction: KeyInteraction | null;
-  generatedAt?: Timestamp | Date;
-}
-
+// Session Data stored in Firestore
 export interface ProtocolSession {
-  id: string;
+  sessionId: string; // Document ID (same as Firestore document ID)
   userId: string;
   startTime: Timestamp | Date;
   endTime?: Timestamp | Date;
   completedPhases: number;
-  isComplete: boolean;
-  summary?: ClaritySummaryContentType;
-  feedbackId?: string;
-  feedbackSubmittedAt?: Timestamp | Date;
+  reframedBelief?: string; 
+  legacyStatement?: string; 
+  topEmotions?: string; 
+  
+  reframedBeliefInteraction?: {
+    aiQuestion: string;
+    userResponse: string;
+  };
+  legacyStatementInteraction?: {
+    aiQuestion: string;
+    userResponse: string;
+  };
+
+  summary?: {
+    insightSummary: string; 
+    actualReframedBelief: string; 
+    actualLegacyStatement: string;
+    topEmotions: string;
+    reframedBeliefInteraction?: { aiQuestion: string; userResponse: string } | null; // Ensure can be null
+    legacyStatementInteraction?: { aiQuestion: string; userResponse: string } | null; // Ensure can be null
+    generatedAt: Timestamp | Date;
+    downloadUrl?: string; 
+  };
+
+  feedbackId?: string; // ID of the feedback document in the 'feedback' collection
+  feedbackSubmittedAt?: Timestamp | Date; // When feedback was submitted
 }
 
-export interface PhaseStep {
-  id?: string;
-  phaseName: string;
-  userInput: string;
-  aiOutput: string;
-  timestamp: Timestamp | Date;
-  userId: string;
-}
 
+// Feedback Data stored in the top-level 'feedback' collection
 export interface SessionFeedback {
-  id?: string;
+  feedbackId?: string; // Document ID from Firestore, generated automatically
   sessionId: string;
-  userId: string;
-  helpfulRating: 'Not helpful' | 'Somewhat helpful' | 'Very helpful' | '';
+  userId: string; // UID of the authenticated user
+  helpfulRating: "Not helpful" | "Somewhat helpful" | "Very helpful" | "";
   improvementSuggestion?: string;
-  email?: string;
+  email?: string; // Optional email for follow-up
   timestamp: Timestamp | Date;
 }
 
-export interface Review {
-  id: string;
-  userId: string;
-  sessionId: string;
-  rating: number;
-  comments: string;
-  clarityGained: string;
-  recommend: boolean;
-  createdAt: Timestamp;
-}
 
+// For Phase 4: Cognitive Profile (Future use)
 export interface CognitiveProfile {
-  // For future use, e.g., storing cognitive signature results
+  userId: string; 
+  systemsThinking?: number; 
+  legacyOrientation?: number;
+  emotionalDepth?: number;
+  patternRecognition?: number;
+  lastUpdated: Timestamp | Date;
 }
