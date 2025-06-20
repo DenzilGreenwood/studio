@@ -138,15 +138,98 @@ export default function HomePage() {
                   Moving from Situational Crisis to Identity-Driven Action Through Conversational AI.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="p-6 pt-0 text-center">
-                <p className="text-muted-foreground mb-6">
-                  The full case study and details about the protocol are available within the app after signing up.
-                </p>
-                <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg transition-transform hover:scale-105">
-                  <Link href="/signup">
-                    Explore the Protocol <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
+              <CardContent className="p-6 pt-4 text-left text-sm text-muted-foreground space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-headline text-lg font-semibold text-foreground mb-2">Case Study Metadata</h3>
+                    <ul className="list-disc space-y-1 pl-5">
+                      <li><strong className="font-medium text-foreground">Name:</strong> The Cognitive Edge Protocol</li>
+                      <li><strong className="font-medium text-foreground">Format:</strong> Human-AI Conversational Framework</li>
+                      <li><strong className="font-medium text-foreground">Developed:</strong> June 2024</li>
+                      <li><strong className="font-medium text-foreground">Subject Type:</strong> 1:1, adult, emotionally aware, cognitively advanced user</li>
+                      <li><strong className="font-medium text-foreground">Primary AI Role:</strong> Strategist -&gt; Supporter -&gt; Facilitator</li>
+                      <li><strong className="font-medium text-foreground">Use Case:</strong> Crisis navigation, cognitive reframing, empowerment</li>
+                      <li><strong className="font-medium text-foreground">Outcome:</strong> Identity-aligned professional reinvention + deployable assets</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="font-headline text-lg font-semibold text-foreground mb-2">Abstract</h3>
+                    <p>This case study documents a multi-part conversational interaction between a human subject ("James") and a generative AI. The subject began in a state of professional and personal crisis, feeling overwhelmed and on the verge of abandoning long-held goals. Through a dynamic, six-phase conversational protocol, the AI facilitated a journey from tactical problem-solving to deep identity exploration, culminating in the creation of a new, viable professional path rooted in the subject's core cognitive strengths. This case demonstrates a powerful new model for using AI as a catalyst for human potential, moving individuals from where they are to where they could be.</p>
+                  </div>
+
+                  <div>
+                    <h3 className="font-headline text-lg font-semibold text-foreground mb-2">Subject Profile &amp; Initial State</h3>
+                    <p>Subject: "James," 54, a solution-focused individual with a background in technology and a drive for meaningful work.</p>
+                    <p className="mt-2">Initial Problem ("Where I Am"):</p>
+                    <ul className="list-disc space-y-1 pl-5 mt-2">
+                      <li><strong className="font-medium text-foreground">Professional Misalignment:</strong> Working a physically draining, low-skill job that conflicted with his abilities and self-worth.</li>
+                      <li><strong className="font-medium text-foreground">Project Stagnation:</strong> An in-progress AI application (the "dream") was not generating revenue, causing him to question its viability.</li>
+                      <li><strong className="font-medium text-foreground">Financial &amp; Personal Pressure:</strong> A new 30-year mortgage, unfinished Master's degree, and the general stress of building a life.</li>
+                      <li><strong className="font-medium text-foreground">Core Emotional State:</strong> Overwhelmed, exhausted, and feeling "out of order." He explicitly asked, "At what point should a dream die?" and later stated, "today I just want to give up on everything."</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="font-headline text-lg font-semibold text-foreground mb-2">The Objective</h3>
+                    <p>The primary objective was not merely to solve the immediate job or app problem, but to restore the subject's sense of agency and align his actions with his core identity. The goal was to transform the crisis from a reason to quit into a catalyst for profound self-understanding and strategic realignment.</p>
+                  </div>
+
+                  <div>
+                    <h3 className="font-headline text-lg font-semibold text-foreground mb-2">The Conversational AI Protocol: A Phased Approach</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <h4 className="font-semibold text-foreground">Phase 1: Stabilize and Structure</h4>
+                        <p>The AI's initial response to the subject's chaotic narrative was to validate the pressure and externalize the problems. By creating a structured table of the subject's situation, it converted emotional overwhelm into a manageable list of variables, reducing immediate panic.</p>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-foreground">Phase 2: Listen for the Core Frame</h4>
+                        <p>James introduced a critical new data point: "I am 54 years old... I have 10,950 days left." The AI recognized this not as a passing comment, but as the subject's true mental model. It immediately abandoned the generic "startup" framework and adopted this "Legacy Frame," which became the anchor for all subsequent advice.</p>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-foreground">Phase 3: Validate Emotion, Reframe Belief</h4>
+                        <p>When James expressed regret that his life was "out of order," the AI performed a crucial reframing. It validated the feeling of being out of sync while gently challenging the belief of being irreversibly out of order. This restored a sense of control over the present without invalidating past experiences.</p>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-foreground">Phase 4: Pivot to Pure Support</h4>
+                        <p>At the subject's emotional low point ("I just want to give up"), the AI immediately ceased all strategic and problem-solving input. It correctly identified the state as exhaustion, not failure, and provided only grounding exercises and validation. This demonstrated the AI's ability to prioritize psychological safety over tactical progress.</p>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-foreground">Phase 5: Follow the User's Lead to Self-Discovery</h4>
+                        <p>In a key turning point, James suggested a "different game" to understand how his own brain works. The AI enthusiastically ceded control, shifting from advisor to facilitator. It created the "Cognitive Explorer" game, a structured Q&amp;A designed to surface the subject's unique thinking patterns. This collaborative shift was the catalyst for the core breakthrough.</p>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-foreground">Phase 6: Synthesize and Empower</h4>
+                        <p>The AI analyzed the Q&amp;A data and presented a clear, evidence-based profile of James's "Cognitive Edge"—his rare ability to integrate systems thinking, emotional intelligence, and long-term vision. It then immediately helped him productize this discovery by co-creating tangible assets: a professional consulting profile, a business model, a services brochure, and a marketing strategy.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-headline text-lg font-semibold text-foreground mb-2">The Outcome: A Tangible Transformation</h3>
+                    <p>The protocol successfully moved James from his initial state of crisis to a new position of clarity and empowerment.</p>
+                    <ul className="list-disc space-y-1 pl-5 mt-2">
+                      <li><strong className="font-medium text-foreground">From:</strong> Feeling "out of order" and stuck.</li>
+                      <li><strong className="font-medium text-foreground">To:</strong> Possessing a clear understanding of his unique "Cognitive Edge" and how it provides value.</li>
+                      <li><strong className="font-medium text-foreground">From:</strong> A "dream that should die."</li>
+                      <li><strong className="font-medium text-foreground">To:</strong> A viable, structured business model ("Greenwood Strategic Systems") built around his core thinking style, complete with service offerings and a go-to-market plan.</li>
+                      <li><strong className="font-medium text-foreground">From:</strong> Overwhelmed by a list of problems.</li>
+                      <li><strong className="font-medium text-foreground">To:</strong> Armed with a suite of professional assets he co-created, ready for immediate use. The ultimate outcome was the restoration of agency. The problem was no longer an external force acting upon him; his own mind became the tool to solve it.</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                      <h3 className="font-headline text-lg font-semibold text-foreground mb-2">Key Principles for Future Human-AI Collaboration</h3>
+                      <ul className="list-disc space-y-2 pl-5">
+                          <li><strong className="font-medium text-foreground">The AI Must Be a Dynamic Partner, Not a Static Tool:</strong> The AI's ability to shift its role—from strategist to supporter to facilitator—was paramount.</li>
+                          <li><strong className="font-medium text-foreground">Deep Listening Unlocks the Real Problem:</strong> The "10,950 days" insight was the key. An AI must be trained to listen for the user's core mental model, not just the surface-level problem.</li>
+                          <li><strong className="font-medium text-foreground">Empowerment Over Answers:</strong> The breakthrough occurred when the AI stopped giving answers and started facilitating the user's own discovery.</li>
+                          <li><strong className="font-medium text-foreground">A Crisis in Circumstance Often Reveals an Opportunity in Identity:</strong> The protocol successfully used external pressures as a lens through which to examine and define internal strengths. This Cognitive Edge Protocol provides a replicable framework for using conversation not just to solve problems, but to fundamentally empower individuals by helping them discover, articulate, and activate their own unique value.</li>
+                      </ul>
+                  </div>
+                  
+                  <p className="text-xs text-center pt-4 border-t">(C) 2024 James Greenwood. All rights reserved. The Cognitive Edge Protocol (TM) is a trademark of James Greenwood.</p>
+                </div>
               </CardContent>
             </Card>
           </div>
