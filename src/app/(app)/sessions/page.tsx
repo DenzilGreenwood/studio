@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/auth-context';
-import { db, collection, query, orderBy, getDocs, Timestamp } from '@/lib/firebase';
+import { db, collectionGroup, query, where, orderBy, getDocs, Timestamp } from '@/lib/firebase';
 import type { ProtocolSession } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,8 @@ export default function SessionsPage() {
       setError(null);
       try {
         const sessionsQuery = query(
-          collection(db, `users/${firebaseUser.uid}/sessions`),
+          collectionGroup(db, `sessions`),
+          where("userId", "==", firebaseUser.uid),
           orderBy("startTime", "desc")
         );
         const querySnapshot = await getDocs(sessionsQuery);
@@ -126,7 +127,7 @@ export default function SessionsPage() {
                                     Session from {new Date(session.startTime).toLocaleDateString()}
                                 </CardTitle>
                                 <CardDescription>
-                                    Completed on {session.endTime ? new Date(session.endTime).toLocaleString() : new Date(session.startTime).toLocaleTimeString()}
+                                    Completed for {session.circumstance} on {session.endTime ? new Date(session.endTime).toLocaleString() : new Date(session.startTime).toLocaleTimeString()}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -138,7 +139,7 @@ export default function SessionsPage() {
                             </CardContent>
                             <CardFooter>
                                 <Button asChild variant="outline">
-                                    <Link href={`/session-report/${session.sessionId}`}>
+                                    <Link href={`/session-report/${session.sessionId}?circumstance=${encodeURIComponent(session.circumstance)}`}>
                                         View Full Report
                                         <Eye className="ml-2 h-4 w-4" />
                                     </Link>

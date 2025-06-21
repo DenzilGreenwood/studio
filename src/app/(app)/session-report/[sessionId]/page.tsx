@@ -37,6 +37,7 @@ export default function SessionReportPage() {
   const { toast } = useToast(); 
   const isAdmin = useIsAdmin();
   const userIdFromQuery = searchParams.get('userId');
+  const circumstance = searchParams.get('circumstance');
 
   const [sessionData, setSessionData] = useState<ReportSessionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,13 +46,17 @@ export default function SessionReportPage() {
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (searchParams?.get('review_submitted') === 'true') {
+    const reviewSubmitted = searchParams?.get('review_submitted') === 'true';
+    const newCircumstance = searchParams?.get('circumstance');
+    const newUrl = `/session-report/${sessionId}${newCircumstance ? `?circumstance=${newCircumstance}` : ''}`;
+
+    if (reviewSubmitted) {
       toast({
         title: "Review Submitted",
         description: "Thank you for your feedback!",
         variant: "default", 
       });
-      router.replace(`/session-report/${sessionId}`, { scroll: false });
+      router.replace(newUrl, { scroll: false });
     }
   }, [searchParams, sessionId, toast, router]);
 
@@ -67,6 +72,11 @@ export default function SessionReportPage() {
       setIsLoading(false);
       return;
     }
+    if (!circumstance) {
+      setError("Circumstance is missing from URL. Cannot fetch session data.");
+      setIsLoading(false);
+      return;
+    }
 
     const fetchSessionData = async () => {
       setIsLoading(true);
@@ -74,7 +84,7 @@ export default function SessionReportPage() {
       try {
         const targetUserId = isAdmin && userIdFromQuery ? userIdFromQuery : firebaseUser.uid;
 
-        const sessionDocRef = doc(db, `users/${targetUserId}/sessions/${sessionId}`);
+        const sessionDocRef = doc(db, `users/${targetUserId}/circumstances/${circumstance}/sessions/${sessionId}`);
         const sessionSnap = await getDoc(sessionDocRef);
 
         if (!sessionSnap.exists()) {
@@ -98,7 +108,7 @@ export default function SessionReportPage() {
 
 
         const messagesQuery = query(
-          collection(db, `users/${targetUserId}/sessions/${sessionId}/messages`),
+          collection(db, `users/${targetUserId}/circumstances/${circumstance}/sessions/${sessionId}/messages`),
           orderBy("timestamp", "asc")
         );
         const messagesSnap = await getDocs(messagesQuery);
@@ -139,7 +149,7 @@ export default function SessionReportPage() {
     };
 
     fetchSessionData();
-  }, [sessionId, firebaseUser, authProfile, authLoading, router, isAdmin, userIdFromQuery]);
+  }, [sessionId, firebaseUser, authProfile, authLoading, router, isAdmin, userIdFromQuery, circumstance]);
 
   const getInitials = (name?: string | null) => {
     if (!name) return "?";
@@ -468,10 +478,11 @@ export default function SessionReportPage() {
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[525px]">
-                           {firebaseUser && (
+                           {firebaseUser && circumstance && (
                               <PostSessionFeedback
                                 sessionId={sessionId}
                                 userId={firebaseUser.uid}
+                                circumstance={circumstance}
                                 onFeedbackSubmitted={handleFeedbackSubmitted}
                               />
                            )}

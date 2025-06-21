@@ -16,13 +16,14 @@ import { Loader2, MessageSquare, Send, ArrowLeft } from 'lucide-react';
 interface PostSessionFeedbackProps {
   sessionId: string;
   userId: string;
+  circumstance: string;
   onFeedbackSubmitted?: (feedbackId: string) => void;
   onReturnToStart?: () => void;
 }
 
 type HelpfulRatingValue = "Not helpful" | "Somewhat helpful" | "Very helpful" | "";
 
-export function PostSessionFeedback({ sessionId, userId, onFeedbackSubmitted, onReturnToStart }: PostSessionFeedbackProps) {
+export function PostSessionFeedback({ sessionId, userId, circumstance, onFeedbackSubmitted, onReturnToStart }: PostSessionFeedbackProps) {
   const [helpfulRating, setHelpfulRating] = useState<HelpfulRatingValue>("");
   const [improvementSuggestion, setImprovementSuggestion] = useState('');
   const [email, setEmail] = useState('');
@@ -46,6 +47,7 @@ export function PostSessionFeedback({ sessionId, userId, onFeedbackSubmitted, on
       const feedbackData: Omit<SessionFeedback, 'feedbackId' | 'timestamp'> = {
         sessionId,
         userId,
+        circumstance,
         helpfulRating,
         improvementSuggestion: improvementSuggestion.trim() === '' ? undefined : improvementSuggestion.trim(),
         email: email.trim() === '' ? undefined : email.trim(),
@@ -54,7 +56,7 @@ export function PostSessionFeedback({ sessionId, userId, onFeedbackSubmitted, on
 
       const feedbackRef = await addDoc(collection(db, 'feedback'), feedbackData);
       
-      const sessionDocRef = doc(db, `users/${userId}/sessions/${sessionId}`);
+      const sessionDocRef = doc(db, `users/${userId}/circumstances/${circumstance}/sessions/${sessionId}`);
       await updateDoc(sessionDocRef, {
         feedbackId: feedbackRef.id,
         feedbackSubmittedAt: serverTimestamp(),

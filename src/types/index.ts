@@ -29,6 +29,7 @@ export interface ChatMessage {
 export interface ProtocolSession {
   sessionId: string; // Document ID (same as Firestore document ID)
   userId: string;
+  circumstance: string; // The primary challenge category for this session
   startTime: Timestamp | Date;
   endTime?: Timestamp | Date;
   completedPhases: number;
@@ -66,6 +67,7 @@ export interface SessionFeedback {
   feedbackId?: string; // Document ID from Firestore, generated automatically
   sessionId: string;
   userId: string; // UID of the authenticated user
+  circumstance: string; // The primary challenge category for the session
   helpfulRating: "Not helpful" | "Somewhat helpful" | "Very helpful" | "";
   improvementSuggestion?: string;
   email?: string; // Optional email for follow-up

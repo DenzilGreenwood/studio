@@ -51,7 +51,7 @@ export default function AdminPage() {
         const fetchedSessions: SessionWithUser[] = sessionsSnapshot.docs.map(doc => ({
             ...doc.data(),
             sessionId: doc.id,
-            userId: doc.ref.parent.parent!.id, // Extract userId from the document path
+            userId: doc.ref.parent.parent!.parent.parent!.id, // Extract userId from the document path
             startTime: (doc.data().startTime as Timestamp)?.toDate() || new Date(),
         } as SessionWithUser));
         setSessions(fetchedSessions);
@@ -139,7 +139,7 @@ export default function AdminPage() {
                         <TableCell>{item.email || "N/A"}</TableCell>
                         <TableCell>
                           <Button variant="outline" size="sm" asChild>
-                            <Link href={`/session-report/${item.sessionId}?userId=${item.userId}`} target="_blank">
+                            <Link href={`/session-report/${item.sessionId}?userId=${item.userId}&circumstance=${encodeURIComponent(item.circumstance)}`} target="_blank">
                               <Eye className="mr-2 h-4 w-4" /> View
                             </Link>
                           </Button>
@@ -170,6 +170,7 @@ export default function AdminPage() {
                     <TableRow>
                       <TableHead>Session Date</TableHead>
                       <TableHead>User ID</TableHead>
+                      <TableHead>Circumstance</TableHead>
                       <TableHead>Reframed Belief</TableHead>
                       <TableHead>Legacy Statement</TableHead>
                       <TableHead>Full Report</TableHead>
@@ -180,11 +181,12 @@ export default function AdminPage() {
                       <TableRow key={session.sessionId}>
                         <TableCell>{new Date(session.startTime).toLocaleString()}</TableCell>
                         <TableCell className="font-mono text-xs">{session.userId}</TableCell>
+                        <TableCell>{session.circumstance}</TableCell>
                         <TableCell className="max-w-xs truncate">{session.summary?.actualReframedBelief || "N/A"}</TableCell>
                         <TableCell className="max-w-xs truncate">{session.summary?.actualLegacyStatement || "N/A"}</TableCell>
                         <TableCell>
                            <Button variant="outline" size="sm" asChild>
-                            <Link href={`/session-report/${session.sessionId}?userId=${session.userId}`} target="_blank">
+                            <Link href={`/session-report/${session.sessionId}?userId=${session.userId}&circumstance=${encodeURIComponent(session.circumstance)}`} target="_blank">
                               <Eye className="mr-2 h-4 w-4" /> View
                             </Link>
                           </Button>
@@ -192,7 +194,7 @@ export default function AdminPage() {
                       </TableRow>
                     )) : (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center">No sessions found.</TableCell>
+                        <TableCell colSpan={6} className="text-center">No sessions found.</TableCell>
                       </TableRow>
                     )}
                   </TableBody>

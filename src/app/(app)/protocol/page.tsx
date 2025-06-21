@@ -1,4 +1,3 @@
-
 // src/app/(app)/protocol/page.tsx
 "use client";
 
@@ -71,11 +70,12 @@ type ClaritySummaryContentType = ClaritySummaryOutput & SessionDataForSummaryFun
 async function generateAndSaveSummary(
   sessionId: string,
   userId: string,
+  circumstance: string,
   summaryInputData: SessionDataForSummaryFunctionArg, 
   showToast: (options: any) => void 
 ): Promise<ClaritySummaryContentType | null> {
-  if (!sessionId || !userId) {
-    showToast({ variant: "destructive", title: "Error", description: "User or Session ID missing for summary." });
+  if (!sessionId || !userId || !circumstance) {
+    showToast({ variant: "destructive", title: "Error", description: "User, Session, or Circumstance ID missing for summary." });
     return null;
   }
 
@@ -87,10 +87,12 @@ async function generateAndSaveSummary(
     reframedBeliefInteraction: summaryInputData.reframedBeliefInteraction || null,
     legacyStatementInteraction: summaryInputData.legacyStatementInteraction || null,
   };
+  
+  const sessionDocRef = doc(db, `users/${userId}/circumstances/${circumstance}/sessions/${sessionId}`);
 
   if (!summaryInputData.actualReframedBelief.trim() && !summaryInputData.actualLegacyStatement.trim()) {
     showToast({ variant: "destructive", title: "Missing Key Data", description: "Crucial session elements (reframed belief or legacy statement) were not captured. A full AI summary cannot be generated." });
-     await updateDoc(doc(db, `users/${userId}/sessions/${sessionId}`), {
+     await updateDoc(sessionDocRef, {
       summary: { 
         ...baseSummaryContentToSaveOnError,
         generatedAt: serverTimestamp()
@@ -116,7 +118,7 @@ async function generateAndSaveSummary(
       legacyStatementInteraction: summaryInputData.legacyStatementInteraction || null,
     };
 
-    await updateDoc(doc(db, `users/${userId}/sessions/${sessionId}`), {
+    await updateDoc(sessionDocRef, {
       summary: { 
         ...summaryToPersist,
         generatedAt: serverTimestamp()
@@ -131,7 +133,7 @@ async function generateAndSaveSummary(
       ...baseSummaryContentToSaveOnError,
       insightSummary: "Failed to generate AI summary. Please try downloading raw insights or contact support.",
     };
-    await updateDoc(doc(db, `users/${userId}/sessions/${sessionId}`), {
+    await updateDoc(sessionDocRef, {
       summary: { 
         ...errorSummaryToPersist,
         generatedAt: serverTimestamp()
@@ -143,7 +145,7 @@ async function generateAndSaveSummary(
 
 
 export default function ProtocolPage() {
-  const { firebaseUser } = useAuth();
+  const { firebaseUser, user } = useAuth();
   const router = useRouter(); 
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [currentPhase, setCurrentPhase] = useState(1);
@@ -154,25 +156,41 @@ export default function ProtocolPage() {
   const [sessionDataForSummary, setSessionDataForSummary] = useState<Partial<SessionDataForSummaryInternal>>({});
   const [pendingAiQuestion, setPendingAiQuestion] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [currentCircumstance, setCurrentCircumstance] = useState<string | null>(null);
   const [finalClaritySummary, setFinalClaritySummary] = useState<ClaritySummaryContentType | null>(null);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
 
   const { toast } = useToast();
 
   const initializeSession = useCallback(async () => {
-    if (!firebaseUser) return;
+    if (!firebaseUser || !user) return;
+    
+    if (!user.primaryChallenge) {
+      toast({
+        title: "Profile Incomplete",
+        description: "Please select a primary challenge in your profile before starting a session.",
+        variant: "destructive",
+      });
+      router.push('/profile');
+      return;
+    }
+
     setIsLoading(true);
     setFinalClaritySummary(null); 
     setIsProtocolComplete(false); 
     setShowFeedbackForm(false); 
     
-    const newSessionRef = doc(collection(db, `users/${firebaseUser.uid}/sessions`));
+    const circumstance = user.primaryChallenge;
+    setCurrentCircumstance(circumstance);
+
+    const newSessionRef = doc(collection(db, `users/${firebaseUser.uid}/circumstances/${circumstance}/sessions`));
     const newSessionId = newSessionRef.id;
     setCurrentSessionId(newSessionId);
 
     const initialSessionData: ProtocolSession = {
       sessionId: newSessionId,
       userId: firebaseUser.uid,
+      circumstance: circumstance,
       startTime: serverTimestamp(),
       completedPhases: 0,
       summary: {
@@ -194,7 +212,7 @@ export default function ProtocolPage() {
     };
     setMessages([firstUIMessage]);
 
-    await addDoc(collection(db, `users/${firebaseUser.uid}/sessions/${newSessionId}/messages`), {
+    await addDoc(collection(db, `users/${firebaseUser.uid}/circumstances/${circumstance}/sessions/${newSessionId}/messages`), {
       sender: 'ai',
       text: firstMessageText,
       timestamp: serverTimestamp(),
@@ -207,17 +225,17 @@ export default function ProtocolPage() {
     setPendingAiQuestion(null);
     setSessionHistoryForAI(undefined);
     setIsLoading(false);
-  }, [firebaseUser]);
+  }, [firebaseUser, user, router, toast]);
 
   useEffect(() => {
-    if (firebaseUser && !currentSessionId) {
+    if (firebaseUser && user && !currentSessionId) {
       initializeSession();
     }
-  }, [firebaseUser, currentSessionId, initializeSession]);
+  }, [firebaseUser, user, currentSessionId, initializeSession]);
 
 
   const handleSendMessage = async (userInput: string) => {
-    if (isProtocolComplete || !currentSessionId || !firebaseUser) return;
+    if (isProtocolComplete || !currentSessionId || !firebaseUser || !currentCircumstance) return;
 
     const currentUserInputText = userInput.trim();
 
@@ -229,7 +247,7 @@ export default function ProtocolPage() {
     };
     setMessages(prev => [...prev, newUserUIMessage]);
     
-    await addDoc(collection(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}/messages`), {
+    await addDoc(collection(db, `users/${firebaseUser.uid}/circumstances/${currentCircumstance}/sessions/${currentSessionId}/messages`), {
       sender: 'user',
       text: currentUserInputText,
       timestamp: serverTimestamp(),
@@ -270,7 +288,7 @@ export default function ProtocolPage() {
       };
       setMessages(prev => [...prev, aiResponseUIMessage]);
       
-      await addDoc(collection(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}/messages`), {
+      await addDoc(collection(db, `users/${firebaseUser.uid}/circumstances/${currentCircumstance}/sessions/${currentSessionId}/messages`), {
         sender: 'ai',
         text: output.response,
         timestamp: serverTimestamp(),
@@ -288,11 +306,13 @@ export default function ProtocolPage() {
       const nextPhaseIndex = PHASE_NAMES.indexOf(output.nextPhase);
       const newPhaseNumber = nextPhaseIndex + 1;
 
+      const sessionDocRef = doc(db, `users/${firebaseUser.uid}/circumstances/${currentCircumstance}/sessions/${currentSessionId}`);
+
       if (newPhaseNumber > currentPhase || (currentPhase === TOTAL_PHASES && output.nextPhase === PHASE_NAMES[TOTAL_PHASES-1])) {
         if (currentPhase < TOTAL_PHASES) {
           setCurrentPhase(newPhaseNumber);
           setCurrentPhaseName(output.nextPhase);
-          await updateDoc(doc(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}`), {
+          await updateDoc(sessionDocRef, {
             completedPhases: currentPhase
           });
            setIsLoading(false); 
@@ -302,7 +322,7 @@ export default function ProtocolPage() {
           let detectedUserEmotions = "Emotions not analyzed";
           try {
             const messagesQuery = query(
-              collection(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}/messages`),
+              collection(db, `users/${firebaseUser.uid}/circumstances/${currentCircumstance}/sessions/${currentSessionId}/messages`),
               orderBy("timestamp", "asc")
             );
             const messagesSnap = await getDocs(messagesQuery);
@@ -329,7 +349,7 @@ export default function ProtocolPage() {
             topEmotions: detectedUserEmotions,
           };
           
-          await updateDoc(doc(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}`), {
+          await updateDoc(sessionDocRef, {
             completedPhases: TOTAL_PHASES,
             endTime: serverTimestamp(),
             reframedBelief: finalDataForFirestore.actualReframedBelief, 
@@ -340,6 +360,7 @@ export default function ProtocolPage() {
           const generatedSummary = await generateAndSaveSummary(
             currentSessionId, 
             firebaseUser.uid, 
+            currentCircumstance,
             finalDataForFirestore, 
             toast
           );
@@ -425,10 +446,11 @@ export default function ProtocolPage() {
          </div>
       )}
 
-      {isProtocolComplete && showFeedbackForm && currentSessionId && firebaseUser && (
+      {isProtocolComplete && showFeedbackForm && currentSessionId && firebaseUser && currentCircumstance && (
         <PostSessionFeedback 
             sessionId={currentSessionId} 
             userId={firebaseUser.uid}
+            circumstance={currentCircumstance}
             onReturnToStart={restartProtocol}
         />
       )}
@@ -436,4 +458,3 @@ export default function ProtocolPage() {
     </div>
   );
 }
-
