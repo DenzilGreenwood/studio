@@ -53,11 +53,12 @@ export interface ProtocolSession {
     generatedAt: Timestamp | Date;
     downloadUrl?: string;
   };
-  userReflection?: string;
-  userReflectionUpdatedAt?: Timestamp | Date;
-  goals?: Goal[];
-  feedbackId?: string;
-  feedbackSubmittedAt?: Timestamp | Date;
+
+  reflection?: string; // User-added reflection
+  implementationPlan?: string; // User-added implementation plan
+
+  feedbackId?: string; // ID of the feedback document in the 'feedback' collection
+  feedbackSubmittedAt?: Timestamp | Date; // When feedback was submitted
 }
 
 export interface SessionFeedback {

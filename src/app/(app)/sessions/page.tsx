@@ -7,10 +7,9 @@ import { db, collectionGroup, query, where, orderBy, getDocs, Timestamp } from '
 import type { ProtocolSession } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, History, PlusCircle, Eye, Sparkles, PenSquare, CheckCircle, Hourglass } from 'lucide-react';
+import { Loader2, BookOpen, PlusCircle, Eye } from 'lucide-react';
 import Link from 'next/link';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type SessionWithId = ProtocolSession & { sessionId: string };
 
@@ -64,6 +63,8 @@ const SessionCard = ({ session }: { session: SessionWithId }) => (
 export default function SessionsPage() {
   const { firebaseUser, user, loading: authLoading } = useAuth();
   const [sessions, setSessions] = useState<SessionWithId[]>([]);
+  const [circumstances, setCircumstances] = useState<string[]>([]);
+  const [selectedCircumstance, setSelectedCircumstance] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCheckIn, setShowCheckIn] = useState(false);
@@ -97,20 +98,12 @@ export default function SessionsPage() {
           };
         });
         setSessions(fetchedSessions);
-        
-        if (user && fetchedSessions.length > 0) {
-            const sevenDaysAgo = new Date();
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-            const lastActivityDate = user.lastCheckInAt && user.lastSessionAt
-                ? new Date(Math.max(new Date(user.lastCheckInAt).getTime(), new Date(user.lastSessionAt).getTime()))
-                : user.lastSessionAt ? new Date(user.lastSessionAt)
-                : user.lastCheckInAt ? new Date(user.lastCheckInAt)
-                : null;
-            
-            if (lastActivityDate && lastActivityDate < sevenDaysAgo) {
-                setShowCheckIn(true);
-            }
+        const uniqueCircumstances = [...new Set(fetchedSessions.map(s => s.circumstance))];
+        setCircumstances(uniqueCircumstances);
+        // If there's only one circumstance, select it by default
+        if (uniqueCircumstances.length > 0) {
+            setSelectedCircumstance(uniqueCircumstances[0]!);
         }
 
       } catch (e: any) {
@@ -137,7 +130,7 @@ export default function SessionsPage() {
     return (
       <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center text-primary">
         <Loader2 className="h-16 w-16 animate-spin" />
-        <p className="mt-4 font-headline text-xl">Loading Your Sessions...</p>
+        <p className="mt-4 font-headline text-xl">Loading Your Journal...</p>
       </div>
     );
   }
@@ -154,16 +147,18 @@ export default function SessionsPage() {
       </div>
     );
   }
+  
+  const filteredSessions = selectedCircumstance ? sessions.filter(s => s.circumstance === selectedCircumstance) : [];
 
   return (
     <div className="bg-secondary/30 min-h-screen py-8">
         <div className="container mx-auto p-4 md:p-6 max-w-3xl">
             <header className="mb-8">
                 <div className="flex items-center gap-3">
-                    <History className="h-10 w-10 text-primary" />
+                    <BookOpen className="h-10 w-10 text-primary" />
                     <div>
-                        <h1 className="font-headline text-4xl font-bold text-primary">Session History</h1>
-                        <p className="text-muted-foreground text-lg">Review your past CognitiveInsight sessions.</p>
+                        <h1 className="font-headline text-4xl font-bold text-primary">My Journal</h1>
+                        <p className="text-muted-foreground text-lg">Review your past sessions, add reflections, and track your growth.</p>
                     </div>
                 </div>
                  <Button asChild size="lg" className="mt-6 w-full sm:w-auto">
@@ -203,47 +198,78 @@ export default function SessionsPage() {
             {sessions.length === 0 ? (
                 <Card className="text-center p-8 md:p-12 shadow-lg">
                     <CardHeader>
-                        <CardTitle className="font-headline text-2xl">No Sessions Yet</CardTitle>
+                        <CardTitle className="font-headline text-2xl">Your Journal is Empty</CardTitle>
                         <CardDescription className="text-base mt-2">
                             You haven't completed any sessions. Start your journey to clarity now.
                         </CardDescription>
                     </CardHeader>
                 </Card>
             ) : (
-                <Tabs defaultValue="completed" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="completed">Completed ({completedSessions.length})</TabsTrigger>
-                        <TabsTrigger value="in-progress">In Progress ({inProgressSessions.length})</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="completed">
-                        {completedSessions.length > 0 ? (
-                            <div className="space-y-6 mt-6">
-                                {completedSessions.map(session => (
-                                    <SessionCard key={session.sessionId} session={session} />
-                                ))}
-                            </div>
-                        ) : (
-                             <Card className="text-center p-8 mt-6">
-                                <CardTitle>No Completed Sessions</CardTitle>
-                                <CardDescription>Finish a session to see it here.</CardDescription>
-                             </Card>
-                        )}
-                    </TabsContent>
-                    <TabsContent value="in-progress">
-                        {inProgressSessions.length > 0 ? (
-                            <div className="space-y-6 mt-6">
-                                {inProgressSessions.map(session => (
-                                    <SessionCard key={session.sessionId} session={session} />
-                                ))}
-                            </div>
-                        ) : (
-                             <Card className="text-center p-8 mt-6">
-                                <CardTitle>No Sessions In Progress</CardTitle>
-                                <CardDescription>Start a new session to get going!</CardDescription>
-                             </Card>
-                        )}
-                    </TabsContent>
-                </Tabs>
+                <>
+                <div className="mb-6">
+                    <Select value={selectedCircumstance} onValueChange={setSelectedCircumstance}>
+                      <SelectTrigger className="w-full md:w-[300px]">
+                        <SelectValue placeholder="Select a challenge to review..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {circumstances.map(c => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                </div>
+                
+                <div className="space-y-6">
+                    {filteredSessions.length > 0 ? filteredSessions.map(session => (
+                        <Card key={session.sessionId} className="shadow-md hover:shadow-xl transition-shadow duration-300">
+                            <CardHeader>
+                                <CardTitle className="font-headline text-2xl text-primary">
+                                    Session from {new Date(session.startTime).toLocaleDateString()}
+                                </CardTitle>
+                                <CardDescription>
+                                    {session.endTime ? `Completed at ${new Date(session.endTime).toLocaleTimeString()}` : `Started at ${new Date(session.startTime).toLocaleTimeString()}`}
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {session.summary?.insightSummary ? (
+                                    <p className="text-muted-foreground italic truncate">
+                                        <strong>AI Insight:</strong> "{session.summary.insightSummary}"
+                                    </p>
+                                ) : (
+                                     <p className="text-muted-foreground italic">
+                                        Session in progress or summary not available.
+                                    </p>
+                                )}
+                            </CardContent>
+                            <CardFooter>
+                                <Button asChild>
+                                    <Link href={`/session-report/${session.sessionId}?circumstance=${encodeURIComponent(session.circumstance)}`}>
+                                        Open Journal Entry
+                                        <Eye className="ml-2 h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </CardFooter>
+                        </Card>
+                    )) : (
+                        <Card className="text-center p-8">
+                             <CardHeader>
+                                <CardTitle className="font-headline text-2xl">No sessions for this challenge</CardTitle>
+                                <CardDescription className="text-base mt-2">
+                                    Please select another challenge from the dropdown above, or start a new session.
+                                </CardDescription>
+                             </CardHeader>
+                             <CardContent>
+                                <Button asChild size="lg">
+                                    <Link href="/protocol">
+                                        <PlusCircle className="mr-2 h-5 w-5" />
+                                        Start a New Session
+                                    </Link>
+                                </Button>
+                             </CardContent>
+                        </Card>
+                    )}
+                </div>
+                </>
             )}
         </div>
     </div>

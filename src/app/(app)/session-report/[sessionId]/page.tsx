@@ -4,14 +4,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams, notFound } from 'next/navigation'; 
 import { useAuth } from '@/context/auth-context';
-import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp, updateDoc, serverTimestamp, writeBatch } from '@/lib/firebase';
-import { generateGoals } from '@/ai/flows/goal-generator-flow';
-import type { ProtocolSession, ChatMessage as FirestoreChatMessage, UserProfile, Goal } from '@/types'; 
-import type { GoalGeneratorInput, GoalGeneratorOutput } from '@/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp, updateDoc } from '@/lib/firebase';
+import type { ProtocolSession, ChatMessage as FirestoreChatMessage, UserProfile } from '@/types'; 
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Brain, User, Loader2, AlertTriangle, FileText, Lightbulb, Milestone, Bot, MessageSquare, Edit3, CheckCircle, Download, Shield, PenSquare, Target, Sparkles, PlusCircle, Trash2 } from 'lucide-react';
+import { Brain, User, Loader2, AlertTriangle, FileText, Lightbulb, Milestone, Bot, MessageSquare, Edit3, CheckCircle, Download, Shield, BookOpen, Target, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -21,8 +19,6 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
 import { useIsAdmin } from '@/hooks/use-is-admin';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 interface DisplayMessage extends FirestoreChatMessage {
@@ -35,33 +31,16 @@ type ReportSessionData = ProtocolSession & {
 };
 
 
-export default function SessionReportPage() {
-    const router = useRouter();
-    const params = useParams();
-    const searchParams = useSearchParams(); 
-    const sessionId = params.sessionId as string;
-    const { firebaseUser, user: authProfile, loading: authLoading } = useAuth();
-    const { toast } = useToast(); 
-    const isAdmin = useIsAdmin();
-    const userIdFromQuery = searchParams.get('userId');
-
-    const [sessionData, setSessionData] = useState<ReportSessionData | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-    const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
-
-    // New state for Journaling & Goals
-    const [reflectionText, setReflectionText] = useState('');
-    const [userGoals, setUserGoals] = useState<Goal[]>([]);
-    const [newGoalText, setNewGoalText] = useState('');
-    const [isGeneratingGoals, setIsGeneratingGoals] = useState(false);
-    const [suggestedGoals, setSuggestedGoals] = useState<string[]>([]);
-    const [isSavingJournal, setIsSavingJournal] = useState(false);
-
-    const completedGoals = useMemo(() => userGoals.filter(g => g.completed).length, [userGoals]);
-    const totalGoals = userGoals.length;
-    const canEditJournal = !isSavingJournal && !(isAdmin && !!userIdFromQuery);
+  const [sessionData, setSessionData] = useState<ReportSessionData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  
+  // State for reflection and implementation plan textareas
+  const [reflection, setReflection] = useState('');
+  const [implementationPlan, setImplementationPlan] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
 
   useEffect(() => {
@@ -139,11 +118,31 @@ export default function SessionReportPage() {
           timestamp: (docSnap.data().timestamp as Timestamp)?.toDate() || new Date(),
         } as DisplayMessage));
         
-        setSessionData({ 
-            ...processedSessionData, 
+        const convertTimestampFields = (data: ProtocolSession): ProtocolSession => {
+          const convertIfTimestamp = (field: any) => 
+            field instanceof Timestamp ? field.toDate() : (field ? new Date(field) : undefined);
+
+          return {
+            ...data,
+            startTime: convertIfTimestamp(data.startTime)!, 
+            endTime: convertIfTimestamp(data.endTime),
+            feedbackSubmittedAt: data.feedbackSubmittedAt ? convertIfTimestamp(data.feedbackSubmittedAt) : undefined,
+            summary: data.summary ? {
+              ...data.summary,
+              generatedAt: convertIfTimestamp(data.summary.generatedAt)!, 
+            } : undefined,
+          };
+        };
+        
+        const fullSessionData = { 
+            ...convertTimestampFields(fetchedSessionData), 
             chatMessages: fetchedMessages,
             sessionForUser: sessionForUser
-        });
+        };
+        setSessionData(fullSessionData);
+        setReflection(fullSessionData.reflection || '');
+        setImplementationPlan(fullSessionData.implementationPlan || '');
+
 
       } catch (e: any) {
         console.error("Error fetching session report:", e);
@@ -156,31 +155,35 @@ export default function SessionReportPage() {
     fetchSessionData();
   }, [sessionId, firebaseUser, authProfile, authLoading, router, isAdmin, userIdFromQuery]);
 
-    const getInitials = (name?: string | null) => {
-        if (!name) return "?";
-        const nameParts = name.split(' ').filter(Boolean);
-        if (nameParts.length === 0) return "?";
-        if (nameParts.length === 1 && nameParts[0]) return nameParts[0][0]!.toUpperCase();
-        if (nameParts.length > 1 && nameParts[0] && nameParts[nameParts.length-1]) {
-        return (nameParts[0][0]! + nameParts[nameParts.length - 1]![0]!).toUpperCase();
-        }
-        return "?";
-    };
-    
-    const handleFeedbackSubmitted = (feedbackId: string) => {
-        setIsReviewDialogOpen(false);
-        setSessionData(prev => prev ? { ...prev, feedbackId: feedbackId } : null);
-        toast({ title: "Feedback Submitted", description: "Thank you for your valuable input!" });
-    };
+  const handleSaveJournal = async () => {
+    if (!firebaseUser || !circumstance) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Cannot save journal entry. User or context is missing.' });
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const sessionDocRef = doc(db, `users/${firebaseUser.uid}/circumstances/${circumstance}/sessions/${sessionId}`);
+      await updateDoc(sessionDocRef, {
+        reflection: reflection,
+        implementationPlan: implementationPlan,
+      });
+      toast({ title: 'Journal Updated', description: 'Your reflection and implementation plan have been saved.' });
+    } catch (error: any) {
+      console.error('Error saving journal entries:', error);
+      toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save your journal entries. Please try again.' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-  const handleGenerateGoals = async () => {
-    if (!reflectionText.trim()) {
-        toast({
-            variant: 'destructive',
-            title: 'Cannot Generate Goals',
-            description: 'Please write a reflection first to give the AI some context.',
-        });
-        return;
+
+  const getInitials = (name?: string | null) => {
+    if (!name) return "?";
+    const nameParts = name.split(' ').filter(Boolean);
+    if (nameParts.length === 0) return "?";
+    if (nameParts.length === 1 && nameParts[0]) return nameParts[0][0]!.toUpperCase();
+    if (nameParts.length > 1 && nameParts[0] && nameParts[nameParts.length-1]) {
+      return (nameParts[0][0]! + nameParts[nameParts.length - 1]![0]!).toUpperCase();
     }
     setIsGeneratingGoals(true);
     setSuggestedGoals([]);
@@ -237,11 +240,179 @@ export default function SessionReportPage() {
           createdAt: g.createdAt instanceof Date ? Timestamp.fromDate(g.createdAt) : g.createdAt
       }));
 
-      const batch = writeBatch(db);
-      batch.update(sessionDocRef, {
-        userReflection: reflectionText,
-        goals: goalsToSave,
-        userReflectionUpdatedAt: serverTimestamp(),
+      let yPosition = CONTENT_TOP_MARGIN;
+      let currentPageNum = 1;
+
+      const drawHeader = (docInstance: jsPDF) => {
+        docInstance.setFontSize(HEADER_FOOTER_FONT_SIZE);
+        docInstance.setFont(undefined, 'normal');
+        docInstance.setTextColor(128, 128, 128); // Grey
+        docInstance.text(HEADER_TEXT, PAGE_WIDTH / 2, HEADER_Y_TEXT, { align: 'center' });
+        docInstance.setDrawColor(200, 200, 200); // Light grey line
+        docInstance.line(MARGIN, HEADER_Y_LINE, PAGE_WIDTH - MARGIN, HEADER_Y_LINE);
+      };
+
+      const drawFooter = (docInstance: jsPDF, sessId: string, pageNum: number, totalPagesVal: number) => {
+        docInstance.setFontSize(HEADER_FOOTER_FONT_SIZE);
+        docInstance.setFont(undefined, 'normal');
+        docInstance.setTextColor(128, 128, 128); // Grey
+        const footerString = `Session ID: ${sessId}   -   Page ${pageNum} of ${totalPagesVal}`;
+        docInstance.setDrawColor(200, 200, 200); // Light grey line
+        docInstance.line(MARGIN, FOOTER_Y_LINE, PAGE_WIDTH - MARGIN, FOOTER_Y_LINE);
+        docInstance.text(footerString, PAGE_WIDTH / 2, FOOTER_Y_TEXT, { align: 'center' });
+      };
+      
+      const addNewPage = () => {
+        pdf.addPage();
+        currentPageNum++;
+        drawHeader(pdf);
+        yPosition = CONTENT_TOP_MARGIN;
+      };
+
+      const checkAndAddPage = (spaceNeeded: number) => {
+        if (yPosition + spaceNeeded > CONTENT_BOTTOM_LIMIT) {
+          addNewPage();
+        }
+      };
+      
+      const addWrappedText = (
+        text: string | undefined | null, 
+        x: number, 
+        currentY: number, 
+        maxWidth: number, 
+        lineHeight: number, 
+        options: { fontStyle?: 'normal' | 'bold' | 'italic', fontSize?: number, textColor?: string, isListItem?: boolean } = {}
+      ): number => { 
+        if (!text) return currentY;
+
+        const originalFontSize = pdf.getFontSize();
+        pdf.setFontSize(options.fontSize || BODY_FONT_SIZE);
+        if (options.fontStyle) pdf.setFont(undefined, options.fontStyle);
+        if (options.textColor) pdf.setTextColor(options.textColor);
+        else pdf.setTextColor(40, 40, 40);
+
+        const prefix = options.isListItem ? "- " : "";
+        const textToSplit = prefix + text;
+        const lines = pdf.splitTextToSize(textToSplit, options.isListItem ? maxWidth - 3 : maxWidth); 
+        
+        let tempY = currentY;
+
+        lines.forEach((line: string) => {
+          if (tempY + lineHeight > CONTENT_BOTTOM_LIMIT) { 
+            addNewPage(); 
+            tempY = yPosition; 
+          }
+          pdf.text(line, options.isListItem ? x + 3 : x, tempY);
+          tempY += lineHeight;
+        });
+        
+        yPosition = tempY; 
+
+        pdf.setFontSize(originalFontSize); 
+        pdf.setFont(undefined, 'normal'); 
+        pdf.setTextColor(40, 40, 40); 
+        return yPosition;
+      };
+      
+      const addSectionTitle = (title: string) => {
+        checkAndAddPage(LINE_HEIGHT_SECTION_TITLE * 2); 
+        yPosition += LINE_HEIGHT_BODY / 2;
+        addWrappedText(title, MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_SECTION_TITLE, { fontStyle: 'bold', fontSize: SECTION_TITLE_FONT_SIZE, textColor: '#7983F5' });
+        yPosition += LINE_HEIGHT_BODY / 2;
+      };
+
+      const addSubText = (label: string, value: string | undefined | null, interaction?: {aiQuestion: string, userResponse: string} | null) => {
+        const labelY = yPosition;
+        addWrappedText(`${label}:`, MARGIN, labelY, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY, { fontStyle: 'bold', fontSize: BODY_FONT_SIZE });
+        
+        if (interaction) {
+            const interactionY = yPosition; 
+            addWrappedText(`AI: ${interaction.aiQuestion}`, MARGIN + 5, interactionY, MAX_TEXT_WIDTH -5 , LINE_HEIGHT_SMALL, { fontSize: SMALL_FONT_SIZE, fontStyle: 'italic' });
+            const userResponseY = yPosition;
+            addWrappedText(`You: ${interaction.userResponse}`, MARGIN + 5, userResponseY, MAX_TEXT_WIDTH -5, LINE_HEIGHT_SMALL, { fontSize: SMALL_FONT_SIZE, fontStyle: 'italic' });
+        }
+        const valueY = yPosition;
+        addWrappedText(value || '', MARGIN + (interaction ? 5 : 0), valueY, MAX_TEXT_WIDTH - (interaction ? 5 : 0), LINE_HEIGHT_BODY, { fontSize: BODY_FONT_SIZE });
+        yPosition += LINE_HEIGHT_BODY * 0.5; 
+      };
+
+      drawHeader(pdf);
+
+      yPosition += LINE_HEIGHT_MAIN_TITLE / 2;
+      addWrappedText("CognitiveInsight Summary", MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_MAIN_TITLE, { fontStyle: 'bold', fontSize: MAIN_TITLE_FONT_SIZE, textColor: '#7983F5'});
+      yPosition += LINE_HEIGHT_SMALL;
+      addWrappedText(`Session ID: ${sessionId}`, MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_SMALL, {fontSize: SMALL_FONT_SIZE});
+      addWrappedText(`Date: ${new Date(sessionData.startTime as Date).toLocaleString()}`, MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_SMALL, {fontSize: SMALL_FONT_SIZE});
+      yPosition += LINE_HEIGHT_BODY;
+
+      if (sessionData.summary) {
+        addSectionTitle("Reframed Belief");
+        addSubText("Final Belief", sessionData.summary.actualReframedBelief, sessionData.summary.reframedBeliefInteraction);
+        
+        addSectionTitle("Legacy Statement");
+        addSubText("Final Statement", sessionData.summary.actualLegacyStatement, sessionData.summary.legacyStatementInteraction);
+
+        addSectionTitle("Top Emotions");
+        addWrappedText(sessionData.summary.topEmotions, MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY, {fontSize: BODY_FONT_SIZE});
+        yPosition += LINE_HEIGHT_BODY;
+      } else {
+        addWrappedText("Summary data is not available for this session.", MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY, {fontSize: BODY_FONT_SIZE});
+        yPosition += LINE_HEIGHT_BODY;
+      }
+
+      if (yPosition > CONTENT_TOP_MARGIN + LINE_HEIGHT_SECTION_TITLE) addNewPage();
+      
+      addSectionTitle("AI Generated Insight");
+      if (sessionData.summary) {
+        addWrappedText(sessionData.summary.insightSummary, MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY, {fontSize: BODY_FONT_SIZE});
+      } else {
+        addWrappedText("No AI insight generated for this session.", MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY, {fontSize: BODY_FONT_SIZE});
+      }
+      yPosition += LINE_HEIGHT_BODY;
+      
+      // Add Reflection and Implementation Plan to PDF
+      if (sessionData.reflection) {
+        addSectionTitle("My Reflection");
+        addWrappedText(sessionData.reflection, MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY);
+        yPosition += LINE_HEIGHT_BODY;
+      }
+      if (sessionData.implementationPlan) {
+        addSectionTitle("My Implementation Plan");
+        addWrappedText(sessionData.implementationPlan, MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY);
+        yPosition += LINE_HEIGHT_BODY;
+      }
+      
+      addNewPage(); 
+
+      addSectionTitle("Full Session Transcript");
+      let interactionsOnPage = 0;
+      const MAX_INTERACTIONS_PER_PAGE = 3; 
+      const userDisplayName = sessionData.sessionForUser?.displayName || sessionData.sessionForUser?.email || "User";
+
+      sessionData.chatMessages.forEach((msg, index) => {
+        if (interactionsOnPage >= MAX_INTERACTIONS_PER_PAGE && msg.sender === 'ai') { 
+           addNewPage();
+           interactionsOnPage = 0;
+        }
+        
+        const senderPrefix = msg.sender === 'ai' ? "AI" : userDisplayName;
+        const messageHeader = `${senderPrefix} (${msg.phaseName || 'N/A'}):`;
+        
+        checkAndAddPage(LINE_HEIGHT_SMALL + LINE_HEIGHT_BODY + LINE_HEIGHT_SMALL); 
+        
+        const headerY = yPosition;
+        addWrappedText(messageHeader, MARGIN, headerY, MAX_TEXT_WIDTH, LINE_HEIGHT_SMALL, { fontStyle: 'bold', fontSize: SMALL_FONT_SIZE });
+        const textY = yPosition;
+        addWrappedText(msg.text, MARGIN + 5, textY, MAX_TEXT_WIDTH - 5, LINE_HEIGHT_BODY, {fontSize: BODY_FONT_SIZE});
+        const timestampY = yPosition;
+        addWrappedText(msg.timestamp ? new Date(msg.timestamp as Date).toLocaleTimeString() : 'N/A', MARGIN + 5, timestampY, MAX_TEXT_WIDTH - 5, LINE_HEIGHT_SMALL, { fontSize: HEADER_FOOTER_FONT_SIZE, fontStyle: 'italic' }); 
+        yPosition += LINE_HEIGHT_BODY * 0.75; 
+        
+        if (msg.sender === 'user') { 
+            interactionsOnPage++;
+        } else if (index === sessionData.chatMessages.length - 1 && msg.sender === 'ai') {
+            interactionsOnPage++;
+        }
       });
       batch.update(userDocRef, { lastCheckInAt: serverTimestamp() });
       await batch.commit();
@@ -371,7 +542,7 @@ export default function SessionReportPage() {
                         Download PDF
                       </Button>
                     <Button variant="outline" onClick={() => router.push('/sessions')} className="w-full sm:w-auto">
-                        Back to History
+                        Back to Journal
                     </Button>
                 </div>
             </div>
@@ -449,6 +620,51 @@ export default function SessionReportPage() {
             ) : (
               <p className="text-muted-foreground text-center py-4">No summary information available for this session.</p>
             )}
+
+            {/* Reflection and Implementation Plan Sections */}
+            {!isAdmin && (
+              <Card className="pt-6 border-t mt-8 bg-muted/20">
+                <CardContent className="space-y-6">
+                  <section>
+                    <h2 className="font-headline text-xl font-semibold text-foreground mb-3 flex items-center">
+                      <BookOpen className="h-6 w-6 mr-2 text-accent" />
+                      My Reflection
+                    </h2>
+                    <div className="grid w-full gap-1.5">
+                      <Label htmlFor="reflection-area">What are your key takeaways from this session?</Label>
+                      <Textarea
+                        id="reflection-area"
+                        placeholder="Type your reflections here..."
+                        value={reflection}
+                        onChange={(e) => setReflection(e.target.value)}
+                        className="min-h-[120px] bg-background"
+                      />
+                    </div>
+                  </section>
+                  <section>
+                    <h2 className="font-headline text-xl font-semibold text-foreground mb-3 flex items-center">
+                      <Target className="h-6 w-6 mr-2 text-accent" />
+                      My Implementation Plan
+                    </h2>
+                     <div className="grid w-full gap-1.5">
+                      <Label htmlFor="implementation-area">What are your next steps?</Label>
+                      <Textarea
+                        id="implementation-area"
+                        placeholder="List your action items here..."
+                        value={implementationPlan}
+                        onChange={(e) => setImplementationPlan(e.target.value)}
+                        className="min-h-[120px] bg-background"
+                      />
+                    </div>
+                  </section>
+                   <Button onClick={handleSaveJournal} disabled={isSaving}>
+                      {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                      {isSaving ? 'Saving...' : 'Save Journal Entries'}
+                    </Button>
+                </CardContent>
+              </Card>
+            )}
+
 
             <section className="pt-6 border-t">
                 <Card className="bg-secondary/30 border-secondary shadow-inner">
