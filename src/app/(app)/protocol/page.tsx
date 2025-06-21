@@ -68,7 +68,8 @@ async function generateAndSaveSummary(
   userId: string,
   circumstance: string,
   summaryInputData: SessionDataForSummaryFunctionArg, 
-  showToast: (options: any) => void 
+  showToast: (options: any) => void,
+  completedPhases: number
 ): Promise<ClaritySummaryContentType | null> {
   if (!sessionId || !userId || !circumstance) {
     showToast({ variant: "destructive", title: "Error", description: "User, Session, or Circumstance ID missing for summary." });
@@ -85,11 +86,16 @@ async function generateAndSaveSummary(
   };
   
   const sessionDocRef = doc(db, `users/${userId}/circumstances/${circumstance}/sessions/${sessionId}`);
+  const finalUpdatePayload: Partial<ProtocolSession> = {
+    completedPhases,
+    endTime: serverTimestamp(),
+  };
 
   if (!summaryInputData.actualReframedBelief.trim() && !summaryInputData.actualLegacyStatement.trim()) {
     showToast({ variant: "destructive", title: "Missing Key Data", description: "Crucial session elements (reframed belief or legacy statement) were not captured. A full AI summary cannot be generated." });
      await updateDoc(sessionDocRef, {
-      summary: { 
+       ...finalUpdatePayload,
+       summary: { 
         ...baseSummaryContentToSaveOnError,
         generatedAt: serverTimestamp()
       }
@@ -115,6 +121,7 @@ async function generateAndSaveSummary(
     };
 
     await updateDoc(sessionDocRef, {
+      ...finalUpdatePayload,
       summary: { 
         ...summaryToPersist,
         generatedAt: serverTimestamp()
@@ -130,6 +137,7 @@ async function generateAndSaveSummary(
       insightSummary: "Failed to generate AI summary. Please try downloading raw insights or contact support.",
     };
     await updateDoc(sessionDocRef, {
+      ...finalUpdatePayload,
       summary: { 
         ...errorSummaryToPersist,
         generatedAt: serverTimestamp()
@@ -359,20 +367,13 @@ export default function ProtocolPage() {
             topEmotions: detectedUserEmotions,
           };
           
-          await updateDoc(sessionDocRef, {
-            completedPhases: TOTAL_PHASES,
-            endTime: serverTimestamp(),
-            reframedBelief: finalDataForFirestore.actualReframedBelief, 
-            legacyStatement: finalDataForFirestore.actualLegacyStatement, 
-            topEmotions: finalDataForFirestore.topEmotions, 
-          });
-          
           const generatedSummary = await generateAndSaveSummary(
             currentSessionId, 
             firebaseUser.uid, 
             currentCircumstance,
             finalDataForFirestore, 
-            toast
+            toast,
+            TOTAL_PHASES
           );
 
           setFinalClaritySummary(generatedSummary); 

@@ -33,19 +33,7 @@ export interface ProtocolSession {
   startTime: Timestamp | Date;
   endTime?: Timestamp | Date;
   completedPhases: number;
-  reframedBelief?: string; 
-  legacyStatement?: string; 
-  topEmotions?: string; 
   
-  reframedBeliefInteraction?: {
-    aiQuestion: string;
-    userResponse: string;
-  };
-  legacyStatementInteraction?: {
-    aiQuestion: string;
-    userResponse: string;
-  };
-
   summary?: {
     insightSummary: string; 
     actualReframedBelief: string; 
