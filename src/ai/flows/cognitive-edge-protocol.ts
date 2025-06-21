@@ -1,4 +1,3 @@
-
 // cognitive-edge-protocol.ts
 'use server';
 
@@ -13,30 +12,27 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
+const protocolPhases = [
+  'Stabilize & Structure',
+  'Listen for Core Frame',
+  'Validate Emotion / Reframe',
+  'Provide Grounded Support',
+  'Reflective Pattern Discovery',
+  'Empower & Legacy Statement',
+  'Complete',
+] as const;
+
 const CognitiveEdgeProtocolInputSchema = z.object({
   userInput: z.string().describe('The user input for the current phase.'),
-  phase: z.enum([
-    'Stabilize & Structure',
-    'Listen for Core Frame',
-    'Validate Emotion / Reframe',
-    'Provide Grounded Support',
-    'Reflective Pattern Discovery',
-    'Empower & Legacy Statement',
-  ]).describe('The current phase of the Cognitive Edge Protocol.'),
+  phase: z.enum(protocolPhases).describe('The current phase of the Cognitive Edge Protocol.'),
   sessionHistory: z.string().optional().describe('The session history to maintain context.'),
+  attemptCount: z.number().optional().describe('The number of attempts to get a key response (like a reframe or legacy statement).')
 });
 export type CognitiveEdgeProtocolInput = z.infer<typeof CognitiveEdgeProtocolInputSchema>;
 
 const CognitiveEdgeProtocolOutputSchema = z.object({
   response: z.string().describe('The AI response for the current phase.'),
-  nextPhase: z.enum([
-    'Stabilize & Structure',
-    'Listen for Core Frame',
-    'Validate Emotion / Reframe',
-    'Provide Grounded Support',
-    'Reflective Pattern Discovery',
-    'Empower & Legacy Statement',
-  ]).describe('The next phase of the Cognitive Edge Protocol.'),
+  nextPhase: z.enum(protocolPhases).describe('The next phase of the Cognitive Edge Protocol.'),
   sessionHistory: z.string().describe('The updated session history.'),
 });
 export type CognitiveEdgeProtocolOutput = z.infer<typeof CognitiveEdgeProtocolOutputSchema>;
@@ -49,28 +45,45 @@ const prompt = ai.definePrompt({
   name: 'cognitiveEdgeProtocolPrompt',
   input: {schema: CognitiveEdgeProtocolInputSchema},
   output: {schema: CognitiveEdgeProtocolOutputSchema},
-  prompt: `You are an AI assistant guiding the user through the Cognitive Edge Protocol, a six-phase process designed to help users gain clarity and insights into their challenges.  The current phase is {{{phase}}}.
+  prompt: `You are an AI assistant guiding a user through the Cognitive Edge Protocol. The current phase is {{{phase}}}.
 
       Previous Session History:
       {{sessionHistory}}
 
       User Input: {{{userInput}}}
 
-      Respond appropriately for the current phase. Indicate the next phase in the "nextPhase" output field. Do not deviate from the 6 phases of the protocol. Maintain session history in the "sessionHistory" output field.
+      Your task is to respond appropriately for the current phase, guide the user to the next, and maintain the session history.
 
-1.  **Stabilize & Structure:**
-    *   Help the user articulate and define their challenge or situation. Focus on understanding the core problem.
-2.  **Listen for Core Frame:**
-    *   Identify the underlying assumptions, beliefs, and values shaping the user's perspective.
-3.  **Validate Emotion / Reframe:**
-    *   Acknowledge the user's emotions and help them reframe their challenge in a more constructive light.
-4.  **Provide Grounded Support:**
-    *   Offer practical advice, resources, or strategies relevant to the user's reframed challenge.
-5.  **Reflective Pattern Discovery:**
-    *   Guide the user to recognize recurring patterns or themes in their challenges and responses.
-6.  **Empower & Legacy Statement:**
-    *   Help the user create a personal legacy statement that reflects their values and empowers them to move forward.
-`, 
+      **Protocol Phase Instructions:**
+
+      1.  **Stabilize & Structure:**
+          *   Help the user articulate their challenge. Focus on understanding the core problem.
+
+      2.  **Listen for Core Frame:**
+          *   Identify the underlying beliefs shaping the user's perspective.
+
+      3.  **Validate Emotion / Reframe:**
+          *   Your primary goal is to guide the user to create a **Reframed Belief**.
+          *   Ask a direct question to elicit this. For example: "Given what we've discussed, what's a new, more empowering way to see this situation?"
+          *   If this is attempt number {{{attemptCount}}} or higher (and {{{attemptCount}}} is 2 or more), and the user hasn't provided a clear reframed belief, you MUST change your approach. Instead of just asking again, **propose a specific example** based on their previous messages. For instance: "Based on you feeling 'overlooked', how does this sound as a reframed belief: 'My unique skills are a valuable asset, and I will now focus on environments that recognize them.' You can use this or adapt it."
+          *   Once a satisfactory reframe is achieved, move to the next phase.
+
+      4.  **Provide Grounded Support:**
+          *   Offer practical advice or strategies relevant to the user's reframed challenge.
+
+      5.  **Reflective Pattern Discovery:**
+          *   Guide the user to recognize recurring patterns in their challenges.
+
+      6.  **Empower & Legacy Statement:**
+          *   Your primary goal is to help the user create a **Legacy Statement**.
+          *   Ask a direct question. For example: "Based on your growth, what is the legacy you want to build from this point forward?"
+          *   If this is attempt number {{{attemptCount}}} or higher (and {{{attemptCount}}} is 2 or more), and the user hasn't provided a clear legacy statement, you MUST **propose a specific example** based on their reframed belief and session history. For instance: "Considering your new belief about your value, a legacy statement could be: 'I will build a career that not only uses my skills but also inspires others to find their own value.' How does that resonate with you?"
+          *   After the user provides a satisfactory legacy statement, your work is done. Set the \`nextPhase\` to \`Complete\` and provide a concluding, encouraging remark in your \`response\`.
+
+      **Your Output:**
+      *   \`response\`: Your conversational reply to the user.
+      *   \`nextPhase\`: The next phase of the protocol.
+      *   \`sessionHistory\`: The updated session history.`, 
 });
 
 const cognitiveEdgeProtocolFlow = ai.defineFlow(

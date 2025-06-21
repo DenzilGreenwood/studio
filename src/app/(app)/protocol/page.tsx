@@ -29,13 +29,14 @@ import { PostSessionFeedback } from '@/components/feedback/post-session-feedback
 
 
 const TOTAL_PHASES = 6;
-const PHASE_NAMES = [
+const PHASE_NAMES: (CognitiveEdgeProtocolInput['phase'])[] = [
   "Stabilize & Structure",
   "Listen for Core Frame",
   "Validate Emotion / Reframe",
   "Provide Grounded Support",
   "Reflective Pattern Discovery",
-  "Empower & Legacy Statement"
+  "Empower & Legacy Statement",
+  "Complete"
 ];
 
 interface KeyInteraction {
@@ -158,11 +159,13 @@ export default function ProtocolPage() {
   const [sessionHistoryForAI, setSessionHistoryForAI] = useState<string | undefined>(undefined);
   const [isProtocolComplete, setIsProtocolComplete] = useState(false);
   const [sessionDataForSummary, setSessionDataForSummary] = useState<Partial<SessionDataForSummaryInternal>>({});
-  const [pendingAiQuestion, setPendingAiQuestion] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentCircumstance, setCurrentCircumstance] = useState<string | null>(null);
-  const [finalClaritySummary, setFinalClaritySummary] = useState<ClaritySummaryContentType | null>(null);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  
+  // New state for robust statement capture and retry logic
+  const [keyQuestionAttemptCount, setKeyQuestionAttemptCount] = useState(1);
+  const [lastAiQuestion, setLastAiQuestion] = useState<string | null>(null);
 
   const { toast } = useToast();
 
@@ -194,7 +197,6 @@ export default function ProtocolPage() {
     }
 
     setIsLoading(true);
-    setFinalClaritySummary(null); 
     setIsProtocolComplete(false); 
     setShowFeedbackForm(false); 
     
@@ -229,6 +231,7 @@ export default function ProtocolPage() {
       timestamp: new Date(),
     };
     setMessages([firstUIMessage]);
+    setLastAiQuestion(firstMessageText); // Initialize last AI question
 
     await addDoc(collection(db, `users/${firebaseUser.uid}/circumstances/${circumstance}/sessions/${newSessionId}/messages`), {
       sender: 'ai',
@@ -239,8 +242,8 @@ export default function ProtocolPage() {
     
     setCurrentPhase(1);
     setCurrentPhaseName(PHASE_NAMES[0]);
+    setKeyQuestionAttemptCount(1);
     setSessionDataForSummary({ topEmotions: "Not analyzed" }); 
-    setPendingAiQuestion(null);
     setSessionHistoryForAI(undefined);
     setIsLoading(false);
   }, [firebaseUser, user, router, toast]);
@@ -256,6 +259,7 @@ export default function ProtocolPage() {
     if (isProtocolComplete || !currentSessionId || !firebaseUser || !currentCircumstance) return;
 
     const currentUserInputText = userInput.trim();
+    const prevPhaseName = currentPhaseName;
 
     const newUserUIMessage: UIMessage = {
       id: crypto.randomUUID(),
@@ -269,32 +273,16 @@ export default function ProtocolPage() {
       sender: 'user',
       text: currentUserInputText,
       timestamp: serverTimestamp(),
-      phaseName: currentPhaseName,
+      phaseName: prevPhaseName,
     });
-
-    if (pendingAiQuestion) {
-      if (currentPhaseName === "Validate Emotion / Reframe") {
-        setSessionDataForSummary(prev => ({
-          ...prev,
-          reframedBeliefInteraction: { aiQuestion: pendingAiQuestion, userResponse: currentUserInputText },
-          actualReframedBelief: currentUserInputText 
-        }));
-      } else if (currentPhaseName === "Empower & Legacy Statement") {
-        setSessionDataForSummary(prev => ({
-          ...prev,
-          legacyStatementInteraction: { aiQuestion: pendingAiQuestion, userResponse: currentUserInputText },
-          actualLegacyStatement: currentUserInputText 
-        }));
-      }
-      setPendingAiQuestion(null);
-    }
 
     setIsLoading(true);
     try {
       const input: CognitiveEdgeProtocolInput = {
         userInput: currentUserInputText,
-        phase: currentPhaseName as CognitiveEdgeProtocolInput['phase'],
+        phase: prevPhaseName,
         sessionHistory: sessionHistoryForAI,
+        attemptCount: keyQuestionAttemptCount,
       };
       const output: CognitiveEdgeProtocolOutput = await cognitiveEdgeProtocol(input);
       
@@ -314,27 +302,40 @@ export default function ProtocolPage() {
       });
       
       setSessionHistoryForAI(output.sessionHistory);
+      setLastAiQuestion(output.response);
 
-      if (output.nextPhase === "Validate Emotion / Reframe" || (currentPhaseName === "Validate Emotion / Reframe" && output.nextPhase === "Validate Emotion / Reframe")) {
-        setPendingAiQuestion(output.response);
-      } else if (output.nextPhase === "Empower & Legacy Statement" || (currentPhaseName === "Empower & Legacy Statement" && output.nextPhase === "Empower & Legacy Statement")) {
-         setPendingAiQuestion(output.response);
+      const isPhaseAdvancing = prevPhaseName !== output.nextPhase;
+
+      if (isPhaseAdvancing) {
+        // Capture key statements when the phase ADVANCES from a key-statement phase.
+        // This means the user's last input was the successful statement.
+        if (prevPhaseName === "Validate Emotion / Reframe") {
+            setSessionDataForSummary(prev => ({
+                ...prev,
+                reframedBeliefInteraction: { aiQuestion: lastAiQuestion!, userResponse: currentUserInputText },
+                actualReframedBelief: currentUserInputText
+            }));
+        }
+        if (prevPhaseName === "Empower & Legacy Statement") {
+            setSessionDataForSummary(prev => ({
+                ...prev,
+                legacyStatementInteraction: { aiQuestion: lastAiQuestion!, userResponse: currentUserInputText },
+                actualLegacyStatement: currentUserInputText
+            }));
+        }
+
+        setKeyQuestionAttemptCount(1); // Reset counter on any phase change
+      } else {
+        // Phase is the same, so it's a retry.
+        setKeyQuestionAttemptCount(prev => prev + 1);
       }
 
       const nextPhaseIndex = PHASE_NAMES.indexOf(output.nextPhase);
-      const newPhaseNumber = nextPhaseIndex + 1;
-
-      const sessionDocRef = doc(db, `users/${firebaseUser.uid}/circumstances/${currentCircumstance}/sessions/${currentSessionId}`);
-
-      if (newPhaseNumber > currentPhase || (currentPhase === TOTAL_PHASES && output.nextPhase === PHASE_NAMES[TOTAL_PHASES-1])) {
-        if (currentPhase < TOTAL_PHASES) {
-          setCurrentPhase(newPhaseNumber);
-          setCurrentPhaseName(output.nextPhase);
-          await updateDoc(sessionDocRef, {
-            completedPhases: currentPhase
-          });
-           setIsLoading(false); 
-        } else if (currentPhase === TOTAL_PHASES && output.nextPhase === PHASE_NAMES[TOTAL_PHASES - 1]) {
+      const newPhaseNumber = nextPhaseIndex >= 0 ? nextPhaseIndex + 1 : currentPhase;
+      setCurrentPhase(newPhaseNumber);
+      setCurrentPhaseName(output.nextPhase);
+      
+      if (output.nextPhase === 'Complete') {
           setIsLoading(true); // Keep loading while generating summary etc.
           
           let detectedUserEmotions = "Emotions not analyzed";
@@ -359,32 +360,40 @@ export default function ProtocolPage() {
             toast({ variant: "destructive", title: "Sentiment Analysis Failed", description: "Could not determine emotional context." });
           }
           
-          const finalDataForFirestore: SessionDataForSummaryFunctionArg = {
-            actualReframedBelief: sessionDataForSummary?.actualReframedBelief || "",
-            reframedBeliefInteraction: sessionDataForSummary?.reframedBeliefInteraction || null,
-            actualLegacyStatement: sessionDataForSummary?.actualLegacyStatement || "",
-            legacyStatementInteraction: sessionDataForSummary?.legacyStatementInteraction || null,
-            topEmotions: detectedUserEmotions,
-          };
-          
-          const generatedSummary = await generateAndSaveSummary(
-            currentSessionId, 
-            firebaseUser.uid, 
-            currentCircumstance,
-            finalDataForFirestore, 
-            toast,
-            TOTAL_PHASES
-          );
+          // Use a function to get the latest state for summary generation
+          setSessionDataForSummary(currentSummaryData => {
+            const finalDataForFirestore: SessionDataForSummaryFunctionArg = {
+              actualReframedBelief: currentSummaryData?.actualReframedBelief || "",
+              reframedBeliefInteraction: currentSummaryData?.reframedBeliefInteraction || null,
+              actualLegacyStatement: currentSummaryData?.actualLegacyStatement || userInput, // Use latest input if needed
+              legacyStatementInteraction: currentSummaryData?.legacyStatementInteraction || { aiQuestion: lastAiQuestion!, userResponse: userInput},
+              topEmotions: detectedUserEmotions,
+            };
 
-          setFinalClaritySummary(generatedSummary); 
+            generateAndSaveSummary(
+              currentSessionId, 
+              firebaseUser.uid, 
+              currentCircumstance,
+              finalDataForFirestore, 
+              toast,
+              TOTAL_PHASES
+            );
+            return currentSummaryData; // No need to update state here, it was already updated
+          });
+
           setIsProtocolComplete(true); 
           setShowFeedbackForm(true); // Show feedback form immediately
           setIsLoading(false); 
           return; 
-        }
-      } else {
-         setIsLoading(false); 
       }
+      
+      // Update completed phases count in Firestore if phase advanced
+      if (isPhaseAdvancing) {
+        const sessionDocRef = doc(db, `users/${firebaseUser.uid}/circumstances/${currentCircumstance}/sessions/${currentSessionId}`);
+        await updateDoc(sessionDocRef, { completedPhases: newPhaseNumber - 1 });
+      }
+
+      setIsLoading(false); 
       
     } catch (error) {
       console.error("Error in AI protocol:", error);
@@ -407,9 +416,10 @@ export default function ProtocolPage() {
   const restartProtocol = () => {
     setCurrentSessionId(null); 
     setMessages([]);
-    setFinalClaritySummary(null);
     setIsProtocolComplete(false);
     setShowFeedbackForm(false);
+    setKeyQuestionAttemptCount(1);
+    setLastAiQuestion(null);
   };
 
 
@@ -426,11 +436,11 @@ export default function ProtocolPage() {
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-4xl flex flex-col gap-4 md:gap-6 min-h-[calc(100vh-theme(spacing.32))]">
       <PhaseIndicator
-        currentPhase={currentPhase}
+        currentPhase={currentPhase > TOTAL_PHASES ? TOTAL_PHASES : currentPhase}
         totalPhases={TOTAL_PHASES}
         phaseName={currentPhaseName}
         isCompleted={isProtocolComplete}
-        isLoadingNextPhase={isLoading && !isProtocolComplete && currentPhase < TOTAL_PHASES}
+        isLoadingNextPhase={isLoading && !isProtocolComplete && currentPhase <= TOTAL_PHASES}
       />
       
       {isLoading && isProtocolComplete ? ( 
