@@ -75,7 +75,8 @@ async function generateAndSaveSummary(
   sessionId: string,
   userId: string,
   summaryInputData: SessionDataForSummaryFunctionArg, 
-  showToast: (options: any) => void 
+  showToast: (options: any) => void,
+  completedPhases: number
 ): Promise<ClaritySummaryContentType | null> {
   if (!sessionId || !userId) {
     showToast({ variant: "destructive", title: "Error", description: "User or Session ID missing for summary." });
@@ -91,12 +92,17 @@ async function generateAndSaveSummary(
     legacyStatementInteraction: summaryInputData.legacyStatementInteraction || null,
   };
   
-  const sessionDocRef = doc(db, `users/${userId}/sessions/${sessionId}`);
+  const sessionDocRef = doc(db, `users/${userId}/circumstances/${circumstance}/sessions/${sessionId}`);
+  const finalUpdatePayload: Partial<ProtocolSession> = {
+    completedPhases,
+    endTime: serverTimestamp(),
+  };
 
   if (!summaryInputData.actualReframedBelief.trim() && !summaryInputData.actualLegacyStatement.trim()) {
     showToast({ variant: "destructive", title: "Missing Key Data", description: "Crucial session elements (reframed belief or legacy statement) were not captured. A full AI summary cannot be generated." });
      await updateDoc(sessionDocRef, {
-      summary: { 
+       ...finalUpdatePayload,
+       summary: { 
         ...baseSummaryContentToSaveOnError,
         generatedAt: serverTimestamp()
       }
@@ -123,6 +129,7 @@ async function generateAndSaveSummary(
     };
 
     await updateDoc(sessionDocRef, {
+      ...finalUpdatePayload,
       summary: { 
         ...summaryToPersist,
         generatedAt: serverTimestamp()
@@ -139,6 +146,7 @@ async function generateAndSaveSummary(
       insightSummary: "Failed to generate AI summary. Please try downloading raw insights or contact support.",
     };
     await updateDoc(sessionDocRef, {
+      ...finalUpdatePayload,
       summary: { 
         ...errorSummaryToPersist,
         generatedAt: serverTimestamp()
@@ -370,35 +378,12 @@ export default function ProtocolPage() {
             topEmotions: detectedUserEmotions,
           };
           
-          // Batch write to update session and user profile
-          const userDocRef = doc(db, `users/${firebaseUser.uid}`);
-          const userDocSnap = await getDoc(userDocRef);
-          const currentSessionCount = userDocSnap.exists() ? (userDocSnap.data().sessionCount || 0) : 0;
-          
-          const batch = writeBatch(db);
-
-          batch.update(sessionDocRef, {
-            completedPhases: TOTAL_PHASES,
-            endTime: serverTimestamp(),
-            'summary.actualReframedBelief': finalDataForFirestore.actualReframedBelief, 
-            'summary.actualLegacyStatement': finalDataForFirestore.actualLegacyStatement, 
-            'summary.topEmotions': finalDataForFirestore.topEmotions,
-            'summary.reframedBeliefInteraction': finalDataForFirestore.reframedBeliefInteraction,
-            'summary.legacyStatementInteraction': finalDataForFirestore.legacyStatementInteraction,
-          });
-
-          batch.update(userDocRef, {
-            lastSessionAt: serverTimestamp(),
-            sessionCount: currentSessionCount + 1,
-          });
-
-          await batch.commit();
-          
           const generatedSummary = await generateAndSaveSummary(
             currentSessionId, 
             firebaseUser.uid, 
             finalDataForFirestore, 
-            toast
+            toast,
+            TOTAL_PHASES
           );
 
           setFinalClaritySummary(generatedSummary); 

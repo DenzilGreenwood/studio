@@ -42,6 +42,7 @@ export interface ProtocolSession {
   startTime: Timestamp | Date;
   endTime?: Timestamp | Date;
   completedPhases: number;
+  
   summary?: {
     insightSummary: string;
     actualReframedBelief: string;
