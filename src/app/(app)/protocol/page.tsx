@@ -4,12 +4,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChatInterface, type Message as UIMessage } from '@/components/protocol/chat-interface';
 import { PhaseIndicator } from '@/components/protocol/phase-indicator';
-import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cognitiveEdgeProtocol, type CognitiveEdgeProtocolInput, type CognitiveEdgeProtocolOutput } from '@/ai/flows/cognitive-edge-protocol';
 import { generateClaritySummary, type ClaritySummaryInput, type ClaritySummaryOutput } from '@/ai/flows/clarity-summary-generator';
 import { analyzeSentiment, type SentimentAnalysisInput, type SentimentAnalysisOutput } from '@/ai/flows/sentiment-analysis-flow';
-import { Loader2, RefreshCw, FileText } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { 
   db, 
@@ -21,14 +20,11 @@ import {
   query, 
   orderBy, 
   getDocs,
-  getDoc,
   updateDoc,
   Timestamp,
-  where
 } from '@/lib/firebase';
 import type { ProtocolSession, ChatMessage as FirestoreChatMessage } from '@/types';
 import { useRouter } from 'next/navigation'; 
-import { ClaritySummary } from '@/components/protocol/clarity-summary';
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
 
 
@@ -161,6 +157,20 @@ export default function ProtocolPage() {
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
 
   const { toast } = useToast();
+
+  const handleFeedbackAndRedirect = (feedbackId: string) => {
+    if (currentSessionId && currentCircumstance) {
+      const url = `/session-report/${currentSessionId}?circumstance=${encodeURIComponent(currentCircumstance)}&review_submitted=true`;
+      router.push(url);
+    } else {
+      toast({
+        title: "Feedback submitted!",
+        description: "Could not redirect to report, but your feedback was received.",
+        variant: "default",
+      });
+      router.push('/sessions');
+    }
+  };
 
   const initializeSession = useCallback(async () => {
     if (!firebaseUser || !user) return;
@@ -367,7 +377,7 @@ export default function ProtocolPage() {
 
           setFinalClaritySummary(generatedSummary); 
           setIsProtocolComplete(true); 
-          // setShowFeedbackForm(true); // Do NOT show feedback form immediately
+          setShowFeedbackForm(true); // Show feedback form immediately
           setIsLoading(false); 
           return; 
         }
@@ -422,11 +432,11 @@ export default function ProtocolPage() {
         isLoadingNextPhase={isLoading && !isProtocolComplete && currentPhase < TOTAL_PHASES}
       />
       
-      {isLoading && isProtocolComplete && !finalClaritySummary ? ( 
+      {isLoading && isProtocolComplete ? ( 
          <div className="flex flex-col items-center justify-center text-center p-8 bg-card rounded-lg shadow-md flex-grow">
           <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
           <h2 className="font-headline text-2xl text-primary mb-2">Finalizing Your Session...</h2>
-          <p className="text-muted-foreground">Just a moment while we prepare your insights.</p>
+          <p className="text-muted-foreground">Just a moment while we prepare your insights and feedback form.</p>
         </div>
       ) : !isProtocolComplete ? (
         <div className="flex-grow flex flex-col min-h-[400px] md:min-h-[500px]">
@@ -434,24 +444,12 @@ export default function ProtocolPage() {
         </div>
       ) : null}
       
-
-      {isProtocolComplete && finalClaritySummary && !showFeedbackForm && (
-         <div className="my-6">
-            <ClaritySummary summaryData={finalClaritySummary} sessionId={currentSessionId!} />
-            <div className="mt-6 text-center">
-                <Button onClick={() => setShowFeedbackForm(true)} variant="default" size="lg">
-                    Proceed to Feedback
-                </Button>
-            </div>
-         </div>
-      )}
-
       {isProtocolComplete && showFeedbackForm && currentSessionId && firebaseUser && currentCircumstance && (
         <PostSessionFeedback 
             sessionId={currentSessionId} 
             userId={firebaseUser.uid}
             circumstance={currentCircumstance}
-            onReturnToStart={restartProtocol}
+            onFeedbackSubmitted={handleFeedbackAndRedirect}
         />
       )}
 
