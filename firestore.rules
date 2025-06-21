@@ -2,47 +2,48 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check for admin role
+    
+    // This function checks if the requesting user's UID is in the list of admin UIDs.
+    // IMPORTANT: Ensure this UID list matches the one in `src/hooks/use-is-admin.ts`.
     function isAdmin() {
-      // IMPORTANT: Replace with actual admin UIDs from your Firebase project
-      return request.auth.uid in ['REPLACE_WITH_YOUR_ADMIN_UID'];
+      return request.auth.uid in ['jH0K85sIfQc9i2rIaWmtA1RPNyw1'];
     }
 
-    // /users/{userId}
+    // --- User Profile Rules ---
+    // Users can manage their own profile data.
     match /users/{userId} {
-      // User can create their own doc.
-      // User can read/update their own doc.
-      // Admin can read any user doc.
+      // Allow user to create their own profile document.
       allow create: if request.auth.uid == userId;
-      allow read, update: if request.auth.uid == userId || isAdmin();
 
-      // Sessions are nested under a 'circumstances' collection.
-      // This rule matches any session document for a given user.
-      match /circumstances/{circumstance}/sessions/{sessionId} {
-          // A user can read and write to their own sessions.
-          // An admin can read any user's session.
-          allow read: if request.auth.uid == userId || isAdmin();
-          allow write: if request.auth.uid == userId;
-
-          // Messages are nested within a session.
-          match /messages/{messageId} {
-            // A user can read and write messages in their own sessions.
-            // An admin can read messages in any user's session.
-            allow read: if request.auth.uid == userId || isAdmin();
-            allow write: if request.auth.uid == userId;
-          }
+      // Allow user to read or delete their own profile. Admins can read any profile.
+      allow read, delete: if request.auth.uid == userId || isAdmin();
+      
+      // Allow user to update their own profile. Admins can update any profile.
+      allow update: if request.auth.uid == userId || isAdmin();
+      
+      // --- Nested Subcollection Rules for Sessions and Messages ---
+      match /circumstances/{circumstanceId}/sessions/{sessionId} {
+        // Users can perform all operations on their own sessions. Admins have full access.
+        allow read, create, update, delete: if request.auth.uid == userId || isAdmin();
+        
+        match /messages/{messageId} {
+            // Users can read and create messages within their own sessions. Admins have the same permissions.
+            // Updates and deletes are disallowed to maintain transcript integrity.
+            allow read, create: if request.auth.uid == userId || isAdmin();
+        }
       }
     }
 
-    // /feedback/{feedbackId}
+    // --- Feedback Collection Rules ---
+    // This is a top-level collection for easier admin querying.
     match /feedback/{feedbackId} {
       // Any authenticated user can create feedback.
       allow create: if request.auth.uid != null;
-      // Only admins can read feedback.
+
+      // Only admins can read the feedback documents.
       allow read: if isAdmin();
-      // Users cannot update or delete feedback.
-      allow update, delete: if false;
+      
+      // Updates and deletes are implicitly denied as there are no matching rules.
     }
   }
 }
