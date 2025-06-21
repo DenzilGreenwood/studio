@@ -4,12 +4,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation'; 
 import { useAuth } from '@/context/auth-context';
-import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp } from '@/lib/firebase';
+import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp, updateDoc } from '@/lib/firebase';
 import type { ProtocolSession, ChatMessage as FirestoreChatMessage, UserProfile } from '@/types'; 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Brain, User, Loader2, AlertTriangle, FileText, Lightbulb, Milestone, Bot, MessageSquare, Edit3, CheckCircle, Download, Shield } from 'lucide-react';
+import { Brain, User, Loader2, AlertTriangle, FileText, Lightbulb, Milestone, Bot, MessageSquare, Edit3, CheckCircle, Download, Shield, BookOpen, Target, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,8 @@ import jsPDF from 'jspdf';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
 import { useIsAdmin } from '@/hooks/use-is-admin';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 interface DisplayMessage extends FirestoreChatMessage {
   id: string; 
@@ -44,6 +46,12 @@ export default function SessionReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  
+  // State for reflection and implementation plan textareas
+  const [reflection, setReflection] = useState('');
+  const [implementationPlan, setImplementationPlan] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
 
   useEffect(() => {
     const reviewSubmitted = searchParams?.get('review_submitted') === 'true';
@@ -134,11 +142,15 @@ export default function SessionReportPage() {
           };
         };
         
-        setSessionData({ 
+        const fullSessionData = { 
             ...convertTimestampFields(fetchedSessionData), 
             chatMessages: fetchedMessages,
             sessionForUser: sessionForUser
-        });
+        };
+        setSessionData(fullSessionData);
+        setReflection(fullSessionData.reflection || '');
+        setImplementationPlan(fullSessionData.implementationPlan || '');
+
 
       } catch (e: any) {
         console.error("Error fetching session report:", e);
@@ -150,6 +162,28 @@ export default function SessionReportPage() {
 
     fetchSessionData();
   }, [sessionId, firebaseUser, authProfile, authLoading, router, isAdmin, userIdFromQuery, circumstance]);
+
+  const handleSaveJournal = async () => {
+    if (!firebaseUser || !circumstance) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Cannot save journal entry. User or context is missing.' });
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const sessionDocRef = doc(db, `users/${firebaseUser.uid}/circumstances/${circumstance}/sessions/${sessionId}`);
+      await updateDoc(sessionDocRef, {
+        reflection: reflection,
+        implementationPlan: implementationPlan,
+      });
+      toast({ title: 'Journal Updated', description: 'Your reflection and implementation plan have been saved.' });
+    } catch (error: any) {
+      console.error('Error saving journal entries:', error);
+      toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save your journal entries. Please try again.' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
 
   const getInitials = (name?: string | null) => {
     if (!name) return "?";
@@ -333,7 +367,7 @@ export default function SessionReportPage() {
         addWrappedText("Summary data is not available for this session.", MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY, {fontSize: BODY_FONT_SIZE});
         yPosition += LINE_HEIGHT_BODY;
       }
-      
+
       if (yPosition > CONTENT_TOP_MARGIN + LINE_HEIGHT_SECTION_TITLE) addNewPage();
       
       addSectionTitle("AI Generated Insight");
@@ -343,6 +377,18 @@ export default function SessionReportPage() {
         addWrappedText("No AI insight generated for this session.", MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY, {fontSize: BODY_FONT_SIZE});
       }
       yPosition += LINE_HEIGHT_BODY;
+      
+      // Add Reflection and Implementation Plan to PDF
+      if (sessionData.reflection) {
+        addSectionTitle("My Reflection");
+        addWrappedText(sessionData.reflection, MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY);
+        yPosition += LINE_HEIGHT_BODY;
+      }
+      if (sessionData.implementationPlan) {
+        addSectionTitle("My Implementation Plan");
+        addWrappedText(sessionData.implementationPlan, MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY);
+        yPosition += LINE_HEIGHT_BODY;
+      }
       
       addNewPage(); 
 
@@ -507,8 +553,8 @@ export default function SessionReportPage() {
                         )}
                         Download PDF
                       </Button>
-                    <Button variant="outline" onClick={() => router.push('/protocol')} className="w-full sm:w-auto">
-                        Back to Protocol
+                    <Button variant="outline" onClick={() => router.push('/sessions')} className="w-full sm:w-auto">
+                        Back to Journal
                     </Button>
                 </div>
             </div>
@@ -586,6 +632,51 @@ export default function SessionReportPage() {
             ) : (
               <p className="text-muted-foreground text-center py-4">No summary information available for this session.</p>
             )}
+
+            {/* Reflection and Implementation Plan Sections */}
+            {!isAdmin && (
+              <Card className="pt-6 border-t mt-8 bg-muted/20">
+                <CardContent className="space-y-6">
+                  <section>
+                    <h2 className="font-headline text-xl font-semibold text-foreground mb-3 flex items-center">
+                      <BookOpen className="h-6 w-6 mr-2 text-accent" />
+                      My Reflection
+                    </h2>
+                    <div className="grid w-full gap-1.5">
+                      <Label htmlFor="reflection-area">What are your key takeaways from this session?</Label>
+                      <Textarea
+                        id="reflection-area"
+                        placeholder="Type your reflections here..."
+                        value={reflection}
+                        onChange={(e) => setReflection(e.target.value)}
+                        className="min-h-[120px] bg-background"
+                      />
+                    </div>
+                  </section>
+                  <section>
+                    <h2 className="font-headline text-xl font-semibold text-foreground mb-3 flex items-center">
+                      <Target className="h-6 w-6 mr-2 text-accent" />
+                      My Implementation Plan
+                    </h2>
+                     <div className="grid w-full gap-1.5">
+                      <Label htmlFor="implementation-area">What are your next steps?</Label>
+                      <Textarea
+                        id="implementation-area"
+                        placeholder="List your action items here..."
+                        value={implementationPlan}
+                        onChange={(e) => setImplementationPlan(e.target.value)}
+                        className="min-h-[120px] bg-background"
+                      />
+                    </div>
+                  </section>
+                   <Button onClick={handleSaveJournal} disabled={isSaving}>
+                      {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                      {isSaving ? 'Saving...' : 'Save Journal Entries'}
+                    </Button>
+                </CardContent>
+              </Card>
+            )}
+
 
             <section className="pt-6 border-t">
               <h2 className="font-headline text-xl font-semibold text-foreground mb-4 flex items-center">

@@ -45,6 +45,9 @@ export interface ProtocolSession {
     downloadUrl?: string; 
   };
 
+  reflection?: string; // User-added reflection
+  implementationPlan?: string; // User-added implementation plan
+
   feedbackId?: string; // ID of the feedback document in the 'feedback' collection
   feedbackSubmittedAt?: Timestamp | Date; // When feedback was submitted
 }
