@@ -1,9 +1,2 @@
-import type {Config} from 'tailwindcss';
-
-// This file is intentionally left minimal to resolve a configuration conflict.
-// The primary Tailwind configuration is located at the root of the project.
-const config: Config = {
-  content: [],
-};
-
-export default config;
+// This file is intentionally left blank to resolve a configuration conflict.
+// The primary Tailwind CSS configuration is located at the root of the project in tailwind.config.ts.
