@@ -179,9 +179,9 @@ export default function ProtocolPage() {
   const [currentCircumstance, setCurrentCircumstance] = useState<string | null>(null);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   
-  // New state for robust statement capture and retry logic
   const [keyQuestionAttemptCount, setKeyQuestionAttemptCount] = useState(1);
   const [lastAiQuestion, setLastAiQuestion] = useState<string | null>(null);
+  const [isFinishing, setIsFinishing] = useState(false); // New state to trigger finalization
 
   const { toast } = useToast();
 
@@ -247,7 +247,7 @@ export default function ProtocolPage() {
       timestamp: new Date(),
     };
     setMessages([firstUIMessage]);
-    setLastAiQuestion(firstMessageText); // Initialize last AI question
+    setLastAiQuestion(firstMessageText);
 
     await addDoc(collection(db, `users/${firebaseUser.uid}/sessions/${newSessionId}/messages`), {
       sender: 'ai',
@@ -269,6 +269,62 @@ export default function ProtocolPage() {
       initializeSession();
     }
   }, [firebaseUser, user, currentSessionId, initializeSession]);
+
+  // This effect runs when the protocol is marked as 'finishing' to handle async operations
+  useEffect(() => {
+    if (!isFinishing || !firebaseUser || !currentSessionId || !currentCircumstance) {
+      return;
+    }
+
+    const finalizeSession = async () => {
+      setIsLoading(true);
+
+      let detectedUserEmotions = "Emotions not analyzed";
+      try {
+        const messagesQuery = query(
+          collection(db, `users/${firebaseUser.uid}/circumstances/${currentCircumstance}/sessions/${currentSessionId}/messages`),
+          orderBy("timestamp", "asc")
+        );
+        const messagesSnap = await getDocs(messagesQuery);
+        const userMessagesText = messagesSnap.docs
+          .filter(docSnap => (docSnap.data() as FirestoreChatMessage).sender === 'user')
+          .map(docSnap => (docSnap.data() as FirestoreChatMessage).text)
+          .join('\n\n');
+        
+        if (userMessagesText.trim()) {
+          const sentimentInput: SentimentAnalysisInput = { userMessages: userMessagesText };
+          const sentimentOutput = await analyzeSentiment(sentimentInput);
+          detectedUserEmotions = sentimentOutput.detectedEmotions;
+        }
+      } catch (sentimentError) {
+        console.error("Error analyzing sentiment:", sentimentError);
+        toast({ variant: "destructive", title: "Sentiment Analysis Failed", description: "Could not determine emotional context." });
+      }
+      
+      const finalDataForFirestore: SessionDataForSummaryFunctionArg = {
+        actualReframedBelief: sessionDataForSummary?.actualReframedBelief || "",
+        reframedBeliefInteraction: sessionDataForSummary?.reframedBeliefInteraction || null,
+        actualLegacyStatement: sessionDataForSummary?.actualLegacyStatement || "",
+        legacyStatementInteraction: sessionDataForSummary?.legacyStatementInteraction || null,
+        topEmotions: detectedUserEmotions,
+      };
+
+      await generateAndSaveSummary(
+        currentSessionId, 
+        firebaseUser.uid, 
+        currentCircumstance,
+        finalDataForFirestore, 
+        toast,
+        TOTAL_PHASES
+      );
+
+      setShowFeedbackForm(true);
+      setIsLoading(false);
+      setIsFinishing(false); // Reset the trigger
+    };
+
+    finalizeSession();
+  }, [isFinishing, firebaseUser, currentSessionId, currentCircumstance, sessionDataForSummary, toast]);
 
 
   const handleSendMessage = async (userInput: string) => {
@@ -324,8 +380,6 @@ export default function ProtocolPage() {
       const isPhaseAdvancing = prevPhaseName !== output.nextPhase;
 
       if (isPhaseAdvancing) {
-        // Capture key statements when the phase ADVANCES from a key-statement phase.
-        // This means the user's last input was the successful statement.
         if (prevPhaseName === "Validate Emotion / Reframe") {
             setSessionDataForSummary(prev => ({
                 ...prev,
@@ -340,10 +394,8 @@ export default function ProtocolPage() {
                 actualLegacyStatement: currentUserInputText
             }));
         }
-
-        setKeyQuestionAttemptCount(1); // Reset counter on any phase change
+        setKeyQuestionAttemptCount(1);
       } else {
-        // Phase is the same, so it's a retry.
         setKeyQuestionAttemptCount(prev => prev + 1);
       }
 
@@ -358,7 +410,7 @@ export default function ProtocolPage() {
           let detectedUserEmotions = "Emotions not analyzed";
           try {
             const messagesQuery = query(
-              collection(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}/messages`),
+              collection(db, `users/${firebaseUser.uid}/circumstances/${currentCircumstance}/sessions/${currentSessionId}/messages`),
               orderBy("timestamp", "asc")
             );
             const messagesSnap = await getDocs(messagesQuery);
@@ -369,13 +421,12 @@ export default function ProtocolPage() {
             
             if (userMessagesText.trim()) {
               const sentimentInput: SentimentAnalysisInput = { userMessages: userMessagesText };
-              const sentimentResult = await analyzeSentiment(sentimentInput);
-              detectedUserEmotions = sentimentResult.detectedEmotions;
+              const sentimentOutput = await analyzeSentiment(sentimentInput);
+              detectedUserEmotions = sentimentOutput.detectedEmotions;
             }
-          } catch (sentimentError: any) {
-            const errorMessage = sentimentError.message || "An unexpected error occurred.";
+          } catch (sentimentError) {
             console.error("Error analyzing sentiment:", sentimentError);
-            toast({ variant: "destructive", title: "Sentiment Analysis Failed", description: `Could not determine emotional context. Details: ${errorMessage}` });
+            toast({ variant: "destructive", title: "Sentiment Analysis Failed", description: "Could not determine emotional context." });
           }
           
           // Use a function to get the latest state for summary generation
@@ -405,7 +456,6 @@ export default function ProtocolPage() {
           return; 
       }
       
-      // Update completed phases count in Firestore if phase advanced
       if (isPhaseAdvancing) {
         const sessionDocRef = doc(db, `users/${firebaseUser.uid}/circumstances/${currentCircumstance}/sessions/${currentSessionId}`);
         await updateDoc(sessionDocRef, { completedPhases: newPhaseNumber - 1 });
@@ -439,6 +489,7 @@ export default function ProtocolPage() {
     setShowFeedbackForm(false);
     setKeyQuestionAttemptCount(1);
     setLastAiQuestion(null);
+    setIsFinishing(false);
   };
 
 
