@@ -6,70 +6,87 @@
   :root {
     --background: 220 20% 95%;
     --foreground: 220 15% 25%;
-    --card: 0 0% 100%;
+
+    --card: 220 20% 98%;
     --card-foreground: 220 15% 25%;
-    --popover: 0 0% 100%;
+
+    --popover: 220 20% 98%;
     --popover-foreground: 220 15% 25%;
+
     --primary: 220 50% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 30% 91%;
-    --secondary-foreground: 220 25% 25%;
-    --muted: 220 20% 90%;
-    --muted-foreground: 220 15% 45%;
+
+    --secondary: 220 30% 92%;
+    --secondary-foreground: 220 40% 30%;
+
+    --muted: 220 30% 88%;
+    --muted-foreground: 220 25% 55%;
+
     --accent: 190 50% 50%;
-    --accent-foreground: 190 100% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 220 20% 88%;
-    --input: 220 20% 91%;
+    --accent-foreground: 190 100% 15%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 25% 90%;
+    --input: 220 25% 92%;
     --ring: 220 50% 60%;
+
     --radius: 0.5rem;
 
     --chart-1: 220 50% 60%;
     --chart-2: 190 50% 50%;
-    --chart-3: 220 60% 70%;
-    --chart-4: 190 60% 60%;
-    --chart-5: 220 70% 80%;
+    --chart-3: 210 50% 65%;
+    --chart-4: 200 50% 55%;
+    --chart-5: 230 50% 70%;
 
     /* Sidebar specific colors */
-    --sidebar-background: 220 20% 92%; /* Slightly darker/muted than main bg */
-    --sidebar-foreground: 220 15% 35%; /* Darker text for sidebar */
-    --sidebar-primary: 220 50% 60%; /* Main primary color */
-    --sidebar-primary-foreground: 0 0% 100%; /* White text on sidebar primary */
-    --sidebar-accent: 190 50% 50%; /* Main accent color */
-    --sidebar-accent-foreground: 190 100% 10%; /* Dark text on sidebar accent */
-    --sidebar-border: 220 20% 85%; /* Sidebar border color */
-    --sidebar-ring: 220 50% 60%; /* Sidebar ring color */
-  }
-
-  .dark {
-    --background: 220 20% 7%;
-    --foreground: 220 20% 98%;
-    --card: 220 20% 10%;
-    --card-foreground: 220 20% 98%;
-    --popover: 220 20% 10%;
-    --popover-foreground: 220 20% 98%;
-    --primary: 220 50% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 30% 20%;
-    --secondary-foreground: 220 20% 98%;
-    --muted: 220 20% 17%;
-    --muted-foreground: 220 15% 65%;
-    --accent: 190 50% 50%;
-    --accent-foreground: 190 40% 98%;
-    --destructive: 0 62.8% 50.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 220 20% 25%;
-    --input: 220 20% 25%;
-    --ring: 220 50% 60%;
-
-    /* Dark Sidebar specific colors */
-    --sidebar-background: 220 20% 15%;
-    --sidebar-foreground: 220 20% 85%;
+    --sidebar-background: 220 20% 94%;
+    --sidebar-foreground: 220 15% 35%;
     --sidebar-primary: 220 50% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 190 50% 50%;
-    --sidebar-accent-foreground: 190 40% 98%;
+    --sidebar-accent-foreground: 190 100% 15%;
+    --sidebar-border: 220 25% 85%;
+    --sidebar-ring: 220 50% 60%;
+  }
+
+  .dark {
+    --background: 220 15% 10%;
+    --foreground: 220 30% 90%;
+
+    --card: 220 15% 12%;
+    --card-foreground: 220 30% 90%;
+
+    --popover: 220 15% 12%;
+    --popover-foreground: 220 30% 90%;
+
+    --primary: 220 50% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 20% 20%;
+    --secondary-foreground: 220 30% 90%;
+
+    --muted: 220 20% 25%;
+    --muted-foreground: 220 30% 70%;
+
+    --accent: 190 50% 50%;
+    --accent-foreground: 190 100% 15%;
+
+    --destructive: 0 60% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 20% 30%;
+    --input: 220 20% 30%;
+    --ring: 220 50% 60%;
+
+    /* Dark Sidebar specific colors */
+    --sidebar-background: 220 15% 15%;
+    --sidebar-foreground: 220 30% 85%;
+    --sidebar-primary: 220 50% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 190 50% 50%;
+    --sidebar-accent-foreground: 190 100% 15%;
     --sidebar-border: 220 20% 25%;
     --sidebar-ring: 220 50% 60%;
   }

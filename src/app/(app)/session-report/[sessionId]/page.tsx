@@ -45,7 +45,8 @@ type ReportSessionData = ProtocolSession & {
 
   useEffect(() => {
     const reviewSubmitted = searchParams?.get('review_submitted') === 'true';
-    const newUrl = `/session-report/${sessionId}`;
+    const newCircumstance = searchParams?.get('circumstance');
+    const newUrl = `/session-report/${sessionId}${newCircumstance ? `?circumstance=${encodeURIComponent(newCircumstance)}` : ''}`;
 
     if (reviewSubmitted) {
       toast({
@@ -317,7 +318,7 @@ type ReportSessionData = ProtocolSession & {
       const addSectionTitle = (title: string) => {
         checkAndAddPage(LINE_HEIGHT_SECTION_TITLE * 2); 
         yPosition += LINE_HEIGHT_BODY / 2;
-        addWrappedText(title, MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_SECTION_TITLE, { fontStyle: 'bold', fontSize: SECTION_TITLE_FONT_SIZE, textColor: '#7983F5' });
+        addWrappedText(title, MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_SECTION_TITLE, { fontStyle: 'bold', fontSize: SECTION_TITLE_FONT_SIZE, textColor: '#4882EE' });
         yPosition += LINE_HEIGHT_BODY / 2;
       };
 
@@ -339,7 +340,7 @@ type ReportSessionData = ProtocolSession & {
       drawHeader(pdf);
 
       yPosition += LINE_HEIGHT_MAIN_TITLE / 2;
-      addWrappedText("CognitiveInsight Summary", MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_MAIN_TITLE, { fontStyle: 'bold', fontSize: MAIN_TITLE_FONT_SIZE, textColor: '#7983F5'});
+      addWrappedText("CognitiveInsight Summary", MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_MAIN_TITLE, { fontStyle: 'bold', fontSize: MAIN_TITLE_FONT_SIZE, textColor: '#4882EE'});
       yPosition += LINE_HEIGHT_SMALL;
       addWrappedText(`Session ID: ${sessionId}`, MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_SMALL, {fontSize: SMALL_FONT_SIZE});
       addWrappedText(`Date: ${new Date(sessionData.startTime as Date).toLocaleString()}`, MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_SMALL, {fontSize: SMALL_FONT_SIZE});
