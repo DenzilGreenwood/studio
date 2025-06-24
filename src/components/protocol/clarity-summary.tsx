@@ -1,4 +1,3 @@
-
 // src/components/protocol/clarity-summary.tsx
 "use client";
 
@@ -22,9 +21,10 @@ interface ClaritySummaryProps {
     topEmotions: string; 
   };
   sessionId: string;
+  circumstance: string;
 }
 
-export function ClaritySummary({ summaryData, sessionId }: ClaritySummaryProps) {
+export function ClaritySummary({ summaryData, sessionId, circumstance }: ClaritySummaryProps) {
   if (!summaryData) {
     return (
       <Card className="mt-6">
@@ -118,7 +118,7 @@ export function ClaritySummary({ summaryData, sessionId }: ClaritySummaryProps) 
 
         <div className="flex flex-col sm:flex-row gap-3 pt-6">
           <Button asChild className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">
-            <Link href={`/session-report/${sessionId}`}>
+            <Link href={`/session-report/${sessionId}?circumstance=${encodeURIComponent(circumstance)}`}>
               <Eye className="mr-2 h-4 w-4" />
               View Full Report
             </Link>

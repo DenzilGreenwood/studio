@@ -435,9 +435,13 @@ export default function ProtocolPage() {
       ) : null}
       
 
-      {isProtocolComplete && finalClaritySummary && !showFeedbackForm && (
+      {isProtocolComplete && finalClaritySummary && !showFeedbackForm && currentCircumstance && (
          <div className="my-6">
-            <ClaritySummary summaryData={finalClaritySummary} sessionId={currentSessionId!} />
+            <ClaritySummary 
+              summaryData={finalClaritySummary} 
+              sessionId={currentSessionId!} 
+              circumstance={currentCircumstance}
+            />
             <div className="mt-6 text-center">
                 <Button onClick={() => setShowFeedbackForm(true)} variant="default" size="lg">
                     Proceed to Feedback
