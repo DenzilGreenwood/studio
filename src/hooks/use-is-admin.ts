@@ -4,7 +4,7 @@ import { useAuth } from "@/context/auth-context";
 
 // IMPORTANT: Replace this placeholder with the actual UID(s) of your admin users.
 // You can find a user's UID in the Firebase Console > Authentication > Users tab.
-export const ADMIN_USER_IDS = ['jH0K85sIfQc9i2rIaWmtA1RPNyw1'];
+export const ADMIN_USER_IDS = ['aC2Azl37NBelxACXojQOuxIRq8I2'];
 
 /**
  * A hook to determine if the currently authenticated user is an admin.

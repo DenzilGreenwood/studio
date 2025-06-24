@@ -1,4 +1,4 @@
-// src/app/(admin)/page.tsx
+// src/app/admin/page.tsx
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -51,7 +51,7 @@ export default function AdminPage() {
         const fetchedSessions: SessionWithUser[] = sessionsSnapshot.docs.map(doc => ({
             ...doc.data(),
             sessionId: doc.id,
-            userId: doc.ref.parent.parent!.parent.parent!.id, // Extract userId from the document path
+            userId: doc.ref.parent.parent!.id,
             startTime: (doc.data().startTime as Timestamp)?.toDate() || new Date(),
         } as SessionWithUser));
         setSessions(fetchedSessions);

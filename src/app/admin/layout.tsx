@@ -1,4 +1,4 @@
-// src/app/(admin)/layout.tsx
+// src/app/admin/layout.tsx
 "use client";
 
 import { AppHeader } from "@/components/layout/app-header";
