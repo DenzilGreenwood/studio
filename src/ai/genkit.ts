@@ -2,7 +2,7 @@
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import { firebase } from '@genkit-ai/firebase';
-import nextPlugin from '@genkit-ai/next';
+import { next } from '@genkit-ai/next';
 
 // This file defines the Genkit `ai` object and configures its plugins.
 // The individual flows are now loaded only in `src/ai/dev.ts`, which is the
@@ -24,7 +24,7 @@ export const ai = genkit({
   plugins: [
     firebase(),
     googleAI(),
-    nextPlugin()
+    next()
   ],
   
   // The list of flows is now managed by `src/ai/dev.ts` to prevent circular dependencies.
