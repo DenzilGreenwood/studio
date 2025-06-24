@@ -5,6 +5,7 @@ import {
   getFirestore, 
   type Firestore,
   collection,
+  collectionGroup, // Added collectionGroup
   doc,
   addDoc,
   setDoc,
@@ -74,6 +75,7 @@ export {
   auth, 
   db, 
   collection,
+  collectionGroup, // Added collectionGroup to exports
   doc,
   addDoc,
   setDoc,
