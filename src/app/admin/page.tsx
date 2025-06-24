@@ -93,7 +93,7 @@ export default function AdminPage() {
             const userProfile = usersMap.get(userId) || { 
                 uid: userId, 
                 email: `User ID: ${userId}`, 
-                displayName: 'Unknown User',
+                displayName: `User...${userId.slice(-7)}`,
                 createdAt: new Date(),
              };
             return { user: userProfile, sessions: userSessions };
