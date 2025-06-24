@@ -212,6 +212,7 @@ export const createUserProfileDocument = async (
         lastSessionAt: null,
         sessionCount: 0,
         lastCheckInAt: null,
+        isAdmin: false,
       });
     } catch (error) {
       console.error("Error creating user document: ", error);

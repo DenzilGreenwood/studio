@@ -15,6 +15,7 @@ export interface UserProfile {
   sessionCount?: number;
   hasConsentedToDataUse?: boolean; // New field for consent
   lastCheckInAt?: Timestamp | Date; // For reflective growth tracking
+  isAdmin?: boolean;
 }
 
 // Individual Chat Message stored in Firestore subcollection
