@@ -1,9 +1,14 @@
+
 {
   "indexes": [
     {
       "collectionGroup": "sessions",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
         {
           "fieldPath": "startTime",
           "order": "DESCENDING"
@@ -15,7 +20,7 @@
       "queryScope": "COLLECTION_GROUP",
       "fields": [
         {
-          "fieldPath": "userId",
+          "fieldPath": "completedPhases",
           "order": "ASCENDING"
         },
         {

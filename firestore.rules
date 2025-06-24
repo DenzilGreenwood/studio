@@ -4,32 +4,52 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if the user is an admin
     function isAdmin() {
-      // This UID should match the one in src/hooks/use-is-admin.ts
+      // This UID must match the one in src/hooks/use-is-admin.ts
       return request.auth.uid in ['aC2Azl37NBelxACXojQOuxIRq8I2'];
     }
 
-    // Rules for all documents within a specific user's path
-    match /users/{userId}/{documents=**} {
-      // A user can read and write their own documents.
-      // An admin can read any user's documents.
-      allow read, write: if request.auth.uid == userId;
-      allow read: if isAdmin();
+    function isOwner(userId) {
+      return request.auth.uid == userId;
     }
 
-    // Rule for the 'sessions' collection group query on the admin page.
-    // This allows an admin to read from any 'sessions' collection across all users.
+    // User can read and update their own profile. Admin can read any profile.
+    match /users/{userId} {
+      allow read, update: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow delete: if isOwner(userId);
+
+      // Sessions and messages are nested under a user's circumstances.
+      match /circumstances/{circumstanceId}/sessions/{sessionId} {
+        // The owner can read/write their own session data.
+        allow read, write: if isOwner(userId);
+        
+        // Admins can read session data (for session report page).
+        allow get: if isAdmin();
+
+        match /messages/{messageId} {
+           // The owner can read/write their own messages.
+           allow read, write: if isOwner(userId);
+           // Admins can read messages.
+           allow list: if isAdmin(); // For admin report page transcript
+        }
+      }
+    }
+
+    // This is the critical rule for the collectionGroup query on the /sessions page.
+    // It allows a query across all 'sessions' subcollections.
     match /{path=**}/sessions/{sessionId} {
-      allow read: if isAdmin();
+      // A user can list sessions where their userId matches.
+      // An admin can list all sessions.
+      allow list, get: if (resource.data.userId == request.auth.uid) || isAdmin();
     }
 
-    // Rules for the top-level 'feedback' collection
+    // Feedback collection rules
     match /feedback/{feedbackId} {
-      // Any authenticated user can create (submit) feedback.
+      // Any authenticated user can submit feedback.
       allow create: if request.auth != null;
-      // Only admins can read all feedback documents.
-      allow read: if isAdmin();
+      // Only admins can read/update/delete feedback.
+      allow read, update, delete: if isAdmin();
     }
   }
 }
