@@ -59,6 +59,11 @@ export default function SessionReportPage() {
     const [suggestedGoals, setSuggestedGoals] = useState<string[]>([]);
     const [isSavingJournal, setIsSavingJournal] = useState(false);
 
+    // Moved hook and related logic before conditional returns to fix hook error.
+    const canEditJournal = !isSavingJournal && !(isAdmin && !!userIdFromQuery);
+    const completedGoals = useMemo(() => userGoals.filter(g => g.completed).length, [userGoals]);
+    const totalGoals = userGoals.length;
+
 
   useEffect(() => {
     const reviewSubmitted = searchParams?.get('review_submitted') === 'true';
@@ -297,9 +302,6 @@ export default function SessionReportPage() {
 
   const { summary, feedbackId, sessionForUser } = sessionData;
   const userToDisplay = sessionForUser || authProfile;
-  const canEditJournal = !isSavingJournal && !(isAdmin && !!userIdFromQuery);
-  const completedGoals = useMemo(() => userGoals.filter(g => g.completed).length, [userGoals]);
-  const totalGoals = userGoals.length;
 
   return (
     <div className="bg-secondary/30 min-h-screen py-8">
