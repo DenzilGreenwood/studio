@@ -240,7 +240,7 @@ export default function HomePage() {
       <footer className="border-t border-border/40 bg-background/95 py-8 text-center">
         <div className="container mx-auto px-4 flex flex-col items-center gap-4">
           <p className="text-sm text-muted-foreground">
-            &copy; 2024 CognitiveInsight. Powered by CognitiveInsight.ai.
+            &copy; 2024 CognitiveInsight. Built with Firebase Studio. Utilizes Gemini AI.
           </p>
           <Button variant="outline" asChild size="sm">
             <a href="mailto:founder@cognitiveinsight.ai">
