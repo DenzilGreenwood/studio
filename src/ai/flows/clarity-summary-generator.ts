@@ -10,7 +10,7 @@
  * - ClaritySummaryOutput - The return type for the generateClaritySummary function.
  */
 
-import {ai} from '@/ai/genkit';
+import ai from '@/ai/genkit';
 import {z} from 'zod';
 
 const ClaritySummaryInputSchema = z.object({
