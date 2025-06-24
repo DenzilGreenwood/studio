@@ -3,8 +3,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/auth-context';
-import { db, collection, query, orderBy, getDocs, Timestamp, collectionGroup } from '@/lib/firebase';
-import type { SessionFeedback, ProtocolSession } from '@/types';
+import { db, collection, query, orderBy, getDocs, Timestamp, collectionGroup, where } from '@/lib/firebase';
+import type { SessionFeedback, ProtocolSession, UserProfile } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,16 +13,20 @@ import { Loader2, Shield, BarChart2, MessageSquare, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 // Extend local types to include necessary data from queries
 type FeedbackWithId = SessionFeedback & { feedbackId: string };
 type SessionWithUser = ProtocolSession & { userId: string };
-
+type GroupedSessionData = {
+  user: UserProfile;
+  sessions: SessionWithUser[];
+};
 
 export default function AdminPage() {
   const { firebaseUser, loading: authLoading } = useAuth();
   const [feedback, setFeedback] = useState<FeedbackWithId[]>([]);
-  const [sessions, setSessions] = useState<SessionWithUser[]>([]);
+  const [groupedSessions, setGroupedSessions] = useState<GroupedSessionData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,16 +49,65 @@ export default function AdminPage() {
         } as FeedbackWithId));
         setFeedback(fetchedFeedback);
 
-        // Fetch all sessions using a collection group query
-        const sessionsQuery = query(collectionGroup(db, 'sessions'), orderBy("startTime", "desc"));
+        // Fetch and group sessions
+        // 1. Fetch all user profiles to get display names
+        const usersQuery = query(collection(db, "users"));
+        const usersSnapshot = await getDocs(usersQuery);
+        const usersMap = new Map<string, UserProfile>();
+        usersSnapshot.docs.forEach(doc => {
+            const data = doc.data();
+            usersMap.set(doc.id, {
+                uid: doc.id,
+                email: data.email,
+                displayName: data.displayName,
+                createdAt: (data.createdAt as Timestamp)?.toDate() || new Date(),
+            } as UserProfile);
+        });
+
+        // 2. Fetch all COMPLETED sessions using a collection group query
+        const sessionsQuery = query(
+            collectionGroup(db, 'sessions'),
+            where("completedPhases", "==", 6), // Filter for completed sessions
+            orderBy("startTime", "desc")
+        );
         const sessionsSnapshot = await getDocs(sessionsQuery);
-        const fetchedSessions: SessionWithUser[] = sessionsSnapshot.docs.map(doc => ({
-            ...doc.data(),
-            sessionId: doc.id,
-            userId: doc.ref.parent.parent!.id,
-            startTime: (doc.data().startTime as Timestamp)?.toDate() || new Date(),
-        } as SessionWithUser));
-        setSessions(fetchedSessions);
+
+        // 3. Group sessions by userId
+        const sessionsByUId = new Map<string, SessionWithUser[]>();
+        sessionsSnapshot.docs.forEach(doc => {
+            const sessionData = doc.data() as ProtocolSession;
+            const session: SessionWithUser = {
+                ...sessionData,
+                sessionId: doc.id,
+                userId: doc.ref.parent.parent!.id,
+                startTime: (sessionData.startTime as Timestamp)?.toDate() || new Date(),
+            };
+
+            const userSessions = sessionsByUId.get(session.userId) || [];
+            userSessions.push(session);
+            sessionsByUId.set(session.userId, userSessions);
+        });
+
+        // 4. Combine user data and sessions data into a final structure for rendering
+        const finalGroupedData: GroupedSessionData[] = Array.from(sessionsByUId.entries()).map(([userId, userSessions]) => {
+            const userProfile = usersMap.get(userId) || { 
+                uid: userId, 
+                email: `User ID: ${userId}`, 
+                displayName: 'Unknown User',
+                createdAt: new Date(),
+             };
+            return { user: userProfile, sessions: userSessions };
+        });
+
+        // Optional: Sort users by who has the most recent session
+        finalGroupedData.sort((a, b) => {
+            const aLatestTime = a.sessions[0]?.startTime ? new Date(a.sessions[0].startTime).getTime() : 0;
+            const bLatestTime = b.sessions[0]?.startTime ? new Date(b.sessions[0].startTime).getTime() : 0;
+            return bLatestTime - aLatestTime;
+        });
+
+        setGroupedSessions(finalGroupedData);
+
 
       } catch (e: any) {
         console.error("Error fetching admin data:", e);
@@ -160,45 +213,59 @@ export default function AdminPage() {
         <TabsContent value="sessions">
           <Card>
             <CardHeader>
-              <CardTitle>All User Sessions</CardTitle>
-              <CardDescription>Analyze all user sessions to evaluate protocol effectiveness.</CardDescription>
+              <CardTitle>Completed User Sessions</CardTitle>
+              <CardDescription>Analyze all completed user sessions, grouped by user.</CardDescription>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[60vh] w-full">
-                <Table>
-                  <TableHeader className="sticky top-0 bg-secondary">
-                    <TableRow>
-                      <TableHead>Session Date</TableHead>
-                      <TableHead>User ID</TableHead>
-                      <TableHead>Circumstance</TableHead>
-                      <TableHead>Reframed Belief</TableHead>
-                      <TableHead>Legacy Statement</TableHead>
-                      <TableHead>Full Report</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sessions.length > 0 ? sessions.map(session => (
-                      <TableRow key={session.sessionId}>
-                        <TableCell>{new Date(session.startTime).toLocaleString()}</TableCell>
-                        <TableCell className="font-mono text-xs">{session.userId}</TableCell>
-                        <TableCell>{session.circumstance}</TableCell>
-                        <TableCell className="max-w-xs truncate">{session.summary?.actualReframedBelief || "N/A"}</TableCell>
-                        <TableCell className="max-w-xs truncate">{session.summary?.actualLegacyStatement || "N/A"}</TableCell>
-                        <TableCell>
-                           <Button variant="outline" size="sm" asChild>
-                            <Link href={`/session-report/${session.sessionId}?userId=${session.userId}&circumstance=${encodeURIComponent(session.circumstance)}`} target="_blank">
-                              <Eye className="mr-2 h-4 w-4" /> View
-                            </Link>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    )) : (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center">No sessions found.</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                {groupedSessions.length > 0 ? (
+                  <Accordion type="multiple" className="w-full">
+                    {groupedSessions.map(({ user, sessions }) => (
+                      <AccordionItem value={user.uid} key={user.uid}>
+                        <AccordionTrigger>
+                          <div className="flex flex-col items-start text-left">
+                            <span className="font-semibold">{user.displayName || user.email}</span>
+                            <span className="text-sm font-normal text-muted-foreground">{user.uid} - {sessions.length} session(s)</span>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Session Date</TableHead>
+                                <TableHead>Circumstance</TableHead>
+                                <TableHead>Reframed Belief</TableHead>
+                                <TableHead>Legacy Statement</TableHead>
+                                <TableHead>Full Report</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {sessions.map(session => (
+                                <TableRow key={session.sessionId}>
+                                  <TableCell>{new Date(session.startTime).toLocaleString()}</TableCell>
+                                  <TableCell>{session.circumstance}</TableCell>
+                                  <TableCell className="max-w-xs truncate">{session.summary?.actualReframedBelief || "N/A"}</TableCell>
+                                  <TableCell className="max-w-xs truncate">{session.summary?.actualLegacyStatement || "N/A"}</TableCell>
+                                  <TableCell>
+                                    <Button variant="outline" size="sm" asChild>
+                                      <Link href={`/session-report/${session.sessionId}?userId=${session.userId}&circumstance=${encodeURIComponent(session.circumstance)}`} target="_blank">
+                                        <Eye className="mr-2 h-4 w-4" /> View
+                                      </Link>
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                ) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    No completed sessions found.
+                  </div>
+                )}
               </ScrollArea>
             </CardContent>
           </Card>
