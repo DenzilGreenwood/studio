@@ -4,21 +4,12 @@
 import { AppHeader } from "@/components/layout/app-header";
 import { useAuth } from "@/context/auth-context";
 import { useIsAdmin } from "@/hooks/use-is-admin";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { Loader2, ShieldCheck } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { notFound } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const { firebaseUser, loading } = useAuth();
-    const router = useRouter();
     const isAdmin = useIsAdmin();
-
-    useEffect(() => {
-        if (!loading && (!firebaseUser || !isAdmin)) {
-            router.push('/login'); // Redirect non-admins to the login page
-        }
-    }, [firebaseUser, loading, router, isAdmin]);
 
     if (loading) {
         return (
@@ -29,21 +20,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         );
     }
     
-    if (!isAdmin) {
-       return (
-         <div className="flex min-h-screen flex-col items-center justify-center bg-secondary/30 p-4">
-            <Card className="max-w-md text-center border-destructive">
-                <CardHeader>
-                    <CardTitle className="text-destructive flex items-center justify-center gap-2">
-                        <ShieldCheck className="h-7 w-7" /> Access Denied
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground">You do not have permission to view this page. Redirecting...</p>
-                </CardContent>
-            </Card>
-         </div>
-       );
+    if (!firebaseUser || !isAdmin) {
+       notFound();
     }
 
 

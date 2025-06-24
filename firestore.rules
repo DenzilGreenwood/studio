@@ -7,7 +7,7 @@ service cloud.firestore {
     // Helper function to check if a user is an admin
     function isAdmin() {
       // This list must be kept in sync with the list in src/hooks/use-is-admin.ts
-      let adminUids = ['jH0K85sIfQc9i2rIaWmtA1RPNyw1'];
+      let adminUids = ['aC2Azl37NBelxACXojQOuxIRq8I2'];
       return request.auth.uid in adminUids;
     }
 

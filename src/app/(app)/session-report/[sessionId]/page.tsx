@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation'; 
+import { useParams, useRouter, useSearchParams, notFound } from 'next/navigation'; 
 import { useAuth } from '@/context/auth-context';
 import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp, updateDoc, serverTimestamp, writeBatch } from '@/lib/firebase';
 import type { ProtocolSession, ChatMessage as FirestoreChatMessage, UserProfile } from '@/types'; 
@@ -72,13 +72,11 @@ export default function SessionReportPage() {
       return;
     }
     if (!sessionId) {
-      setError("Session ID is missing.");
-      setIsLoading(false);
+      notFound();
       return;
     }
     if (!circumstance) {
-      setError("Circumstance is missing from URL. Cannot fetch session data.");
-      setIsLoading(false);
+      notFound();
       return;
     }
 
@@ -92,8 +90,7 @@ export default function SessionReportPage() {
         const sessionSnap = await getDoc(sessionDocRef);
 
         if (!sessionSnap.exists()) {
-          setError("Session not found or you don't have permission to view it.");
-          setIsLoading(false);
+          notFound();
           return;
         }
 
