@@ -21,10 +21,9 @@ interface ClaritySummaryProps {
     topEmotions: string; 
   };
   sessionId: string;
-  circumstance: string;
 }
 
-export function ClaritySummary({ summaryData, sessionId, circumstance }: ClaritySummaryProps) {
+export function ClaritySummary({ summaryData, sessionId }: ClaritySummaryProps) {
   if (!summaryData) {
     return (
       <Card className="mt-6">
@@ -118,7 +117,7 @@ export function ClaritySummary({ summaryData, sessionId, circumstance }: Clarity
 
         <div className="flex flex-col sm:flex-row gap-3 pt-6">
           <Button asChild className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">
-            <Link href={`/session-report/${sessionId}?circumstance=${encodeURIComponent(circumstance)}`}>
+            <Link href={`/session-report/${sessionId}`}>
               <Eye className="mr-2 h-4 w-4" />
               View Full Report
             </Link>

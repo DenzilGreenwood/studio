@@ -52,7 +52,7 @@ const SessionCard = ({ session }: { session: SessionWithId }) => (
         </CardContent>
         <CardFooter>
             <Button asChild variant="outline">
-                <Link href={session.completedPhases === 6 ? `/session-report/${session.sessionId}?circumstance=${encodeURIComponent(session.circumstance)}` : `/protocol`}>
+                <Link href={session.completedPhases === 6 ? `/session-report/${session.sessionId}` : `/protocol`}>
                     {session.completedPhases === 6 ? 'View Full Report' : 'Continue Session'}
                     <Eye className="ml-2 h-4 w-4" />
                 </Link>
@@ -191,7 +191,7 @@ export default function SessionsPage() {
                     </CardContent>
                     <CardFooter className="gap-4">
                         <Button asChild>
-                            <Link href={`/session-report/${latestSession.sessionId}?circumstance=${encodeURIComponent(latestSession.circumstance)}`}>
+                            <Link href={`/session-report/${latestSession.sessionId}`}>
                                 <PenSquare className="mr-2 h-4 w-4" />
                                 Review & Journal
                             </Link>

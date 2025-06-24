@@ -43,7 +43,6 @@ export default function SessionReportPage() {
     const { toast } = useToast(); 
     const isAdmin = useIsAdmin();
     const userIdFromQuery = searchParams.get('userId');
-    const circumstance = searchParams.get('circumstance');
 
     const [sessionData, setSessionData] = useState<ReportSessionData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -59,7 +58,6 @@ export default function SessionReportPage() {
     const [suggestedGoals, setSuggestedGoals] = useState<string[]>([]);
     const [isSavingJournal, setIsSavingJournal] = useState(false);
 
-    // Moved hook and related logic before conditional returns to fix hook error.
     const canEditJournal = !isSavingJournal && !(isAdmin && !!userIdFromQuery);
     const completedGoals = useMemo(() => userGoals.filter(g => g.completed).length, [userGoals]);
     const totalGoals = userGoals.length;
@@ -67,8 +65,7 @@ export default function SessionReportPage() {
 
   useEffect(() => {
     const reviewSubmitted = searchParams?.get('review_submitted') === 'true';
-    const newCircumstance = searchParams?.get('circumstance');
-    const newUrl = `/session-report/${sessionId}${newCircumstance ? `?circumstance=${newCircumstance}` : ''}`;
+    const newUrl = `/session-report/${sessionId}`;
 
     if (reviewSubmitted) {
       toast({
@@ -87,7 +84,7 @@ export default function SessionReportPage() {
       router.push('/login');
       return;
     }
-    if (!sessionId || !circumstance) {
+    if (!sessionId) {
       notFound();
       return;
     }
@@ -97,7 +94,7 @@ export default function SessionReportPage() {
       setError(null);
       try {
         const targetUserId = isAdmin && userIdFromQuery ? userIdFromQuery : firebaseUser.uid;
-        const sessionDocRef = doc(db, `users/${targetUserId}/circumstances/${circumstance}/sessions/${sessionId}`);
+        const sessionDocRef = doc(db, `users/${targetUserId}/sessions/${sessionId}`);
         const sessionSnap = await getDoc(sessionDocRef);
 
         if (!sessionSnap.exists()) {
@@ -133,7 +130,7 @@ export default function SessionReportPage() {
             sessionForUser = authProfile;
         }
 
-        const messagesQuery = query(collection(db, `users/${targetUserId}/circumstances/${circumstance}/sessions/${sessionId}/messages`), orderBy("timestamp", "asc"));
+        const messagesQuery = query(collection(db, `users/${targetUserId}/sessions/${sessionId}/messages`), orderBy("timestamp", "asc"));
         const messagesSnap = await getDocs(messagesQuery);
         const fetchedMessages: DisplayMessage[] = messagesSnap.docs.map(docSnap => ({
           id: docSnap.id,
@@ -156,7 +153,7 @@ export default function SessionReportPage() {
     };
 
     fetchSessionData();
-  }, [sessionId, firebaseUser, authProfile, authLoading, router, isAdmin, userIdFromQuery, circumstance]);
+  }, [sessionId, firebaseUser, authProfile, authLoading, router, isAdmin, userIdFromQuery]);
 
     const getInitials = (name?: string | null) => {
         if (!name) return "?";
@@ -224,13 +221,13 @@ export default function SessionReportPage() {
   };
 
   const handleSaveJournalAndGoals = async () => {
-    if (!firebaseUser || !sessionData || !circumstance) {
+    if (!firebaseUser || !sessionData) {
       toast({ variant: 'destructive', title: 'Error', description: 'Cannot save. Missing user or session data.'});
       return;
     }
     setIsSavingJournal(true);
     try {
-      const sessionDocRef = doc(db, `users/${firebaseUser.uid}/circumstances/${circumstance}/sessions/${sessionId}`);
+      const sessionDocRef = doc(db, `users/${firebaseUser.uid}/sessions/${sessionId}`);
       const userDocRef = doc(db, `users/${firebaseUser.uid}`);
       
       const goalsToSave = userGoals.map(g => ({
@@ -300,7 +297,7 @@ export default function SessionReportPage() {
         );
     }
 
-  const { summary, feedbackId, sessionForUser } = sessionData;
+  const { summary, feedbackId, sessionForUser, circumstance } = sessionData;
   const userToDisplay = sessionForUser || authProfile;
 
   return (

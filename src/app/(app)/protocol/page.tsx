@@ -71,12 +71,11 @@ type ClaritySummaryContentType = ClaritySummaryOutput & SessionDataForSummaryFun
 async function generateAndSaveSummary(
   sessionId: string,
   userId: string,
-  circumstance: string,
   summaryInputData: SessionDataForSummaryFunctionArg, 
   showToast: (options: any) => void 
 ): Promise<ClaritySummaryContentType | null> {
-  if (!sessionId || !userId || !circumstance) {
-    showToast({ variant: "destructive", title: "Error", description: "User, Session, or Circumstance ID missing for summary." });
+  if (!sessionId || !userId) {
+    showToast({ variant: "destructive", title: "Error", description: "User or Session ID missing for summary." });
     return null;
   }
 
@@ -89,7 +88,7 @@ async function generateAndSaveSummary(
     legacyStatementInteraction: summaryInputData.legacyStatementInteraction || null,
   };
   
-  const sessionDocRef = doc(db, `users/${userId}/circumstances/${circumstance}/sessions/${sessionId}`);
+  const sessionDocRef = doc(db, `users/${userId}/sessions/${sessionId}`);
 
   if (!summaryInputData.actualReframedBelief.trim() && !summaryInputData.actualLegacyStatement.trim()) {
     showToast({ variant: "destructive", title: "Missing Key Data", description: "Crucial session elements (reframed belief or legacy statement) were not captured. A full AI summary cannot be generated." });
@@ -157,7 +156,6 @@ export default function ProtocolPage() {
   const [sessionDataForSummary, setSessionDataForSummary] = useState<Partial<SessionDataForSummaryInternal>>({});
   const [pendingAiQuestion, setPendingAiQuestion] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [currentCircumstance, setCurrentCircumstance] = useState<string | null>(null);
   const [finalClaritySummary, setFinalClaritySummary] = useState<ClaritySummaryContentType | null>(null);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
 
@@ -182,9 +180,8 @@ export default function ProtocolPage() {
     setShowFeedbackForm(false); 
     
     const circumstance = user.primaryChallenge;
-    setCurrentCircumstance(circumstance);
 
-    const newSessionRef = doc(collection(db, `users/${firebaseUser.uid}/circumstances/${circumstance}/sessions`));
+    const newSessionRef = doc(collection(db, `users/${firebaseUser.uid}/sessions`));
     const newSessionId = newSessionRef.id;
     setCurrentSessionId(newSessionId);
 
@@ -213,7 +210,7 @@ export default function ProtocolPage() {
     };
     setMessages([firstUIMessage]);
 
-    await addDoc(collection(db, `users/${firebaseUser.uid}/circumstances/${circumstance}/sessions/${newSessionId}/messages`), {
+    await addDoc(collection(db, `users/${firebaseUser.uid}/sessions/${newSessionId}/messages`), {
       sender: 'ai',
       text: firstMessageText,
       timestamp: serverTimestamp(),
@@ -236,7 +233,7 @@ export default function ProtocolPage() {
 
 
   const handleSendMessage = async (userInput: string) => {
-    if (isProtocolComplete || !currentSessionId || !firebaseUser || !currentCircumstance) return;
+    if (isProtocolComplete || !currentSessionId || !firebaseUser) return;
 
     const currentUserInputText = userInput.trim();
 
@@ -248,7 +245,7 @@ export default function ProtocolPage() {
     };
     setMessages(prev => [...prev, newUserUIMessage]);
     
-    await addDoc(collection(db, `users/${firebaseUser.uid}/circumstances/${currentCircumstance}/sessions/${currentSessionId}/messages`), {
+    await addDoc(collection(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}/messages`), {
       sender: 'user',
       text: currentUserInputText,
       timestamp: serverTimestamp(),
@@ -289,7 +286,7 @@ export default function ProtocolPage() {
       };
       setMessages(prev => [...prev, aiResponseUIMessage]);
       
-      await addDoc(collection(db, `users/${firebaseUser.uid}/circumstances/${currentCircumstance}/sessions/${currentSessionId}/messages`), {
+      await addDoc(collection(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}/messages`), {
         sender: 'ai',
         text: output.response,
         timestamp: serverTimestamp(),
@@ -307,7 +304,7 @@ export default function ProtocolPage() {
       const nextPhaseIndex = PHASE_NAMES.indexOf(output.nextPhase);
       const newPhaseNumber = nextPhaseIndex + 1;
 
-      const sessionDocRef = doc(db, `users/${firebaseUser.uid}/circumstances/${currentCircumstance}/sessions/${currentSessionId}`);
+      const sessionDocRef = doc(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}`);
 
       if (newPhaseNumber > currentPhase || (currentPhase === TOTAL_PHASES && output.nextPhase === PHASE_NAMES[TOTAL_PHASES-1])) {
         if (currentPhase < TOTAL_PHASES) {
@@ -323,7 +320,7 @@ export default function ProtocolPage() {
           let detectedUserEmotions = "Emotions not analyzed";
           try {
             const messagesQuery = query(
-              collection(db, `users/${firebaseUser.uid}/circumstances/${currentCircumstance}/sessions/${currentSessionId}/messages`),
+              collection(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}/messages`),
               orderBy("timestamp", "asc")
             );
             const messagesSnap = await getDocs(messagesQuery);
@@ -375,7 +372,6 @@ export default function ProtocolPage() {
           const generatedSummary = await generateAndSaveSummary(
             currentSessionId, 
             firebaseUser.uid, 
-            currentCircumstance,
             finalDataForFirestore, 
             toast
           );
@@ -450,12 +446,11 @@ export default function ProtocolPage() {
       ) : null}
       
 
-      {isProtocolComplete && finalClaritySummary && !showFeedbackForm && currentCircumstance && (
+      {isProtocolComplete && finalClaritySummary && !showFeedbackForm && (
          <div className="my-6">
             <ClaritySummary 
               summaryData={finalClaritySummary} 
               sessionId={currentSessionId!} 
-              circumstance={currentCircumstance}
             />
             <div className="mt-6 text-center">
                 <Button onClick={() => setShowFeedbackForm(true)} variant="default" size="lg">
@@ -465,11 +460,11 @@ export default function ProtocolPage() {
          </div>
       )}
 
-      {isProtocolComplete && showFeedbackForm && currentSessionId && firebaseUser && currentCircumstance && (
+      {isProtocolComplete && showFeedbackForm && currentSessionId && firebaseUser && user?.primaryChallenge && (
         <PostSessionFeedback 
             sessionId={currentSessionId} 
             userId={firebaseUser.uid}
-            circumstance={currentCircumstance}
+            circumstance={user.primaryChallenge}
             onReturnToStart={restartProtocol}
         />
       )}

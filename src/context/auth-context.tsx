@@ -41,6 +41,9 @@ async function deleteCollection(collectionPath: string) {
   const collectionRef = collection(db, collectionPath);
   const q = query(collectionRef); 
   const snapshot = await getDocs(q);
+  if (snapshot.empty) {
+    return;
+  }
   const batch = writeBatch(db);
   snapshot.docs.forEach((doc) => {
     batch.delete(doc.ref);
@@ -131,26 +134,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const userId = firebaseUser.uid;
 
     try {
-      const sessionsCollectionPath = `users/${userId}/sessions`;
-      const sessionsQuery = query(collection(db, sessionsCollectionPath));
+      // New simplified path to sessions
+      const sessionsPath = `users/${userId}/sessions`;
+      const sessionsQuery = query(collection(db, sessionsPath));
       const sessionsSnapshot = await getDocs(sessionsQuery);
 
       for (const sessionDoc of sessionsSnapshot.docs) {
         const sessionId = sessionDoc.id;
+        // Delete messages subcollection for each session
         await deleteCollection(`users/${userId}/sessions/${sessionId}/messages`);
-        await deleteDoc(doc(db, sessionsCollectionPath, sessionId));
       }
+      // Delete all sessions in one go
+      await deleteCollection(sessionsPath);
       
-      const batch = writeBatch(db);
-      
+      // Delete all feedback from the top-level collection in a batch
+      const feedbackBatch = writeBatch(db);
       const feedbackQuery = query(collection(db, 'feedback'), where('userId', '==', userId));
       const feedbackSnapshot = await getDocs(feedbackQuery);
-      feedbackSnapshot.forEach(doc => batch.delete(doc.ref));
+      feedbackSnapshot.forEach(doc => feedbackBatch.delete(doc.ref));
+      await feedbackBatch.commit();
 
-      await batch.commit();
-
+      // Delete the user document itself
       await deleteDoc(doc(db, "users", userId));
+      
+      // Finally, delete the Firebase Auth user
       await firebaseDeleteUser(firebaseUser);
+
     } catch (error) {
       console.error("Error deleting user account and data: ", error);
       setLoading(false); 
@@ -159,7 +168,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       throw new Error("Failed to delete account and data. Please try again.");
     }
-    // setLoading(false) will be handled by onAuthStateChanged
+    // setLoading(false) will be handled by onAuthStateChanged after user signs out
   };
 
   return (

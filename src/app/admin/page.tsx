@@ -76,10 +76,17 @@ export default function AdminPage() {
         const sessionsByUId = new Map<string, SessionWithUser[]>();
         sessionsSnapshot.docs.forEach(doc => {
             const sessionData = doc.data() as ProtocolSession;
+            // The parent of a doc in a collection group is the user doc
+            const parentPath = doc.ref.parent.parent?.path;
+            if (!parentPath) return; // Should not happen
+
+            const userId = parentPath.split('/')[1];
+            if (!userId) return;
+
             const session: SessionWithUser = {
                 ...sessionData,
                 sessionId: doc.id,
-                userId: doc.ref.parent.parent!.id,
+                userId: userId,
                 startTime: (sessionData.startTime as Timestamp)?.toDate() || new Date(),
             };
 
@@ -192,7 +199,7 @@ export default function AdminPage() {
                         <TableCell>{item.email || "N/A"}</TableCell>
                         <TableCell>
                           <Button variant="outline" size="sm" asChild>
-                            <Link href={`/session-report/${item.sessionId}?userId=${item.userId}&circumstance=${encodeURIComponent(item.circumstance)}`} target="_blank">
+                            <Link href={`/session-report/${item.sessionId}?userId=${item.userId}`} target="_blank">
                               <Eye className="mr-2 h-4 w-4" /> View
                             </Link>
                           </Button>
@@ -248,7 +255,7 @@ export default function AdminPage() {
                                   <TableCell className="max-w-xs truncate">{session.summary?.actualLegacyStatement || "N/A"}</TableCell>
                                   <TableCell>
                                     <Button variant="outline" size="sm" asChild>
-                                      <Link href={`/session-report/${session.sessionId}?userId=${session.userId}&circumstance=${encodeURIComponent(session.circumstance)}`} target="_blank">
+                                      <Link href={`/session-report/${session.sessionId}?userId=${session.userId}`} target="_blank">
                                         <Eye className="mr-2 h-4 w-4" /> View
                                       </Link>
                                     </Button>

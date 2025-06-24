@@ -56,7 +56,7 @@ export function PostSessionFeedback({ sessionId, userId, circumstance, onFeedbac
 
       const feedbackRef = await addDoc(collection(db, 'feedback'), feedbackData);
       
-      const sessionDocRef = doc(db, `users/${userId}/circumstances/${circumstance}/sessions/${sessionId}`);
+      const sessionDocRef = doc(db, `users/${userId}/sessions/${sessionId}`);
       await updateDoc(sessionDocRef, {
         feedbackId: feedbackRef.id,
         feedbackSubmittedAt: serverTimestamp(),
