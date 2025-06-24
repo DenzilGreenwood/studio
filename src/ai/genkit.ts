@@ -19,12 +19,12 @@ if (!process.env.GOOGLE_API_KEY && process.env.NODE_ENV !== 'production') {
 
 export const ai = genkit({
   // Register the plugins your project will use.
-  // The firebase() plugin is added to store trace and flow state data in Firestore,
-  // which is ideal for a Firebase-based project like yours.
+  // The firebase plugin is added to store trace and flow state data in Firestore.
+  // Note: `firebase` and `next` are objects, while `googleAI` is a function.
   plugins: [
-    firebase(),
+    firebase,
     googleAI(),
-    next()
+    next
   ],
   
   // The list of flows is now managed by `src/ai/dev.ts` to prevent circular dependencies.
