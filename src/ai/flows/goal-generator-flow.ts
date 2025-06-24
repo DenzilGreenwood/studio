@@ -59,7 +59,7 @@ Analyze both the summary and reflection to identify key themes, desired changes,
 `,
 });
 
-const goalGeneratorFlow = ai.defineFlow(
+export const goalGeneratorFlow = ai.defineFlow(
   {
     name: 'goalGeneratorFlow',
     inputSchema: GoalGeneratorInputSchema,

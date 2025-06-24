@@ -8,6 +8,7 @@ import nextPlugin from '@genkit-ai/next';
 import { cognitiveEdgeProtocolFlow } from './flows/cognitive-edge-protocol';
 import { claritySummaryFlow } from './flows/clarity-summary-generator';
 import { sentimentAnalysisFlow } from './flows/sentiment-analysis-flow';
+import { goalGeneratorFlow } from './flows/goal-generator-flow';
 
 // Warn if the GOOGLE_API_KEY is missing in development
 if (!process.env.GOOGLE_API_KEY && process.env.NODE_ENV !== 'production') {
@@ -32,6 +33,7 @@ export const ai = genkit({
     cognitiveEdgeProtocolFlow,
     claritySummaryFlow,
     sentimentAnalysisFlow,
+    goalGeneratorFlow,
   ],
   
   // Defines where to store traces. Using Firestore is recommended for production.
