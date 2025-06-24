@@ -16,7 +16,7 @@ if (!process.env.GOOGLE_API_KEY && process.env.NODE_ENV !== 'production') {
   );
 }
 
-export default genkit({
+export const ai = genkit({
   // Register the plugins your project will use.
   // The firebase() plugin is added to store trace and flow state data in Firestore,
   // which is ideal for a Firebase-based project like yours.
@@ -46,7 +46,4 @@ export default genkit({
 
   // Optional: Enable full tracing and metrics for production monitoring.
   enableTracingAndMetrics: true,
-
-  // Optional: Set a log level for more detailed output during development.
-  logLevel: 'debug',
 });
