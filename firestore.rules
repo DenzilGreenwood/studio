@@ -1,73 +1,36 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is an admin
     function isAdmin() {
-      // This list must be kept in sync with the list in src/hooks/use-is-admin.ts
-      let adminUids = ['aC2Azl37NBelxACXojQOuxIRq8I2'];
-      return request.auth.uid in adminUids;
+      // Ensure your admin UID is correctly placed here.
+      return request.auth != null && request.auth.uid in ['aC2Azl37NBelxACXojQOuxIRq8I2'];
     }
 
-    // Helper function to check if the user is the owner of the document
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    // Users collection
+    // Rule for 'users' collection
     match /users/{userId} {
-      // Users can read, create, and update their own profile.
-      // Admins can read any user profile.
-      allow read, update, create: if isOwner(userId) || isAdmin();
-      
-      // A user can delete their own profile document (for account deletion).
-      allow delete: if isOwner(userId);
+      // Admins can read any user profile. Users can read/update their own.
+      allow read: if isAdmin() || (request.auth != null && request.auth.uid == userId);
+      allow update: if request.auth != null && request.auth.uid == userId;
 
-      // This rule allows admins to list all user documents.
-      allow list: if isAdmin();
-      
-      // Circumstances subcollection
-      match /circumstances/{circumstanceId} {
-        // Only the owner can manage their circumstances. Admins can read.
-        allow read, write, delete: if isOwner(userId);
-        allow list: if isOwner(userId) || isAdmin();
+      // Allow user creation (signup).
+      allow create: if request.auth.uid != null;
+    }
 
-        // Sessions subcollection within circumstances
-        match /sessions/{sessionId} {
-          // Users can read and write to their own sessions.
-          // Admins can read any session.
-          allow read, write: if isOwner(userId) || isAdmin();
-          allow list: if isOwner(userId) || isAdmin();
-          
-          // Messages subcollection within sessions
-          match /messages/{messageId} {
-            // Users can read and write messages in their own sessions.
-            // Admins can read any message.
-            allow read, write: if isOwner(userId) || isAdmin();
-            allow list: if isOwner(userId) || isAdmin();
-          }
-        }
-      }
+    // Rules for all documents within a user's session, including messages
+    match /users/{userId}/circumstances/{circumstanceId}/sessions/{sessionId}/{document=**} {
+        // Admins can read. Users can read/write their own.
+        allow read: if isAdmin() || (request.auth != null && request.auth.uid == userId);
+        allow write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Feedback collection
+    // Rules for the 'feedback' collection
     match /feedback/{feedbackId} {
-      // Any authenticated user can create (submit) feedback.
+      // Any authenticated user can create feedback.
       allow create: if request.auth != null;
-      
-      // Only Admins can read or list all feedback documents.
-      allow read, list: if isAdmin();
-      
-      // No one can update or delete feedback through the client.
-      allow update, delete: if false;
-    }
-    
-    // For Collection Group Queries used by the Admin panel
-    // This rule allows admins to query the 'sessions' collection group
-    match /{path=**}/sessions/{sessionId} {
-      allow get, list: if isAdmin();
+      // Only admins can read feedback.
+      allow read: if isAdmin();
     }
   }
 }
