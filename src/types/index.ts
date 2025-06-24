@@ -37,6 +37,7 @@ export interface Goal {
 export interface ProtocolSession {
   sessionId: string; // Document ID (same as Firestore document ID)
   userId: string;
+  ageRange?: string; // The user's age range at the time of session creation
   circumstance: string; // The primary challenge category for this session
   startTime: Timestamp | Date;
   endTime?: Timestamp | Date;

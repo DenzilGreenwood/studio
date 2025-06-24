@@ -240,6 +240,7 @@ export default function AdminPage() {
                             <TableHeader>
                               <TableRow>
                                 <TableHead>Session Date</TableHead>
+                                <TableHead>Age Range</TableHead>
                                 <TableHead>Circumstance</TableHead>
                                 <TableHead>Reframed Belief</TableHead>
                                 <TableHead>Legacy Statement</TableHead>
@@ -250,6 +251,7 @@ export default function AdminPage() {
                               {sessions.map(session => (
                                 <TableRow key={session.sessionId}>
                                   <TableCell>{new Date(session.startTime).toLocaleString()}</TableCell>
+                                  <TableCell>{session.ageRange || 'N/A'}</TableCell>
                                   <TableCell>{session.circumstance}</TableCell>
                                   <TableCell className="max-w-xs truncate">{session.summary?.actualReframedBelief || "N/A"}</TableCell>
                                   <TableCell className="max-w-xs truncate">{session.summary?.actualLegacyStatement || "N/A"}</TableCell>

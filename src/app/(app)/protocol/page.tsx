@@ -164,10 +164,10 @@ export default function ProtocolPage() {
   const initializeSession = useCallback(async () => {
     if (!firebaseUser || !user) return;
     
-    if (!user.primaryChallenge) {
+    if (!user.primaryChallenge || !user.ageRange) {
       toast({
         title: "Profile Incomplete",
-        description: "Please select a primary challenge in your profile before starting a session.",
+        description: "Please select a primary challenge and age range in your profile before starting a session.",
         variant: "destructive",
       });
       router.push('/profile');
@@ -189,6 +189,7 @@ export default function ProtocolPage() {
       sessionId: newSessionId,
       userId: firebaseUser.uid,
       circumstance: circumstance,
+      ageRange: user.ageRange,
       startTime: serverTimestamp(),
       completedPhases: 0,
       summary: {
