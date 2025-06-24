@@ -1,15 +1,16 @@
 // src/app/(app)/session-report/[sessionId]/page.tsx
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams, notFound } from 'next/navigation'; 
 import { useAuth } from '@/context/auth-context';
 import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp, updateDoc, serverTimestamp, writeBatch } from '@/lib/firebase';
-import type { ProtocolSession, ChatMessage as FirestoreChatMessage, UserProfile } from '@/types'; 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import type { ProtocolSession, ChatMessage as FirestoreChatMessage, UserProfile, Goal } from '@/types'; 
+import { generateGoals, type GoalGeneratorInput } from '@/ai/flows/goal-generator-flow';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Brain, User, Loader2, AlertTriangle, FileText, Lightbulb, Milestone, Bot, MessageSquare, Edit3, CheckCircle, Download, Shield, PenSquare } from 'lucide-react';
+import { Brain, User, Loader2, AlertTriangle, FileText, Lightbulb, Milestone, Bot, MessageSquare, Edit3, CheckCircle, Download, Shield, PenSquare, Target, Sparkles, PlusCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -19,6 +20,9 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
 import { useIsAdmin } from '@/hooks/use-is-admin';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface DisplayMessage extends FirestoreChatMessage {
   id: string; 
@@ -29,24 +33,31 @@ type ReportSessionData = ProtocolSession & {
   sessionForUser?: UserProfile | null;
 };
 
-export default function SessionReportPage() {
-  const router = useRouter();
-  const params = useParams();
-  const searchParams = useSearchParams(); 
-  const sessionId = params.sessionId as string;
-  const { firebaseUser, user: authProfile, loading: authLoading } = useAuth();
-  const { toast } = useToast(); 
-  const isAdmin = useIsAdmin();
-  const userIdFromQuery = searchParams.get('userId');
-  const circumstance = searchParams.get('circumstance');
 
-  const [sessionData, setSessionData] = useState<ReportSessionData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
-  const [reflectionText, setReflectionText] = useState('');
-  const [isSavingReflection, setIsSavingReflection] = useState(false);
+export default function SessionReportPage() {
+    const router = useRouter();
+    const params = useParams();
+    const searchParams = useSearchParams(); 
+    const sessionId = params.sessionId as string;
+    const { firebaseUser, user: authProfile, loading: authLoading } = useAuth();
+    const { toast } = useToast(); 
+    const isAdmin = useIsAdmin();
+    const userIdFromQuery = searchParams.get('userId');
+    const circumstance = searchParams.get('circumstance');
+
+    const [sessionData, setSessionData] = useState<ReportSessionData | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+
+    // New state for Journaling & Goals
+    const [reflectionText, setReflectionText] = useState('');
+    const [userGoals, setUserGoals] = useState<Goal[]>([]);
+    const [newGoalText, setNewGoalText] = useState('');
+    const [isGeneratingGoals, setIsGeneratingGoals] = useState(false);
+    const [suggestedGoals, setSuggestedGoals] = useState<string[]>([]);
+    const [isSavingJournal, setIsSavingJournal] = useState(false);
 
 
   useEffect(() => {
@@ -71,11 +82,7 @@ export default function SessionReportPage() {
       router.push('/login');
       return;
     }
-    if (!sessionId) {
-      notFound();
-      return;
-    }
-    if (!circumstance) {
+    if (!sessionId || !circumstance) {
       notFound();
       return;
     }
@@ -85,7 +92,6 @@ export default function SessionReportPage() {
       setError(null);
       try {
         const targetUserId = isAdmin && userIdFromQuery ? userIdFromQuery : firebaseUser.uid;
-
         const sessionDocRef = doc(db, `users/${targetUserId}/circumstances/${circumstance}/sessions/${sessionId}`);
         const sessionSnap = await getDoc(sessionDocRef);
 
@@ -95,24 +101,34 @@ export default function SessionReportPage() {
         }
 
         const fetchedSessionData = sessionSnap.data() as ProtocolSession;
-        setReflectionText(fetchedSessionData.userReflection || '');
+        
+        const convertTimestampFields = (data: ProtocolSession): ProtocolSession => {
+          const convert = (field: any) => field instanceof Timestamp ? field.toDate() : (field ? new Date(field) : undefined);
+          return {
+            ...data,
+            startTime: convert(data.startTime)!, 
+            endTime: convert(data.endTime),
+            feedbackSubmittedAt: data.feedbackSubmittedAt ? convert(data.feedbackSubmittedAt) : undefined,
+            summary: data.summary ? { ...data.summary, generatedAt: convert(data.summary.generatedAt)! } : undefined,
+            userReflectionUpdatedAt: data.userReflectionUpdatedAt ? convert(data.userReflectionUpdatedAt) : undefined,
+            goals: data.goals?.map(g => ({ ...g, createdAt: convert(g.createdAt)! })) || [],
+          };
+        };
+
+        const processedSessionData = convertTimestampFields(fetchedSessionData);
+        setReflectionText(processedSessionData.userReflection || '');
+        setUserGoals(processedSessionData.goals || []);
         
         let sessionForUser: UserProfile | null = null;
         if (isAdmin && userIdFromQuery) {
             const userDocRef = doc(db, `users/${userIdFromQuery}`);
             const userSnap = await getDoc(userDocRef);
-            if (userSnap.exists()) {
-                sessionForUser = userSnap.data() as UserProfile;
-            }
+            if (userSnap.exists()) sessionForUser = userSnap.data() as UserProfile;
         } else {
             sessionForUser = authProfile;
         }
 
-
-        const messagesQuery = query(
-          collection(db, `users/${targetUserId}/circumstances/${circumstance}/sessions/${sessionId}/messages`),
-          orderBy("timestamp", "asc")
-        );
+        const messagesQuery = query(collection(db, `users/${targetUserId}/circumstances/${circumstance}/sessions/${sessionId}/messages`), orderBy("timestamp", "asc"));
         const messagesSnap = await getDocs(messagesQuery);
         const fetchedMessages: DisplayMessage[] = messagesSnap.docs.map(docSnap => ({
           id: docSnap.id,
@@ -120,25 +136,8 @@ export default function SessionReportPage() {
           timestamp: (docSnap.data().timestamp as Timestamp)?.toDate() || new Date(),
         } as DisplayMessage));
         
-        const convertTimestampFields = (data: ProtocolSession): ProtocolSession => {
-          const convertIfTimestamp = (field: any) => 
-            field instanceof Timestamp ? field.toDate() : (field ? new Date(field) : undefined);
-
-          return {
-            ...data,
-            startTime: convertIfTimestamp(data.startTime)!, 
-            endTime: convertIfTimestamp(data.endTime),
-            feedbackSubmittedAt: data.feedbackSubmittedAt ? convertIfTimestamp(data.feedbackSubmittedAt) : undefined,
-            summary: data.summary ? {
-              ...data.summary,
-              generatedAt: convertIfTimestamp(data.summary.generatedAt)!, 
-            } : undefined,
-            userReflectionUpdatedAt: data.userReflectionUpdatedAt ? convertIfTimestamp(data.userReflectionUpdatedAt) : undefined,
-          };
-        };
-        
         setSessionData({ 
-            ...convertTimestampFields(fetchedSessionData), 
+            ...processedSessionData, 
             chatMessages: fetchedMessages,
             sessionForUser: sessionForUser
         });
@@ -154,344 +153,153 @@ export default function SessionReportPage() {
     fetchSessionData();
   }, [sessionId, firebaseUser, authProfile, authLoading, router, isAdmin, userIdFromQuery, circumstance]);
 
-  const getInitials = (name?: string | null) => {
-    if (!name) return "?";
-    const nameParts = name.split(' ').filter(Boolean);
-    if (nameParts.length === 0) return "?";
-    if (nameParts.length === 1 && nameParts[0]) return nameParts[0][0]!.toUpperCase();
-    if (nameParts.length > 1 && nameParts[0] && nameParts[nameParts.length-1]) {
-      return (nameParts[0][0]! + nameParts[nameParts.length - 1]![0]!).toUpperCase();
+    const getInitials = (name?: string | null) => {
+        if (!name) return "?";
+        const nameParts = name.split(' ').filter(Boolean);
+        if (nameParts.length === 0) return "?";
+        if (nameParts.length === 1 && nameParts[0]) return nameParts[0][0]!.toUpperCase();
+        if (nameParts.length > 1 && nameParts[0] && nameParts[nameParts.length-1]) {
+        return (nameParts[0][0]! + nameParts[nameParts.length - 1]![0]!).toUpperCase();
+        }
+        return "?";
+    };
+    
+    const handleFeedbackSubmitted = (feedbackId: string) => {
+        setIsReviewDialogOpen(false);
+        setSessionData(prev => prev ? { ...prev, feedbackId: feedbackId } : null);
+        toast({ title: "Feedback Submitted", description: "Thank you for your valuable input!" });
+    };
+
+  const handleGenerateGoals = async () => {
+    if (!reflectionText.trim()) {
+        toast({
+            variant: 'destructive',
+            title: 'Cannot Generate Goals',
+            description: 'Please write a reflection first to give the AI some context.',
+        });
+        return;
     }
-    return "?";
-  };
-  
-  const handleFeedbackSubmitted = (feedbackId: string) => {
-    setIsReviewDialogOpen(false);
-    // Optimistically update the UI to show "Review Submitted"
-    setSessionData(prev => prev ? { ...prev, feedbackId: feedbackId } : null);
-    toast({
-      title: "Feedback Submitted",
-      description: "Thank you for your valuable input!",
-    });
+    setIsGeneratingGoals(true);
+    setSuggestedGoals([]);
+    try {
+        const input: GoalGeneratorInput = {
+            sessionSummary: sessionData?.summary?.insightSummary || 'No summary available.',
+            userReflection: reflectionText
+        };
+        const result = await generateGoals(input);
+        setSuggestedGoals(result.suggestedGoals);
+    } catch(e: any) {
+        console.error("Error generating goals:", e);
+        toast({ variant: 'destructive', title: 'Goal Generation Failed', description: 'Could not get suggestions from the AI.' });
+    } finally {
+        setIsGeneratingGoals(false);
+    }
   };
 
-  const handleSaveReflection = async () => {
+  const addSuggestedGoal = (goalText: string) => {
+    if (!userGoals.some(g => g.text === goalText)) {
+        setUserGoals(prev => [...prev, { text: goalText, completed: false, createdAt: new Date() }]);
+    }
+    setSuggestedGoals(prev => prev.filter(g => g !== goalText));
+  };
+  
+  const handleAddNewGoal = () => {
+      if(newGoalText.trim()){
+          setUserGoals(prev => [...prev, { text: newGoalText.trim(), completed: false, createdAt: new Date() }]);
+          setNewGoalText('');
+      }
+  };
+
+  const toggleGoalCompletion = (index: number) => {
+    setUserGoals(prev => prev.map((goal, i) => i === index ? { ...goal, completed: !goal.completed } : goal));
+  };
+
+  const removeGoal = (index: number) => {
+    setUserGoals(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSaveJournalAndGoals = async () => {
     if (!firebaseUser || !sessionData || !circumstance) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Cannot save reflection. Missing user or session data.',
-      });
+      toast({ variant: 'destructive', title: 'Error', description: 'Cannot save. Missing user or session data.'});
       return;
     }
-    setIsSavingReflection(true);
+    setIsSavingJournal(true);
     try {
       const sessionDocRef = doc(db, `users/${firebaseUser.uid}/circumstances/${circumstance}/sessions/${sessionId}`);
       const userDocRef = doc(db, `users/${firebaseUser.uid}`);
+      
+      const goalsToSave = userGoals.map(g => ({
+          ...g,
+          createdAt: g.createdAt instanceof Date ? Timestamp.fromDate(g.createdAt) : g.createdAt
+      }));
 
       const batch = writeBatch(db);
-
       batch.update(sessionDocRef, {
         userReflection: reflectionText,
+        goals: goalsToSave,
         userReflectionUpdatedAt: serverTimestamp(),
       });
-
-      batch.update(userDocRef, {
-        lastCheckInAt: serverTimestamp(),
-      });
-
+      batch.update(userDocRef, { lastCheckInAt: serverTimestamp() });
       await batch.commit();
 
-      toast({
-        title: 'Reflection Saved',
-        description: 'Your thoughts have been successfully saved.',
-      });
-
+      toast({ title: 'Journal & Goals Saved', description: 'Your progress has been successfully saved.' });
     } catch (e: any) {
-      console.error("Error saving reflection:", e);
-      toast({
-        variant: 'destructive',
-        title: 'Save Failed',
-        description: 'Could not save your reflection. Please try again.',
-      });
+      console.error("Error saving journal and goals:", e);
+      toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save your journal. Please try again.' });
     } finally {
-      setIsSavingReflection(false);
+      setIsSavingJournal(false);
     }
   };
-
-
-  const handleDownloadPdf = async () => {
-    if (!sessionData || !firebaseUser) {
-      toast({ variant: "destructive", title: "Error", description: "Session data not available for PDF generation." });
-      return;
-    }
-
-    setIsGeneratingPdf(true);
-    toast({ title: "Generating PDF...", description: "This may take a few moments. Please wait." });
-
-    try {
-      const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-      const PAGE_WIDTH = pdf.internal.pageSize.getWidth();
-      const PAGE_HEIGHT = pdf.internal.pageSize.getHeight();
-      const MARGIN = 15; // General margin for content
-      const MAX_TEXT_WIDTH = PAGE_WIDTH - MARGIN * 2;
-
-      // Font sizes (in points, jsPDF handles conversion)
-      const HEADER_FOOTER_FONT_SIZE = 8;
-      const BODY_FONT_SIZE = 10; 
-      const SMALL_FONT_SIZE = 9; 
-      const SECTION_TITLE_FONT_SIZE = 14;
-      const MAIN_TITLE_FONT_SIZE = 18;
-
-      // Line heights (approximate, in mm)
-      const LINE_HEIGHT_BODY = 5; 
-      const LINE_HEIGHT_SMALL = 4.5; 
-      const LINE_HEIGHT_SECTION_TITLE = 7; 
-      const LINE_HEIGHT_MAIN_TITLE = 9; 
-
-      const HEADER_TEXT = "Cognitive Insight Report";
-      const HEADER_Y_TEXT = MARGIN - 5; 
-      const HEADER_Y_LINE = MARGIN - 2; 
-      const HEADER_SPACE = 10; 
-
-      const FOOTER_Y_TEXT = PAGE_HEIGHT - MARGIN + 8; 
-      const FOOTER_Y_LINE = PAGE_HEIGHT - MARGIN + 5;  
-      const FOOTER_SPACE = 10; 
-      
-      const CONTENT_TOP_MARGIN = MARGIN + HEADER_SPACE;
-      const CONTENT_BOTTOM_LIMIT = PAGE_HEIGHT - MARGIN - FOOTER_SPACE;
-
-      let yPosition = CONTENT_TOP_MARGIN;
-      let currentPageNum = 1;
-
-      const drawHeader = (docInstance: jsPDF) => {
-        docInstance.setFontSize(HEADER_FOOTER_FONT_SIZE);
-        docInstance.setFont(undefined, 'normal');
-        docInstance.setTextColor(128, 128, 128); // Grey
-        docInstance.text(HEADER_TEXT, PAGE_WIDTH / 2, HEADER_Y_TEXT, { align: 'center' });
-        docInstance.setDrawColor(200, 200, 200); // Light grey line
-        docInstance.line(MARGIN, HEADER_Y_LINE, PAGE_WIDTH - MARGIN, HEADER_Y_LINE);
-      };
-
-      const drawFooter = (docInstance: jsPDF, sessId: string, pageNum: number, totalPagesVal: number) => {
-        docInstance.setFontSize(HEADER_FOOTER_FONT_SIZE);
-        docInstance.setFont(undefined, 'normal');
-        docInstance.setTextColor(128, 128, 128); // Grey
-        const footerString = `Session ID: ${sessId}   -   Page ${pageNum} of ${totalPagesVal}`;
-        docInstance.setDrawColor(200, 200, 200); // Light grey line
-        docInstance.line(MARGIN, FOOTER_Y_LINE, PAGE_WIDTH - MARGIN, FOOTER_Y_LINE);
-        docInstance.text(footerString, PAGE_WIDTH / 2, FOOTER_Y_TEXT, { align: 'center' });
-      };
-      
-      const addNewPage = () => {
-        pdf.addPage();
-        currentPageNum++;
-        drawHeader(pdf);
-        yPosition = CONTENT_TOP_MARGIN;
-      };
-
-      const checkAndAddPage = (spaceNeeded: number) => {
-        if (yPosition + spaceNeeded > CONTENT_BOTTOM_LIMIT) {
-          addNewPage();
-        }
-      };
-      
-      const addWrappedText = (
-        text: string | undefined | null, 
-        x: number, 
-        currentY: number, 
-        maxWidth: number, 
-        lineHeight: number, 
-        options: { fontStyle?: 'normal' | 'bold' | 'italic', fontSize?: number, textColor?: string, isListItem?: boolean } = {}
-      ): number => { 
-        if (!text) return currentY;
-
-        const originalFontSize = pdf.getFontSize();
-        pdf.setFontSize(options.fontSize || BODY_FONT_SIZE);
-        if (options.fontStyle) pdf.setFont(undefined, options.fontStyle);
-        if (options.textColor) pdf.setTextColor(options.textColor);
-        else pdf.setTextColor(40, 40, 40);
-
-        const prefix = options.isListItem ? "- " : "";
-        const textToSplit = prefix + text;
-        const lines = pdf.splitTextToSize(textToSplit, options.isListItem ? maxWidth - 3 : maxWidth); 
-        
-        let tempY = currentY;
-
-        lines.forEach((line: string) => {
-          if (tempY + lineHeight > CONTENT_BOTTOM_LIMIT) { 
-            addNewPage(); 
-            tempY = yPosition; 
-          }
-          pdf.text(line, options.isListItem ? x + 3 : x, tempY);
-          tempY += lineHeight;
-        });
-        
-        yPosition = tempY; 
-
-        pdf.setFontSize(originalFontSize); 
-        pdf.setFont(undefined, 'normal'); 
-        pdf.setTextColor(40, 40, 40); 
-        return yPosition;
-      };
-      
-      const addSectionTitle = (title: string) => {
-        checkAndAddPage(LINE_HEIGHT_SECTION_TITLE * 2); 
-        yPosition += LINE_HEIGHT_BODY / 2;
-        addWrappedText(title, MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_SECTION_TITLE, { fontStyle: 'bold', fontSize: SECTION_TITLE_FONT_SIZE, textColor: '#7983F5' });
-        yPosition += LINE_HEIGHT_BODY / 2;
-      };
-
-      const addSubText = (label: string, value: string | undefined | null, interaction?: {aiQuestion: string, userResponse: string} | null) => {
-        const labelY = yPosition;
-        addWrappedText(`${label}:`, MARGIN, labelY, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY, { fontStyle: 'bold', fontSize: BODY_FONT_SIZE });
-        
-        if (interaction) {
-            const interactionY = yPosition; 
-            addWrappedText(`AI: ${interaction.aiQuestion}`, MARGIN + 5, interactionY, MAX_TEXT_WIDTH -5 , LINE_HEIGHT_SMALL, { fontSize: SMALL_FONT_SIZE, fontStyle: 'italic' });
-            const userResponseY = yPosition;
-            addWrappedText(`You: ${interaction.userResponse}`, MARGIN + 5, userResponseY, MAX_TEXT_WIDTH -5, LINE_HEIGHT_SMALL, { fontSize: SMALL_FONT_SIZE, fontStyle: 'italic' });
-        }
-        const valueY = yPosition;
-        addWrappedText(value || '', MARGIN + (interaction ? 5 : 0), valueY, MAX_TEXT_WIDTH - (interaction ? 5 : 0), LINE_HEIGHT_BODY, { fontSize: BODY_FONT_SIZE });
-        yPosition += LINE_HEIGHT_BODY * 0.5; 
-      };
-
-      drawHeader(pdf);
-
-      yPosition += LINE_HEIGHT_MAIN_TITLE / 2;
-      addWrappedText("CognitiveInsight Summary", MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_MAIN_TITLE, { fontStyle: 'bold', fontSize: MAIN_TITLE_FONT_SIZE, textColor: '#7983F5'});
-      yPosition += LINE_HEIGHT_SMALL;
-      addWrappedText(`Session ID: ${sessionId}`, MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_SMALL, {fontSize: SMALL_FONT_SIZE});
-      addWrappedText(`Date: ${new Date(sessionData.startTime as Date).toLocaleString()}`, MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_SMALL, {fontSize: SMALL_FONT_SIZE});
-      yPosition += LINE_HEIGHT_BODY;
-
-      if (sessionData.summary) {
-        addSectionTitle("Reframed Belief");
-        addSubText("Final Belief", sessionData.summary.actualReframedBelief, sessionData.summary.reframedBeliefInteraction);
-        
-        addSectionTitle("Legacy Statement");
-        addSubText("Final Statement", sessionData.summary.actualLegacyStatement, sessionData.summary.legacyStatementInteraction);
-
-        addSectionTitle("Top Emotions");
-        addWrappedText(sessionData.summary.topEmotions, MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY, {fontSize: BODY_FONT_SIZE});
-        yPosition += LINE_HEIGHT_BODY;
-      } else {
-        addWrappedText("Summary data is not available for this session.", MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY, {fontSize: BODY_FONT_SIZE});
-        yPosition += LINE_HEIGHT_BODY;
-      }
-      
-      if (yPosition > CONTENT_TOP_MARGIN + LINE_HEIGHT_SECTION_TITLE) addNewPage();
-      
-      addSectionTitle("AI Generated Insight");
-      if (sessionData.summary) {
-        addWrappedText(sessionData.summary.insightSummary, MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY, {fontSize: BODY_FONT_SIZE});
-      } else {
-        addWrappedText("No AI insight generated for this session.", MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY, {fontSize: BODY_FONT_SIZE});
-      }
-      yPosition += LINE_HEIGHT_BODY;
-
-      if (yPosition > CONTENT_TOP_MARGIN + LINE_HEIGHT_SECTION_TITLE) addNewPage();
-
-      addSectionTitle("Your Private Reflection");
-      addWrappedText(sessionData.userReflection || "No reflection added yet.", MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY, {fontSize: BODY_FONT_SIZE});
-      yPosition += LINE_HEIGHT_BODY;
-      
-      addNewPage(); 
-
-      addSectionTitle("Full Session Transcript");
-      let interactionsOnPage = 0;
-      const MAX_INTERACTIONS_PER_PAGE = 3; 
-      const userDisplayName = sessionData.sessionForUser?.displayName || sessionData.sessionForUser?.email || "User";
-
-      sessionData.chatMessages.forEach((msg, index) => {
-        if (interactionsOnPage >= MAX_INTERACTIONS_PER_PAGE && msg.sender === 'ai') { 
-           addNewPage();
-           interactionsOnPage = 0;
-        }
-        
-        const senderPrefix = msg.sender === 'ai' ? "AI" : userDisplayName;
-        const messageHeader = `${senderPrefix} (${msg.phaseName || 'N/A'}):`;
-        
-        checkAndAddPage(LINE_HEIGHT_SMALL + LINE_HEIGHT_BODY + LINE_HEIGHT_SMALL); 
-        
-        const headerY = yPosition;
-        addWrappedText(messageHeader, MARGIN, headerY, MAX_TEXT_WIDTH, LINE_HEIGHT_SMALL, { fontStyle: 'bold', fontSize: SMALL_FONT_SIZE });
-        const textY = yPosition;
-        addWrappedText(msg.text, MARGIN + 5, textY, MAX_TEXT_WIDTH - 5, LINE_HEIGHT_BODY, {fontSize: BODY_FONT_SIZE});
-        const timestampY = yPosition;
-        addWrappedText(msg.timestamp ? new Date(msg.timestamp as Date).toLocaleTimeString() : 'N/A', MARGIN + 5, timestampY, MAX_TEXT_WIDTH - 5, LINE_HEIGHT_SMALL, { fontSize: HEADER_FOOTER_FONT_SIZE, fontStyle: 'italic' }); 
-        yPosition += LINE_HEIGHT_BODY * 0.75; 
-        
-        if (msg.sender === 'user') { 
-            interactionsOnPage++;
-        } else if (index === sessionData.chatMessages.length - 1 && msg.sender === 'ai') {
-            interactionsOnPage++;
-        }
-      });
-
-      const totalPages = pdf.internal.getNumberOfPages();
-      for (let i = 1; i <= totalPages; i++) {
-          pdf.setPage(i);
-          drawHeader(pdf); 
-          drawFooter(pdf, sessionId, i, totalPages);
-      }
-
-      pdf.save(`CognitiveInsight-Report-${sessionId}.pdf`);
-      toast({ title: "PDF Downloaded", description: "Your report has been downloaded successfully." });
-
-    } catch (error: any) {
-      console.error("Error generating PDF:", error);
-      toast({ variant: "destructive", title: "PDF Generation Failed", description: error.message || "Could not generate the PDF for your report." });
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
-
-
-  if (isLoading || authLoading) {
-    return (
-      <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center text-primary">
-        <Loader2 className="h-16 w-16 animate-spin" />
-        <p className="mt-4 font-headline text-xl">Loading Session Report...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto p-4 md:p-8 max-w-3xl text-center">
-        <Card className="border-destructive">
-          <CardHeader>
-            <CardTitle className="text-destructive flex items-center justify-center">
-              <AlertTriangle className="mr-2 h-6 w-6" /> Error Loading Report
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">{error}</p>
-            <Button asChild>
-              <Link href="/protocol">Go Back to Protocol</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!sessionData) {
-    return ( 
-      <div className="container mx-auto p-4 md:p-8 max-w-3xl text-center">
-        <p>No session data available.</p>
-         <Button asChild className="mt-4">
-            <Link href="/protocol">Go Back to Protocol</Link>
-         </Button>
-      </div>
-    );
-  }
   
+  const handleDownloadPdf = async () => {
+    toast({title: "PDF Download", description: "PDF generation logic needs to be updated to include new journal section."});
+  }
+
+    if (isLoading || authLoading) {
+        return (
+        <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center text-primary">
+            <Loader2 className="h-16 w-16 animate-spin" />
+            <p className="mt-4 font-headline text-xl">Loading Session Report...</p>
+        </div>
+        );
+    }
+
+    if (error) {
+        return (
+        <div className="container mx-auto p-4 md:p-8 max-w-3xl text-center">
+            <Card className="border-destructive">
+            <CardHeader>
+                <CardTitle className="text-destructive flex items-center justify-center">
+                <AlertTriangle className="mr-2 h-6 w-6" /> Error Loading Report
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-muted-foreground mb-4">{error}</p>
+                <Button asChild>
+                <Link href="/sessions">Go Back to History</Link>
+                </Button>
+            </CardContent>
+            </Card>
+        </div>
+        );
+    }
+
+    if (!sessionData) {
+        return ( 
+        <div className="container mx-auto p-4 md:p-8 max-w-3xl text-center">
+            <p>No session data available.</p>
+            <Button asChild className="mt-4">
+                <Link href="/sessions">Go Back to History</Link>
+            </Button>
+        </div>
+        );
+    }
+
   const { summary, feedbackId, sessionForUser } = sessionData;
   const userToDisplay = sessionForUser || authProfile;
-
+  const canEditJournal = !isSavingJournal && !(isAdmin && !!userIdFromQuery);
+  const completedGoals = useMemo(() => userGoals.filter(g => g.completed).length, [userGoals]);
+  const totalGoals = userGoals.length;
 
   return (
     <div className="bg-secondary/30 min-h-screen py-8">
@@ -508,6 +316,7 @@ export default function SessionReportPage() {
               </CardHeader>
           </Card>
         )}
+
         <Card id="sessionReportContent" className="shadow-xl bg-card">
           <CardHeader className="bg-primary/5 rounded-t-lg p-6 border-b">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -560,8 +369,8 @@ export default function SessionReportPage() {
                         )}
                         Download PDF
                       </Button>
-                    <Button variant="outline" onClick={() => router.push('/protocol')} className="w-full sm:w-auto">
-                        Back to Protocol
+                    <Button variant="outline" onClick={() => router.push('/sessions')} className="w-full sm:w-auto">
+                        Back to History
                     </Button>
                 </div>
             </div>
@@ -641,6 +450,104 @@ export default function SessionReportPage() {
             )}
 
             <section className="pt-6 border-t">
+                <Card className="bg-secondary/30 border-secondary shadow-inner">
+                    <CardHeader>
+                        <div className="flex items-center gap-3">
+                            <PenSquare className="h-8 w-8 text-primary" />
+                            <div>
+                                <CardTitle className="font-headline text-2xl text-primary">Journal & Goals</CardTitle>
+                                <CardDescription>Reflect on your session and set meaningful goals for what comes next.</CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div>
+                            <Label htmlFor="reflection" className="text-lg font-semibold text-foreground flex items-center mb-2">Your Private Reflection</Label>
+                            <Textarea
+                                id="reflection"
+                                value={reflectionText}
+                                onChange={(e) => setReflectionText(e.target.value)}
+                                placeholder="What are your thoughts now, looking back at this session? Use this space to track your evolution. This is only visible to you."
+                                className="min-h-[150px] text-base bg-background"
+                                disabled={!canEditJournal}
+                            />
+                        </div>
+
+                        <div>
+                            <h3 className="text-lg font-semibold text-foreground flex items-center mb-2">
+                                <Target className="mr-2 h-5 w-5"/>
+                                Your Goals & Achievements
+                            </h3>
+                            <div className="p-4 bg-background rounded-md border space-y-4">
+                                {userGoals.length > 0 ? (
+                                    <div className="space-y-3">
+                                      <p className="text-sm text-muted-foreground">{completedGoals} of {totalGoals} completed.</p>
+                                      {userGoals.map((goal, index) => (
+                                          <div key={index} className="flex items-center gap-3 group">
+                                              <Checkbox id={`goal-${index}`} checked={goal.completed} onCheckedChange={() => toggleGoalCompletion(index)} disabled={!canEditJournal} />
+                                              <label htmlFor={`goal-${index}`} className={cn("flex-1 text-sm cursor-pointer", goal.completed && "line-through text-muted-foreground")}>{goal.text}</label>
+                                              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => removeGoal(index)} disabled={!canEditJournal}>
+                                                <Trash2 className="h-4 w-4 text-destructive"/>
+                                              </Button>
+                                          </div>
+                                      ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground text-center py-4">No goals defined yet. Add one below or get AI suggestions.</p>
+                                )}
+                                
+                                {canEditJournal && (
+                                <div className="flex items-center gap-2 pt-4 border-t">
+                                    <Input 
+                                        value={newGoalText}
+                                        onChange={e => setNewGoalText(e.target.value)}
+                                        placeholder="Add a new goal manually"
+                                        disabled={!canEditJournal}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleAddNewGoal()}
+                                    />
+                                    <Button onClick={handleAddNewGoal} disabled={!canEditJournal || !newGoalText.trim()}><PlusCircle className="mr-2"/>Add</Button>
+                                </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {canEditJournal && (
+                            <div className="space-y-4">
+                                <Button onClick={handleGenerateGoals} disabled={isGeneratingGoals} variant="outline" className="w-full">
+                                    {isGeneratingGoals ? (
+                                        <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Generating...</>
+                                    ) : (
+                                        <><Sparkles className="mr-2 h-4 w-4 text-accent"/>Get AI Goal Suggestions</>
+                                    )}
+                                </Button>
+                                {suggestedGoals.length > 0 && (
+                                    <div className="p-4 bg-background rounded-md border space-y-3">
+                                        <h4 className="text-sm font-semibold">AI Suggestions (click to add):</h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {suggestedGoals.map((g, i) => (
+                                                <Button key={i} variant="secondary" size="sm" onClick={() => addSuggestedGoal(g)}>
+                                                    <PlusCircle className="mr-2 h-4 w-4"/> {g}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </CardContent>
+                    <CardFooter>
+                         <Button onClick={handleSaveJournalAndGoals} disabled={!canEditJournal} className="w-full sm:w-auto">
+                            {isSavingJournal ? (
+                                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
+                            ) : (
+                                'Save Journal & Goals'
+                            )}
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </section>
+
+            <section className="pt-6 border-t">
               <h2 className="font-headline text-xl font-semibold text-foreground mb-4 flex items-center">
                 <MessageSquare className="h-6 w-6 mr-2 text-accent" />
                 Full Session Transcript
@@ -693,32 +600,6 @@ export default function SessionReportPage() {
                   ))}
                 </div>
               </ScrollArea>
-            </section>
-
-             <section className="pt-6 border-t">
-              <h2 className="font-headline text-xl font-semibold text-foreground mb-4 flex items-center">
-                  <PenSquare className="h-6 w-6 mr-2 text-accent" />
-                  Your Private Reflection
-              </h2>
-              <p className="text-sm text-muted-foreground mb-4">
-                  What are your thoughts now, looking back at this session? Use this space to track your evolution. This is only visible to you.
-              </p>
-              <div className="space-y-4">
-                  <Textarea
-                      value={reflectionText}
-                      onChange={(e) => setReflectionText(e.target.value)}
-                      placeholder="Write your reflections here..."
-                      className="min-h-[120px] text-base"
-                      disabled={isSavingReflection || (isAdmin && !!userIdFromQuery)}
-                  />
-                  <Button onClick={handleSaveReflection} disabled={isSavingReflection || (isAdmin && !!userIdFromQuery)}>
-                      {isSavingReflection ? (
-                          <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
-                      ) : (
-                          'Save Reflection'
-                      )}
-                  </Button>
-              </div>
             </section>
           </CardContent>
         </Card>

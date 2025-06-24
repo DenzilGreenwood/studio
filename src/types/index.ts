@@ -26,6 +26,13 @@ export interface ChatMessage {
   phaseName: string; // Name of the protocol phase
 }
 
+// Goal object for journaling
+export interface Goal {
+  text: string;
+  completed: boolean;
+  createdAt: Timestamp | Date;
+}
+
 // Session Data stored in Firestore
 export interface ProtocolSession {
   sessionId: string; // Document ID (same as Firestore document ID)
@@ -63,6 +70,7 @@ export interface ProtocolSession {
 
   userReflection?: string;
   userReflectionUpdatedAt?: Timestamp | Date;
+  goals?: Goal[];
 }
 
 
