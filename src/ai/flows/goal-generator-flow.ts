@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -9,7 +10,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 
 const GoalGeneratorInputSchema = z.object({
   sessionSummary: z
@@ -40,6 +41,7 @@ export async function generateGoals(
 
 const prompt = ai.definePrompt({
   name: 'goalGeneratorPrompt',
+  model: 'googleai/gemini-1.5-pro-latest',
   input: {schema: GoalGeneratorInputSchema},
   output: {schema: GoalGeneratorOutputSchema},
   prompt: `You are an empathetic and encouraging AI life coach. Your purpose is to help a user define actionable, meaningful goals after a cognitive therapy session.

@@ -11,7 +11,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 
 const ClaritySummaryInputSchema = z.object({
   reframedBelief: z
@@ -39,6 +39,7 @@ export async function generateClaritySummary(
 
 const prompt = ai.definePrompt({
   name: 'claritySummaryPrompt',
+  model: 'googleai/gemini-1.5-pro-latest',
   input: {schema: ClaritySummaryInputSchema},
   output: {schema: ClaritySummaryOutputSchema},
   prompt: `You are an AI assistant designed to generate insightful summaries of Cognitive Edge Protocol sessions.

@@ -10,7 +10,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 
 const SentimentAnalysisInputSchema = z.object({
   userMessages: z
@@ -42,6 +42,7 @@ export async function analyzeSentiment(
 
 const prompt = ai.definePrompt({
   name: 'sentimentAnalysisPrompt',
+  model: 'googleai/gemini-1.5-pro-latest',
   input: {schema: SentimentAnalysisInputSchema},
   output: {schema: SentimentAnalysisOutputSchema},
   prompt: `You are an expert in sentiment analysis and emotional intelligence.

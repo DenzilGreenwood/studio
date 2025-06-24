@@ -11,7 +11,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 
 const CognitiveEdgeProtocolInputSchema = z.object({
   userInput: z.string().describe('The user input for the current phase.'),
@@ -47,12 +47,13 @@ export async function cognitiveEdgeProtocol(input: CognitiveEdgeProtocolInput): 
 
 const prompt = ai.definePrompt({
   name: 'cognitiveEdgeProtocolPrompt',
+  model: 'googleai/gemini-1.5-pro-latest',
   input: {schema: CognitiveEdgeProtocolInputSchema},
   output: {schema: CognitiveEdgeProtocolOutputSchema},
   prompt: `You are an AI assistant guiding the user through the Cognitive Edge Protocol, a six-phase process designed to help users gain clarity and insights into their challenges.  The current phase is {{{phase}}}.
 
       Previous Session History:
-      {{sessionHistory}}
+      {{{sessionHistory}}}
 
       User Input: {{{userInput}}}
 
