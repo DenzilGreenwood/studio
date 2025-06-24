@@ -7,17 +7,19 @@ import { db, collectionGroup, query, where, orderBy, getDocs, Timestamp } from '
 import type { ProtocolSession } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, History, PlusCircle, Eye } from 'lucide-react';
+import { Loader2, History, PlusCircle, Eye, Sparkles, PenSquare } from 'lucide-react';
 import Link from 'next/link';
 
 // Add sessionId to the type for local use, as it's the document ID
 type SessionWithId = ProtocolSession & { sessionId: string };
 
 export default function SessionsPage() {
-  const { firebaseUser, loading: authLoading } = useAuth();
+  const { firebaseUser, user, loading: authLoading } = useAuth();
   const [sessions, setSessions] = useState<SessionWithId[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCheckIn, setShowCheckIn] = useState(false);
+  const [latestSession, setLatestSession] = useState<SessionWithId | null>(null);
 
   useEffect(() => {
     if (authLoading) {
@@ -53,6 +55,26 @@ export default function SessionsPage() {
           };
         });
         setSessions(fetchedSessions);
+
+        if (fetchedSessions.length > 0) {
+            setLatestSession(fetchedSessions[0]!);
+        }
+        
+        if (user) {
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+            const lastActivityDate = user.lastCheckInAt && user.lastSessionAt
+                ? new Date(Math.max(new Date(user.lastCheckInAt).getTime(), new Date(user.lastSessionAt).getTime()))
+                : user.lastSessionAt ? new Date(user.lastSessionAt)
+                : user.lastCheckInAt ? new Date(user.lastCheckInAt)
+                : null;
+            
+            if (fetchedSessions.length > 0 && lastActivityDate && lastActivityDate < sevenDaysAgo) {
+                setShowCheckIn(true);
+            }
+        }
+
       } catch (e: any) {
         console.error("Error fetching sessions:", e);
         setError("Failed to load your past sessions. Please try again later.");
@@ -62,7 +84,7 @@ export default function SessionsPage() {
     };
 
     fetchSessions();
-  }, [firebaseUser, authLoading]);
+  }, [firebaseUser, authLoading, user]);
 
   if (isLoading || authLoading) {
     return (
@@ -100,6 +122,38 @@ export default function SessionsPage() {
                     </div>
                 </div>
             </header>
+
+            {showCheckIn && latestSession && (
+                <Card className="mb-8 bg-accent/20 border-accent/50 shadow-lg">
+                    <CardHeader>
+                        <CardTitle className="font-headline text-accent-foreground/90 flex items-center gap-2">
+                            <Sparkles className="h-6 w-6" /> Time for a Check-in?
+                        </CardTitle>
+                        <CardDescription>
+                            It's been a while. Reflecting on past insights can spark new growth.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground mb-4">
+                            Consider revisiting your last session on "{latestSession.circumstance}" to add your thoughts.
+                        </p>
+                    </CardContent>
+                    <CardFooter className="gap-4">
+                        <Button asChild>
+                            <Link href={`/session-report/${latestSession.sessionId}?circumstance=${encodeURIComponent(latestSession.circumstance)}`}>
+                                <PenSquare className="mr-2 h-4 w-4" />
+                                Review Last Session
+                            </Link>
+                        </Button>
+                        <Button asChild variant="outline">
+                            <Link href="/protocol">
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Start a New Session
+                            </Link>
+                        </Button>
+                    </CardFooter>
+                </Card>
+            )}
             
             {sessions.length === 0 ? (
                 <Card className="text-center p-8 md:p-12 shadow-lg">

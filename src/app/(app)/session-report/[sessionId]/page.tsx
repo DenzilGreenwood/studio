@@ -4,12 +4,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation'; 
 import { useAuth } from '@/context/auth-context';
-import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp } from '@/lib/firebase';
+import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp, updateDoc, serverTimestamp, writeBatch } from '@/lib/firebase';
 import type { ProtocolSession, ChatMessage as FirestoreChatMessage, UserProfile } from '@/types'; 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Brain, User, Loader2, AlertTriangle, FileText, Lightbulb, Milestone, Bot, MessageSquare, Edit3, CheckCircle, Download, Shield } from 'lucide-react';
+import { Brain, User, Loader2, AlertTriangle, FileText, Lightbulb, Milestone, Bot, MessageSquare, Edit3, CheckCircle, Download, Shield, PenSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,7 @@ import jsPDF from 'jspdf';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
 import { useIsAdmin } from '@/hooks/use-is-admin';
+import { Textarea } from '@/components/ui/textarea';
 
 interface DisplayMessage extends FirestoreChatMessage {
   id: string; 
@@ -44,6 +45,9 @@ export default function SessionReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [reflectionText, setReflectionText] = useState('');
+  const [isSavingReflection, setIsSavingReflection] = useState(false);
+
 
   useEffect(() => {
     const reviewSubmitted = searchParams?.get('review_submitted') === 'true';
@@ -94,6 +98,7 @@ export default function SessionReportPage() {
         }
 
         const fetchedSessionData = sessionSnap.data() as ProtocolSession;
+        setReflectionText(fetchedSessionData.userReflection || '');
         
         let sessionForUser: UserProfile | null = null;
         if (isAdmin && userIdFromQuery) {
@@ -131,6 +136,7 @@ export default function SessionReportPage() {
               ...data.summary,
               generatedAt: convertIfTimestamp(data.summary.generatedAt)!, 
             } : undefined,
+            userReflectionUpdatedAt: data.userReflectionUpdatedAt ? convertIfTimestamp(data.userReflectionUpdatedAt) : undefined,
           };
         };
         
@@ -172,6 +178,50 @@ export default function SessionReportPage() {
     });
   };
 
+  const handleSaveReflection = async () => {
+    if (!firebaseUser || !sessionData || !circumstance) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Cannot save reflection. Missing user or session data.',
+      });
+      return;
+    }
+    setIsSavingReflection(true);
+    try {
+      const sessionDocRef = doc(db, `users/${firebaseUser.uid}/circumstances/${circumstance}/sessions/${sessionId}`);
+      const userDocRef = doc(db, `users/${firebaseUser.uid}`);
+
+      const batch = writeBatch(db);
+
+      batch.update(sessionDocRef, {
+        userReflection: reflectionText,
+        userReflectionUpdatedAt: serverTimestamp(),
+      });
+
+      batch.update(userDocRef, {
+        lastCheckInAt: serverTimestamp(),
+      });
+
+      await batch.commit();
+
+      toast({
+        title: 'Reflection Saved',
+        description: 'Your thoughts have been successfully saved.',
+      });
+
+    } catch (e: any) {
+      console.error("Error saving reflection:", e);
+      toast({
+        variant: 'destructive',
+        title: 'Save Failed',
+        description: 'Could not save your reflection. Please try again.',
+      });
+    } finally {
+      setIsSavingReflection(false);
+    }
+  };
+
 
   const handleDownloadPdf = async () => {
     if (!sessionData || !firebaseUser) {
@@ -192,7 +242,7 @@ export default function SessionReportPage() {
       // Font sizes (in points, jsPDF handles conversion)
       const HEADER_FOOTER_FONT_SIZE = 8;
       const BODY_FONT_SIZE = 10; 
-      const SMALL_FONT_SIZE = 9;
+      const SMALL_FONT_SIZE = 9; 
       const SECTION_TITLE_FONT_SIZE = 14;
       const MAIN_TITLE_FONT_SIZE = 18;
 
@@ -342,6 +392,12 @@ export default function SessionReportPage() {
       } else {
         addWrappedText("No AI insight generated for this session.", MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY, {fontSize: BODY_FONT_SIZE});
       }
+      yPosition += LINE_HEIGHT_BODY;
+
+      if (yPosition > CONTENT_TOP_MARGIN + LINE_HEIGHT_SECTION_TITLE) addNewPage();
+
+      addSectionTitle("Your Private Reflection");
+      addWrappedText(sessionData.userReflection || "No reflection added yet.", MARGIN, yPosition, MAX_TEXT_WIDTH, LINE_HEIGHT_BODY, {fontSize: BODY_FONT_SIZE});
       yPosition += LINE_HEIGHT_BODY;
       
       addNewPage(); 
@@ -640,6 +696,32 @@ export default function SessionReportPage() {
                   ))}
                 </div>
               </ScrollArea>
+            </section>
+
+             <section className="pt-6 border-t">
+              <h2 className="font-headline text-xl font-semibold text-foreground mb-4 flex items-center">
+                  <PenSquare className="h-6 w-6 mr-2 text-accent" />
+                  Your Private Reflection
+              </h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                  What are your thoughts now, looking back at this session? Use this space to track your evolution. This is only visible to you.
+              </p>
+              <div className="space-y-4">
+                  <Textarea
+                      value={reflectionText}
+                      onChange={(e) => setReflectionText(e.target.value)}
+                      placeholder="Write your reflections here..."
+                      className="min-h-[120px] text-base"
+                      disabled={isSavingReflection || (isAdmin && !!userIdFromQuery)}
+                  />
+                  <Button onClick={handleSaveReflection} disabled={isSavingReflection || (isAdmin && !!userIdFromQuery)}>
+                      {isSavingReflection ? (
+                          <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
+                      ) : (
+                          'Save Reflection'
+                      )}
+                  </Button>
+              </div>
             </section>
           </CardContent>
         </Card>

@@ -24,7 +24,8 @@ import {
   getDoc,
   updateDoc,
   Timestamp,
-  where
+  where,
+  writeBatch
 } from '@/lib/firebase';
 import type { ProtocolSession, ChatMessage as FirestoreChatMessage } from '@/types';
 import { useRouter } from 'next/navigation'; 
@@ -349,13 +350,27 @@ export default function ProtocolPage() {
             topEmotions: detectedUserEmotions,
           };
           
-          await updateDoc(sessionDocRef, {
+          // Batch write to update session and user profile
+          const userDocRef = doc(db, `users/${firebaseUser.uid}`);
+          const userDocSnap = await getDoc(userDocRef);
+          const currentSessionCount = userDocSnap.exists() ? (userDocSnap.data().sessionCount || 0) : 0;
+          
+          const batch = writeBatch(db);
+
+          batch.update(sessionDocRef, {
             completedPhases: TOTAL_PHASES,
             endTime: serverTimestamp(),
             reframedBelief: finalDataForFirestore.actualReframedBelief, 
             legacyStatement: finalDataForFirestore.actualLegacyStatement, 
             topEmotions: finalDataForFirestore.topEmotions, 
           });
+
+          batch.update(userDocRef, {
+            lastSessionAt: serverTimestamp(),
+            sessionCount: currentSessionCount + 1,
+          });
+
+          await batch.commit();
           
           const generatedSummary = await generateAndSaveSummary(
             currentSessionId, 

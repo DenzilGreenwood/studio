@@ -77,6 +77,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 ...profileData,
                 createdAt: convertTimestamp(profileData.createdAt),
                 lastSessionAt: profileData.lastSessionAt ? convertTimestamp(profileData.lastSessionAt) : undefined,
+                lastCheckInAt: profileData.lastCheckInAt ? convertTimestamp(profileData.lastCheckInAt) : undefined,
               });
             } else {
               // Doc doesn't exist (e.g., new user, before createUserProfileDocument completes, or deleted)
@@ -201,6 +202,7 @@ export const createUserProfileDocument = async (
         hasConsentedToDataUse: additionalData.hasConsentedToDataUse || false,
         lastSessionAt: null,
         sessionCount: 0,
+        lastCheckInAt: null,
       });
     } catch (error) {
       console.error("Error creating user document: ", error);

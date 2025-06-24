@@ -14,6 +14,7 @@ export interface UserProfile {
   fcmToken?: string; // For push notifications
   sessionCount?: number;
   hasConsentedToDataUse?: boolean; // New field for consent
+  lastCheckInAt?: Timestamp | Date; // For reflective growth tracking
 }
 
 // Individual Chat Message stored in Firestore subcollection
@@ -59,6 +60,9 @@ export interface ProtocolSession {
 
   feedbackId?: string; // ID of the feedback document in the 'feedback' collection
   feedbackSubmittedAt?: Timestamp | Date; // When feedback was submitted
+
+  userReflection?: string;
+  userReflectionUpdatedAt?: Timestamp | Date;
 }
 
 
