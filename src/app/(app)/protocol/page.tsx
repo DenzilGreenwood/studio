@@ -126,9 +126,10 @@ async function generateAndSaveSummary(
     });
     return summaryToPersist;
 
-  } catch (error) {
+  } catch (error: any) {
+    const errorMessage = error.message || "An unexpected error occurred.";
     console.error("Error generating summary:", error);
-    showToast({ variant: "destructive", title: "Summary Generation Failed", description: "Could not generate the insight summary." });
+    showToast({ variant: "destructive", title: "Summary Generation Failed", description: `Could not generate the insight summary. Details: ${errorMessage}` });
     const errorSummaryToPersist: ClaritySummaryContentType = {
       ...baseSummaryContentToSaveOnError,
       insightSummary: "Failed to generate AI summary. Please try downloading raw insights or contact support.",
@@ -335,9 +336,10 @@ export default function ProtocolPage() {
               const sentimentOutput = await analyzeSentiment(sentimentInput);
               detectedUserEmotions = sentimentOutput.detectedEmotions;
             }
-          } catch (sentimentError) {
+          } catch (sentimentError: any) {
+            const errorMessage = sentimentError.message || "An unexpected error occurred.";
             console.error("Error analyzing sentiment:", sentimentError);
-            toast({ variant: "destructive", title: "Sentiment Analysis Failed", description: "Could not determine emotional context." });
+            toast({ variant: "destructive", title: "Sentiment Analysis Failed", description: `Could not determine emotional context. Details: ${errorMessage}` });
           }
           
           const finalDataForFirestore: SessionDataForSummaryFunctionArg = {
@@ -387,21 +389,23 @@ export default function ProtocolPage() {
          setIsLoading(false); 
       }
       
-    } catch (error) {
+    } catch (error: any) {
+      const errorMessage = error.message || "An unexpected error occurred. Check the server logs for more details.";
       console.error("Error in AI protocol:", error);
       toast({
         variant: "destructive",
-        title: "AI Error",
-        description: "Could not get a response from the AI. Please try again.",
+        title: "AI Protocol Error",
+        description: errorMessage,
+        duration: 10000,
       });
       const errorResponse: UIMessage = {
         id: crypto.randomUUID(),
         sender: 'ai',
-        text: "I'm sorry, I encountered an issue. Could you please try rephrasing or try again?",
+        text: `I'm sorry, I encountered an issue and couldn't proceed. The error was: "${errorMessage}" Please try again.`,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, errorResponse]);
-      setIsLoading(false); 
+      setIsLoading(false);
     } 
   };
 

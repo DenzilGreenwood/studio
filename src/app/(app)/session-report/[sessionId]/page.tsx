@@ -58,9 +58,9 @@ export default function SessionReportPage() {
     const [suggestedGoals, setSuggestedGoals] = useState<string[]>([]);
     const [isSavingJournal, setIsSavingJournal] = useState(false);
 
-    const canEditJournal = !isSavingJournal && !(isAdmin && !!userIdFromQuery);
     const completedGoals = useMemo(() => userGoals.filter(g => g.completed).length, [userGoals]);
     const totalGoals = userGoals.length;
+    const canEditJournal = !isSavingJournal && !(isAdmin && !!userIdFromQuery);
 
 
   useEffect(() => {
@@ -191,8 +191,9 @@ export default function SessionReportPage() {
         const result = await generateGoals(input);
         setSuggestedGoals(result.suggestedGoals);
     } catch(e: any) {
+        const errorMessage = e.message || "An unexpected error occurred.";
         console.error("Error generating goals:", e);
-        toast({ variant: 'destructive', title: 'Goal Generation Failed', description: 'Could not get suggestions from the AI.' });
+        toast({ variant: 'destructive', title: 'Goal Generation Failed', description: `Could not get suggestions from the AI. Details: ${errorMessage}` });
     } finally {
         setIsGeneratingGoals(false);
     }
