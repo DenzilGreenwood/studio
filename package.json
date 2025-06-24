@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@genkit-ai/firebase": "^1.13.0",
     "@genkit-ai/googleai": "^1.1.0",
     "@genkit-ai/next": "^1.13.0",
     "@hookform/resolvers": "^3.8.0",
@@ -43,7 +44,7 @@
     "genkit": "^1.1.0",
     "jspdf": "^2.5.1",
     "lucide-react": "^0.378.0",
-    "next": "^15.3.4",
+    "next": "^14.2.4",
     "patch-package": "^8.0.0",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
@@ -56,8 +57,8 @@
   },
   "devDependencies": {
     "@types/node": "^20",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.19",
     "genkit-cli": "^1.1.0",
     "postcss": "^8.4.38",

@@ -57,7 +57,7 @@ const prompt = ai.definePrompt({
   Detected Emotions:`,
 });
 
-const sentimentAnalysisFlow = ai.defineFlow(
+export const sentimentAnalysisFlow = ai.defineFlow(
   {
     name: 'sentimentAnalysisFlow',
     inputSchema: SentimentAnalysisInputSchema,

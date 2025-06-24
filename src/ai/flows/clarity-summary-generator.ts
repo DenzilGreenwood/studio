@@ -10,7 +10,7 @@
  * - ClaritySummaryOutput - The return type for the generateClaritySummary function.
  */
 
-import ai from '@/ai/genkit';
+import { ai} from '@/ai/genkit';
 import {z} from 'zod';
 
 const ClaritySummaryInputSchema = z.object({
@@ -53,7 +53,7 @@ const prompt = ai.definePrompt({
   Insight Summary:`,
 });
 
-const claritySummaryFlow = ai.defineFlow(
+export const claritySummaryFlow = ai.defineFlow(
   {
     name: 'claritySummaryFlow',
     inputSchema: ClaritySummaryInputSchema,

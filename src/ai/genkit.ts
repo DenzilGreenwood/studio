@@ -1,11 +1,12 @@
+// src/ai/genkit.ts
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
-import { defineFlow } from 'genkit/flow';
+import { firebase } from '@genkit-ai/firebase';
+import nextPlugin from '@genkit-ai/next';
 
-// Import your flows from their respective files
-import { claritySummaryFlow } from './flows/clarity-summary-generator';
+// Import the flows defined in your project
 import { cognitiveEdgeProtocolFlow } from './flows/cognitive-edge-protocol';
-import { goalGeneratorFlow } from './flows/goal-generator-flow';
+import { claritySummaryFlow } from './flows/clarity-summary-generator';
 import { sentimentAnalysisFlow } from './flows/sentiment-analysis-flow';
 
 // Warn if the GOOGLE_API_KEY is missing in development
@@ -15,24 +16,37 @@ if (!process.env.GOOGLE_API_KEY && process.env.NODE_ENV !== 'production') {
   );
 }
 
-// Configure Genkit with plugins
 export default genkit({
-  plugins: [googleAI()],
-  // You can set a default model for all flows here
-  // model: 'googleai/gemini-1.5-pro-latest',
+  // Register the plugins your project will use.
+  // The firebase() plugin is added to store trace and flow state data in Firestore,
+  // which is ideal for a Firebase-based project like yours.
+  plugins: [
+    firebase(),
+    googleAI(),
+    nextPlugin()
+  ],
   
-  // List all the flows you want to be discoverable by Genkit
+  // List all the flows you want Genkit to recognize and manage.
+  // This makes them available in the developer UI and for deployment.
   flows: [
-    claritySummaryFlow,
     cognitiveEdgeProtocolFlow,
-    goalGeneratorFlow,
+    claritySummaryFlow,
     sentimentAnalysisFlow,
   ],
+  
+  // Defines where to store traces. Using Firestore is recommended for production.
+  traceStore: {
+    provider: 'firebase',
+  },
 
-  // Optional: Add a logger for better debugging
-  // logger: {
-  //   log(level, message) {
-  //     console[level](message);
-  //   },
-  // },
+  // Defines where to store the state of long-running flows.
+  flowStateStore: {
+    provider: 'firebase',
+  },
+
+  // Optional: Enable full tracing and metrics for production monitoring.
+  enableTracingAndMetrics: true,
+
+  // Optional: Set a log level for more detailed output during development.
+  logLevel: 'debug',
 });
