@@ -4,11 +4,11 @@ import { googleAI } from '@genkit-ai/googleai';
 import { firebase } from '@genkit-ai/firebase';
 import nextPlugin from '@genkit-ai/next';
 
-// Import the flows defined in your project
-import { cognitiveEdgeProtocolFlow } from './flows/cognitive-edge-protocol';
-import { claritySummaryFlow } from './flows/clarity-summary-generator';
-import { sentimentAnalysisFlow } from './flows/sentiment-analysis-flow';
-import { goalGeneratorFlow } from './flows/goal-generator-flow';
+// This file defines the Genkit `ai` object and configures its plugins.
+// The individual flows are now loaded only in `src/ai/dev.ts`, which is the
+// entry point for the Genkit development server. This separation prevents
+// a circular dependency issue where flows tried to import the `ai` object
+// before it was fully initialized.
 
 // Warn if the GOOGLE_API_KEY is missing in development
 if (!process.env.GOOGLE_API_KEY && process.env.NODE_ENV !== 'production') {
@@ -27,14 +27,9 @@ export const ai = genkit({
     nextPlugin()
   ],
   
-  // List all the flows you want Genkit to recognize and manage.
-  // This makes them available in the developer UI and for deployment.
-  flows: [
-    cognitiveEdgeProtocolFlow,
-    claritySummaryFlow,
-    sentimentAnalysisFlow,
-    goalGeneratorFlow,
-  ],
+  // The list of flows is now managed by `src/ai/dev.ts` to prevent circular dependencies.
+  // The flows register themselves with this `ai` instance when they are imported.
+  flows: [],
   
   // Defines where to store traces. Using Firestore is recommended for production.
   traceStore: {
