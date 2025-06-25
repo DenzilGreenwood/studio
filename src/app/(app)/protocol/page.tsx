@@ -6,9 +6,6 @@ import { ChatInterface, type Message as UIMessage } from '@/components/protocol/
 import { PhaseIndicator } from '@/components/protocol/phase-indicator';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { cognitiveEdgeProtocol, type CognitiveEdgeProtocolInput, type CognitiveEdgeProtocolOutput } from '@/ai/flows/cognitive-edge-protocol';
-import { generateClaritySummary, type ClaritySummaryInput, type ClaritySummaryOutput } from '@/ai/flows/clarity-summary-generator';
-import { analyzeSentiment, type SentimentAnalysisInput, type SentimentAnalysisOutput } from '@/ai/flows/sentiment-analysis-flow';
 import { Loader2, RefreshCw, FileText } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { 
@@ -25,12 +22,19 @@ import {
   updateDoc,
   Timestamp,
   where,
-  writeBatch
+  writeBatch,
+  functions
 } from '@/lib/firebase';
+import { httpsCallable } from 'firebase/functions';
 import type { ProtocolSession, ChatMessage as FirestoreChatMessage } from '@/types';
 import { useRouter } from 'next/navigation'; 
 import { ClaritySummary } from '@/components/protocol/clarity-summary';
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
+
+// Type imports from AI flows
+import type { CognitiveEdgeProtocolInput, CognitiveEdgeProtocolOutput } from '@/ai/flows/cognitive-edge-protocol';
+import type { ClaritySummaryInput, ClaritySummaryOutput } from '@/ai/flows/clarity-summary-generator';
+import type { SentimentAnalysisInput, SentimentAnalysisOutput } from '@/ai/flows/sentiment-analysis-flow';
 
 
 const TOTAL_PHASES = 6;
@@ -107,7 +111,10 @@ async function generateAndSaveSummary(
       legacyStatement: summaryInputData.actualLegacyStatement,
       topEmotions: summaryInputData.topEmotions,
     };
-    const summaryOutput = await generateClaritySummary(summaryInputForAI);
+
+    const generateClaritySummaryFunction = httpsCallable<ClaritySummaryInput, ClaritySummaryOutput>(functions, 'generateClaritySummary');
+    const summaryResult = await generateClaritySummaryFunction(summaryInputForAI);
+    const summaryOutput = summaryResult.data;
     
     const summaryToPersist: ClaritySummaryContentType = {
       insightSummary: summaryOutput.insightSummary,
@@ -278,7 +285,10 @@ export default function ProtocolPage() {
         phase: currentPhaseName as CognitiveEdgeProtocolInput['phase'],
         sessionHistory: sessionHistoryForAI,
       };
-      const output: CognitiveEdgeProtocolOutput = await cognitiveEdgeProtocol(input);
+
+      const cognitiveEdgeProtocolFunction = httpsCallable<CognitiveEdgeProtocolInput, CognitiveEdgeProtocolOutput>(functions, 'cognitiveEdgeProtocol');
+      const result = await cognitiveEdgeProtocolFunction(input);
+      const output = result.data;
       
       const aiResponseUIMessage: UIMessage = {
         id: crypto.randomUUID(),
@@ -333,8 +343,9 @@ export default function ProtocolPage() {
             
             if (userMessagesText.trim()) {
               const sentimentInput: SentimentAnalysisInput = { userMessages: userMessagesText };
-              const sentimentOutput = await analyzeSentiment(sentimentInput);
-              detectedUserEmotions = sentimentOutput.detectedEmotions;
+              const analyzeSentimentFunction = httpsCallable<SentimentAnalysisInput, SentimentAnalysisOutput>(functions, 'analyzeSentiment');
+              const sentimentResult = await analyzeSentimentFunction(sentimentInput);
+              detectedUserEmotions = sentimentResult.data.detectedEmotions;
             }
           } catch (sentimentError: any) {
             const errorMessage = sentimentError.message || "An unexpected error occurred.";

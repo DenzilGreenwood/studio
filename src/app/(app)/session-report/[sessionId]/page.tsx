@@ -4,9 +4,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams, notFound } from 'next/navigation'; 
 import { useAuth } from '@/context/auth-context';
-import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp, updateDoc, serverTimestamp, writeBatch } from '@/lib/firebase';
+import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp, updateDoc, serverTimestamp, writeBatch, functions } from '@/lib/firebase';
+import { httpsCallable } from 'firebase/functions';
 import type { ProtocolSession, ChatMessage as FirestoreChatMessage, UserProfile, Goal } from '@/types'; 
-import { generateGoals, type GoalGeneratorInput } from '@/ai/flows/goal-generator-flow';
+import type { GoalGeneratorInput, GoalGeneratorOutput } from '@/ai/flows/goal-generator-flow';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -188,8 +189,9 @@ export default function SessionReportPage() {
             sessionSummary: sessionData?.summary?.insightSummary || 'No summary available.',
             userReflection: reflectionText
         };
-        const result = await generateGoals(input);
-        setSuggestedGoals(result.suggestedGoals);
+        const generateGoalsFunction = httpsCallable<GoalGeneratorInput, GoalGeneratorOutput>(functions, 'generateGoals');
+        const result = await generateGoalsFunction(input);
+        setSuggestedGoals(result.data.suggestedGoals);
     } catch(e: any) {
         const errorMessage = e.message || "An unexpected error occurred.";
         console.error("Error generating goals:", e);

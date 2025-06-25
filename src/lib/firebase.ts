@@ -25,8 +25,7 @@ import {
   enableNetwork,
   disableNetwork
 } from 'firebase/firestore';
-// import { getStorage, type FirebaseStorage } from 'firebase/storage';
-// import { getFunctions, type Functions } from 'firebase/functions';
+import { getFunctions, type Functions } from 'firebase/functions';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -41,8 +40,8 @@ const firebaseConfig = {
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
+let functions: Functions;
 // let storage: FirebaseStorage;
-// let functions: Functions;
 
 if (getApps().length === 0) {
   app = initializeApp(firebaseConfig);
@@ -52,13 +51,14 @@ if (getApps().length === 0) {
 
 auth = getAuth(app);
 db = getFirestore(app);
+functions = getFunctions(app);
 
 // If you want to use emulators in development, uncomment this and configure ports in firebase.json
 // if (process.env.NODE_ENV === 'development') {
 //   try {
 //     connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
 //     connectFirestoreEmulator(db, 'localhost', 8080);
-//     // connectFunctionsEmulator(functions, 'localhost', 5001);
+//     connectFunctionsEmulator(functions, 'localhost', 5001);
 //     // connectStorageEmulator(storage, 'localhost', 9199);
 //     console.log("Firebase Emulators connected.");
 //   } catch (error) {
@@ -68,12 +68,12 @@ db = getFirestore(app);
 
 
 // storage = getStorage(app);
-// functions = getFunctions(app); // Optionally specify region: getFunctions(app, 'us-central1')
 
 export { 
   app, 
   auth, 
   db, 
+  functions,
   collection,
   collectionGroup, // Added collectionGroup to exports
   doc,
@@ -94,5 +94,5 @@ export {
   enableNetwork,
   disableNetwork,
   deleteUser // Export deleteUser
-  /*, storage, functions */ 
+  /*, storage */ 
 };
