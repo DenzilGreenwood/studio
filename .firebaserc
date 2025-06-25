@@ -1,8 +1,7 @@
 {
   "projects": {
     "default": "cognitiveinsight-e5c40",
-    "staging": "cognitiveinsight-e5c40",
-    "cognitiveinsight-e5c40": "cognitiveinsight"
+    "starting": "cognitiveinsight-e5
   },
   "targets": {},
   "etags": {}
