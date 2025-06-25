@@ -1,77 +1,150 @@
 // src/types/index.ts
 import type { Timestamp } from 'firebase/firestore';
+import { z } from 'zod';
 
-// User Profile Data stored in Firestore
+// Core Data Models
+
 export interface UserProfile {
   uid: string;
   email: string | null;
   displayName: string | null;
   pseudonym?: string;
-  ageRange?: string; // e.g., "25-34"
-  primaryChallenge?: string; // e.g., "Career", "Personal Growth"
-  createdAt: Timestamp | Date; // Stored as Timestamp, can be Date in client
-  lastSessionAt?: Timestamp | Date; // Stored as Timestamp, can be Date in client
-  fcmToken?: string; // For push notifications
+  ageRange?: string;
+  primaryChallenge?: string;
+  createdAt: Timestamp | Date;
+  lastSessionAt?: Timestamp | Date;
+  lastCheckInAt?: Timestamp | Date;
+  fcmToken?: string;
   sessionCount?: number;
-  hasConsentedToDataUse?: boolean; // New field for consent
+  hasConsentedToDataUse?: boolean;
+  isAdmin?: boolean;
 }
 
-// Individual Chat Message stored in Firestore subcollection
 export interface ChatMessage {
-  id: string; // Document ID from Firestore
+  id: string;
   sender: 'user' | 'ai';
   text: string;
-  timestamp: Timestamp | Date; // Server timestamp
-  phaseName: string; // Name of the protocol phase
+  timestamp: Timestamp | Date;
+  phaseName: string;
 }
 
-// Session Data stored in Firestore
+export interface Goal {
+  text: string;
+  completed: boolean;
+  createdAt: Timestamp | Date;
+}
+
 export interface ProtocolSession {
-  sessionId: string; // Document ID (same as Firestore document ID)
+  sessionId: string;
   userId: string;
-  circumstance: string; // The primary challenge category for this session
+  circumstance: string;
+  ageRange?: string; // Added from profile for admin view
   startTime: Timestamp | Date;
   endTime?: Timestamp | Date;
   completedPhases: number;
-  
   summary?: {
-    insightSummary: string; 
-    actualReframedBelief: string; 
+    insightSummary: string;
+    actualReframedBelief: string;
     actualLegacyStatement: string;
     topEmotions: string;
-    reframedBeliefInteraction?: { aiQuestion: string; userResponse: string } | null; // Ensure can be null
-    legacyStatementInteraction?: { aiQuestion: string; userResponse: string } | null; // Ensure can be null
+    reframedBeliefInteraction?: { aiQuestion: string; userResponse: string } | null;
+    legacyStatementInteraction?: { aiQuestion: string; userResponse: string } | null;
     generatedAt: Timestamp | Date;
-    downloadUrl?: string; 
+    downloadUrl?: string;
   };
-
-  reflection?: string; // User-added reflection
-  implementationPlan?: string; // User-added implementation plan
-
-  feedbackId?: string; // ID of the feedback document in the 'feedback' collection
-  feedbackSubmittedAt?: Timestamp | Date; // When feedback was submitted
+  userReflection?: string;
+  userReflectionUpdatedAt?: Timestamp | Date;
+  goals?: Goal[];
+  feedbackId?: string;
+  feedbackSubmittedAt?: Timestamp | Date;
 }
 
-
-// Feedback Data stored in the top-level 'feedback' collection
 export interface SessionFeedback {
-  feedbackId?: string; // Document ID from Firestore, generated automatically
+  feedbackId?: string;
   sessionId: string;
-  userId: string; // UID of the authenticated user
-  circumstance: string; // The primary challenge category for the session
+  userId: string;
+  circumstance: string;
   helpfulRating: "Not helpful" | "Somewhat helpful" | "Very helpful" | "";
   improvementSuggestion?: string;
-  email?: string; // Optional email for follow-up
+  email?: string;
   timestamp: Timestamp | Date;
 }
 
-
-// For Phase 4: Cognitive Profile (Future use)
 export interface CognitiveProfile {
-  userId: string; 
-  systemsThinking?: number; 
+  userId: string;
+  systemsThinking?: number;
   legacyOrientation?: number;
   emotionalDepth?: number;
   patternRecognition?: number;
   lastUpdated: Timestamp | Date;
 }
+
+
+// AI Flow Schemas and Types
+
+// For cognitive-edge-protocol
+export const protocolPhaseNames = [
+  'Stabilize & Structure',
+  'Listen for Core Frame',
+  'Validate Emotion / Reframe',
+  'Provide Grounded Support',
+  'Reflective Pattern Discovery',
+  'Empower & Legacy Statement',
+  'Complete',
+] as const;
+export const ProtocolPhaseEnum = z.enum(protocolPhaseNames);
+export type ProtocolPhase = z.infer<typeof ProtocolPhaseEnum>;
+
+export const CognitiveEdgeProtocolInputSchema = z.object({
+  userInput: z.string().describe('The user input for the current phase.'),
+  phase: ProtocolPhaseEnum.describe('The current phase of the Cognitive Edge Protocol.'),
+  sessionHistory: z.string().optional().describe('The session history to maintain context.'),
+  attemptCount: z.number().optional().describe('The number of attempts to get a key response (like a reframe or legacy statement).')
+});
+export type CognitiveEdgeProtocolInput = z.infer<typeof CognitiveEdgeProtocolInputSchema>;
+
+export const CognitiveEdgeProtocolOutputSchema = z.object({
+  response: z.string().describe('The AI response for the current phase.'),
+  nextPhase: ProtocolPhaseEnum.describe('The next phase of the Cognitive Edge Protocol.'),
+  sessionHistory: z.string().describe('The updated session history.'),
+});
+export type CognitiveEdgeProtocolOutput = z.infer<typeof CognitiveEdgeProtocolOutputSchema>;
+
+
+// For clarity-summary-generator
+export const ClaritySummaryInputSchema = z.object({
+  reframedBelief: z.string().describe('The reframed belief of the user after the session.'),
+  legacyStatement: z.string().describe('The legacy statement created by the user during the session.'),
+  topEmotions: z.string().describe('The top emotions expressed by the user during the session.'),
+});
+export type ClaritySummaryInput = z.infer<typeof ClaritySummaryInputSchema>;
+
+export const ClaritySummaryOutputSchema = z.object({
+  insightSummary: z.string().describe('The generated insight summary.'),
+});
+export type ClaritySummaryOutput = z.infer<typeof ClaritySummaryOutputSchema>;
+
+
+// For sentiment-analysis-flow
+export const SentimentAnalysisInputSchema = z.object({
+  userMessages: z.string().describe('A string containing all user messages from the conversation, concatenated.'),
+});
+export type SentimentAnalysisInput = z.infer<typeof SentimentAnalysisInputSchema>;
+
+export const SentimentAnalysisOutputSchema = z.object({
+  detectedEmotions: z.string().describe('A comma-separated list of the most prominent emotions expressed by the user during the conversation. Aim for 3-5 key emotions that capture the overall emotional journey.'),
+});
+export type SentimentAnalysisOutput = z.infer<typeof SentimentAnalysisOutputSchema>;
+
+
+// For goal-generator-flow
+export const GoalGeneratorInputSchema = z.object({
+  sessionSummary: z.string().describe('The AI-generated summary of the cognitive session.'),
+  userReflection: z.string().describe("The user's personal reflection or journal entry about the session."),
+});
+export type GoalGeneratorInput = z.infer<typeof GoalGeneratorInputSchema>;
+
+export const GoalGeneratorOutputSchema = z.object({
+  suggestedGoals: z.array(z.string()).describe('An array of 3-5 actionable and meaningful goal suggestions based on the input.'),
+});
+export type GoalGeneratorOutput = z.infer<typeof GoalGeneratorOutputSchema>;

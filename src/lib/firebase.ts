@@ -1,6 +1,6 @@
 // src/lib/firebase.ts
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth, type Auth, deleteUser } from 'firebase/auth'; // Added deleteUser
+import { getAuth, type Auth, connectAuthEmulator } from 'firebase/auth'; // Added connectAuthEmulator
 import { 
   getFirestore, 
   type Firestore,
@@ -12,21 +12,20 @@ import {
   getDoc,
   getDocs,
   updateDoc,
-  deleteDoc, // Ensured deleteDoc is here
+  deleteDoc,
   serverTimestamp,
   query,
   orderBy,
   where,
   Timestamp,
-  writeBatch, // Ensured writeBatch is here
+  writeBatch,
   limit,
   onSnapshot,
   connectFirestoreEmulator,
   enableNetwork,
   disableNetwork
 } from 'firebase/firestore';
-// import { getStorage, type FirebaseStorage } from 'firebase/storage';
-// import { getFunctions, type Functions } from 'firebase/functions';
+
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -41,8 +40,8 @@ const firebaseConfig = {
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
+
 // let storage: FirebaseStorage;
-// let functions: Functions;
 
 if (getApps().length === 0) {
   app = initializeApp(firebaseConfig);
@@ -53,22 +52,20 @@ if (getApps().length === 0) {
 auth = getAuth(app);
 db = getFirestore(app);
 
-// If you want to use emulators in development, uncomment this and configure ports in firebase.json
-// if (process.env.NODE_ENV === 'development') {
-//   try {
-//     connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-//     connectFirestoreEmulator(db, 'localhost', 8080);
-//     // connectFunctionsEmulator(functions, 'localhost', 5001);
-//     // connectStorageEmulator(storage, 'localhost', 9199);
-//     console.log("Firebase Emulators connected.");
-//   } catch (error) {
-//     console.error("Error connecting to Firebase Emulators:", error);
-//   }
-// }
 
+// Connect to emulators in development
+if (process.env.NODE_ENV === 'development') {
+  try {
+    // Make sure emulators are running before connecting
+    connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+    connectFirestoreEmulator(db, 'localhost', 8080);
+    console.log("Firebase Emulators connected.");
+  } catch (error) {
+    console.error("Error connecting to Firebase Emulators:", error);
+  }
+}
 
 // storage = getStorage(app);
-// functions = getFunctions(app); // Optionally specify region: getFunctions(app, 'us-central1')
 
 export { 
   app, 
@@ -93,6 +90,5 @@ export {
   onSnapshot,
   enableNetwork,
   disableNetwork,
-  deleteUser // Export deleteUser
-  /*, storage, functions */ 
+  /*, storage */ 
 };

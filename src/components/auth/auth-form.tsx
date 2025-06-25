@@ -24,6 +24,7 @@ import { Brain } from "lucide-react";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, type AuthError } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { createUserProfileDocument } from "@/context/auth-context";
+import { ADMIN_USER_IDS } from "@/hooks/use-is-admin";
 
 interface AuthFormProps {
   mode: "login" | "signup";
@@ -61,9 +62,16 @@ export function AuthForm({ mode }: AuthFormProps) {
     form.clearErrors(); 
     try {
       if (mode === "login") {
-        await signInWithEmailAndPassword(auth, values.email, values.password);
+        const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
         toast({ title: "Login Successful", description: "Redirecting..." });
-        router.push("/protocol"); 
+        
+        const isAdmin = ADMIN_USER_IDS.includes(userCredential.user.uid);
+        if (isAdmin) {
+          router.push("/admin");
+        } else {
+          router.push("/protocol"); 
+        }
+
       } else { // mode === "signup"
         const signupValues = values as z.infer<typeof signupSchema>;
         const userCredential = await createUserWithEmailAndPassword(auth, signupValues.email, signupValues.password);

@@ -1,4 +1,3 @@
-
 // src/components/protocol/clarity-summary.tsx
 "use client";
 

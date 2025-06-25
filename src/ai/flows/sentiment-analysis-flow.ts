@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -10,29 +9,13 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {
+  SentimentAnalysisInputSchema,
+  type SentimentAnalysisInput,
+  SentimentAnalysisOutputSchema,
+  type SentimentAnalysisOutput,
+} from '@/types';
 
-const SentimentAnalysisInputSchema = z.object({
-  userMessages: z
-    .string()
-    .describe(
-      'A string containing all user messages from the conversation, concatenated.'
-    ),
-});
-export type SentimentAnalysisInput = z.infer<
-  typeof SentimentAnalysisInputSchema
->;
-
-const SentimentAnalysisOutputSchema = z.object({
-  detectedEmotions: z
-    .string()
-    .describe(
-      'A comma-separated list of the most prominent emotions expressed by the user during the conversation. Aim for 3-5 key emotions that capture the overall emotional journey.'
-    ),
-});
-export type SentimentAnalysisOutput = z.infer<
-  typeof SentimentAnalysisOutputSchema
->;
 
 export async function analyzeSentiment(
   input: SentimentAnalysisInput
@@ -42,6 +25,7 @@ export async function analyzeSentiment(
 
 const prompt = ai.definePrompt({
   name: 'sentimentAnalysisPrompt',
+  model: 'googleai/gemini-1.5-pro-latest',
   input: {schema: SentimentAnalysisInputSchema},
   output: {schema: SentimentAnalysisOutputSchema},
   prompt: `You are an expert in sentiment analysis and emotional intelligence.
@@ -56,7 +40,7 @@ const prompt = ai.definePrompt({
   Detected Emotions:`,
 });
 
-const sentimentAnalysisFlow = ai.defineFlow(
+export const sentimentAnalysisFlow = ai.defineFlow(
   {
     name: 'sentimentAnalysisFlow',
     inputSchema: SentimentAnalysisInputSchema,

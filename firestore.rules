@@ -3,70 +3,37 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is an admin.
-    // IMPORTANT: Replace with your actual admin User ID (UID).
-    function isAdmin() {
-      // Using 'in' allows for multiple admin UIDs in the future.
-      return request.auth.uid in ['jH0K85sIfQc9i2rIaWmtA1RPNyw1'];
+    // Deny all reads and writes by default.
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    // Rules for the /users collection
+    // USERS
+    // Allow users to read and update their own profile.
+    // A user is created with a document, so creation is allowed.
     match /users/{userId} {
-      // A user can create their own profile.
-      allow create: if request.auth.uid == userId;
-      
-      // A user can read/update/delete their own profile.
-      // An admin can read/update/delete any profile.
-      allow read, update, delete: if request.auth.uid == userId || isAdmin();
+      allow read, update, create: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Rules for sessions and their subcollections (e.g., messages)
-    match /users/{userId}/circumstances/{circumstanceId}/sessions/{sessionId} {
-      
-      // Allow user to create/update their own session, ensuring data integrity.
-      allow create, update: if request.auth.uid == userId 
-                            && request.resource.data.userId == request.auth.uid;
-      
-      // Read access for a direct path is allowed for the owner or an admin.
-      allow read: if request.auth.uid == userId || isAdmin();
-      
-      // Allow user or admin to delete the session (e.g., during account deletion).
-      allow delete: if request.auth.uid == userId || isAdmin();
-      
-      // Rules for the 'messages' subcollection within a session.
-      match /messages/{messageId} {
-        // Users can create messages in their own session.
-        allow create: if request.auth.uid == userId;
-        
-        // Users can read messages from their own session. Admins can read any.
-        allow read: if request.auth.uid == userId || isAdmin();
-        
-        // No one should be able to update an existing message.
-        allow update: if false;
-        
-        // User or admin can delete messages.
-        allow delete: if request.auth.uid == userId || isAdmin();
-      }
+    // SESSIONS
+    // Allow users to manage their own session documents.
+    match /users/{userId}/sessions/{sessionId} {
+      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
     }
 
-    // This collection group rule is CRITICAL for the "My Sessions" page
-    // and the Admin dashboard to function correctly.
-    match /{path=**}/sessions/{sessionId} {
-      // Allows a user to query for their own sessions.
-      // Allows an admin to query for any/all sessions.
-      allow read: if request.auth.uid == resource.data.userId || isAdmin();
+    // MESSAGES
+    // Allow users to manage messages within their own sessions.
+    match /users/{userId}/sessions/{sessionId}/messages/{messageId} {
+      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Rules for the top-level 'feedback' collection
+    // FEEDBACK
+    // Allow any authenticated user to submit (create) feedback.
+    // Prevent users from reading, updating, or deleting any feedback to protect privacy.
+    // Admin access would be handled by a separate rule or via backend functions.
     match /feedback/{feedbackId} {
-      // Any authenticated user can submit feedback.
-      allow create: if request.auth.uid != null;
-      
-      // Only admins can read the feedback collection.
-      allow read: if isAdmin();
-      
-      // No one can update or delete feedback documents directly.
-      allow update, delete: if false;
+      allow create: if request.auth != null;
+      allow read, update, delete: if false;
     }
   }
 }

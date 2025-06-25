@@ -1,0 +1,12 @@
+--- a/node_modules/@genkit-ai/next/package.json
++++ b/node_modules/@genkit-ai/next/package.json
+@@ -9,7 +9,7 @@
+   "dependencies": {
+     "@genkit-ai/core": "workspace:^"
+   },
+   "peerDependencies": {
+-    "next": "^15.0.0",
++    "next": "^14.0.0",
+     "react": "^18.2.0",
+     "zod": "^3.22.4"
+   },

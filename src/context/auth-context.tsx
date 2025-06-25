@@ -26,6 +26,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { UserProfile } from '@/types';
+import { ADMIN_USER_IDS } from '@/hooks/use-is-admin';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -41,6 +42,9 @@ async function deleteCollection(collectionPath: string) {
   const collectionRef = collection(db, collectionPath);
   const q = query(collectionRef); 
   const snapshot = await getDocs(q);
+  if (snapshot.empty) {
+    return;
+  }
   const batch = writeBatch(db);
   snapshot.docs.forEach((doc) => {
     batch.delete(doc.ref);
@@ -77,6 +81,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 ...profileData,
                 createdAt: convertTimestamp(profileData.createdAt),
                 lastSessionAt: profileData.lastSessionAt ? convertTimestamp(profileData.lastSessionAt) : undefined,
+                lastCheckInAt: profileData.lastCheckInAt ? convertTimestamp(profileData.lastCheckInAt) : undefined,
               });
             } else {
               // Doc doesn't exist (e.g., new user, before createUserProfileDocument completes, or deleted)
@@ -130,26 +135,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const userId = firebaseUser.uid;
 
     try {
-      const sessionsCollectionPath = `users/${userId}/sessions`;
-      const sessionsQuery = query(collection(db, sessionsCollectionPath));
+      // New simplified path to sessions
+      const sessionsPath = `users/${userId}/sessions`;
+      const sessionsQuery = query(collection(db, sessionsPath));
       const sessionsSnapshot = await getDocs(sessionsQuery);
 
       for (const sessionDoc of sessionsSnapshot.docs) {
         const sessionId = sessionDoc.id;
+        // Delete messages subcollection for each session
         await deleteCollection(`users/${userId}/sessions/${sessionId}/messages`);
-        await deleteDoc(doc(db, sessionsCollectionPath, sessionId));
       }
+      // Delete all sessions in one go
+      await deleteCollection(sessionsPath);
       
-      const batch = writeBatch(db);
-      
+      // Delete all feedback from the top-level collection in a batch
+      const feedbackBatch = writeBatch(db);
       const feedbackQuery = query(collection(db, 'feedback'), where('userId', '==', userId));
       const feedbackSnapshot = await getDocs(feedbackQuery);
-      feedbackSnapshot.forEach(doc => batch.delete(doc.ref));
+      feedbackSnapshot.forEach(doc => feedbackBatch.delete(doc.ref));
+      await feedbackBatch.commit();
 
-      await batch.commit();
-
+      // Delete the user document itself
       await deleteDoc(doc(db, "users", userId));
+      
+      // Finally, delete the Firebase Auth user
       await firebaseDeleteUser(firebaseUser);
+
     } catch (error) {
       console.error("Error deleting user account and data: ", error);
       setLoading(false); 
@@ -158,7 +169,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       throw new Error("Failed to delete account and data. Please try again.");
     }
-    // setLoading(false) will be handled by onAuthStateChanged
+    // setLoading(false) will be handled by onAuthStateChanged after user signs out
   };
 
   return (
@@ -188,6 +199,7 @@ export const createUserProfileDocument = async (
     const { email, displayName: authDisplayName } = userAuth; // displayName from Firebase Auth user
     const createdAt = serverTimestamp();
     const pseudonymToStore = additionalData.pseudonym ? additionalData.pseudonym.trim() : "";
+    const isUserAdmin = ADMIN_USER_IDS.includes(userAuth.uid);
     
     try {
       await setDoc(userRef, {
@@ -201,6 +213,8 @@ export const createUserProfileDocument = async (
         hasConsentedToDataUse: additionalData.hasConsentedToDataUse || false,
         lastSessionAt: null,
         sessionCount: 0,
+        lastCheckInAt: null,
+        isAdmin: isUserAdmin,
       });
     } catch (error) {
       console.error("Error creating user document: ", error);
