@@ -17,6 +17,7 @@ export interface UserProfile {
   fcmToken?: string;
   sessionCount?: number;
   hasConsentedToDataUse?: boolean;
+  isAdmin?: boolean;
 }
 
 export interface ChatMessage {
@@ -37,6 +38,7 @@ export interface ProtocolSession {
   sessionId: string;
   userId: string;
   circumstance: string;
+  ageRange?: string; // Added from profile for admin view
   startTime: Timestamp | Date;
   endTime?: Timestamp | Date;
   completedPhases: number;

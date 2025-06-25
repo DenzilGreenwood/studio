@@ -2,35 +2,38 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // By default, deny all reads and writes.
-    // You should secure your database rules before deploying to production.
+
+    // Deny all reads and writes by default.
     match /{document=**} {
       allow read, write: if false;
     }
-    
-    // Example rules for the 'users' collection.
-    // This allows a user to read and write their own document.
+
+    // USERS
+    // Allow users to read and update their own profile.
+    // A user is created with a document, so creation is allowed.
     match /users/{userId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
+      allow read, update, create: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Example for a user's sessions.
-    // A user can read/write their own sessions and messages.
+    // SESSIONS
+    // Allow users to manage their own session documents.
     match /users/{userId}/sessions/{sessionId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      match /messages/{messageId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
+      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Rules for feedback collection.
-    // Allow authenticated users to create feedback.
-    // Only admins should be able to read all feedback.
+    // MESSAGES
+    // Allow users to manage messages within their own sessions.
+    match /users/{userId}/sessions/{sessionId}/messages/{messageId} {
+      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // FEEDBACK
+    // Allow any authenticated user to submit (create) feedback.
+    // Prevent users from reading, updating, or deleting any feedback to protect privacy.
+    // Admin access would be handled by a separate rule or via backend functions.
     match /feedback/{feedbackId} {
-        allow create: if request.auth != null;
-        // This read rule is just an example, admin logic should be implemented.
-        allow read: if false; // Secure by default
+      allow create: if request.auth != null;
+      allow read, update, delete: if false;
     }
   }
 }

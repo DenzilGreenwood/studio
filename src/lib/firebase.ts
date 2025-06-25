@@ -1,6 +1,6 @@
 // src/lib/firebase.ts
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth, type Auth, deleteUser, connectAuthEmulator } from 'firebase/auth'; // Added connectAuthEmulator
+import { getAuth, type Auth, connectAuthEmulator } from 'firebase/auth'; // Added connectAuthEmulator
 import { 
   getFirestore, 
   type Firestore,
@@ -90,6 +90,5 @@ export {
   onSnapshot,
   enableNetwork,
   disableNetwork,
-  deleteUser
   /*, storage */ 
 };
