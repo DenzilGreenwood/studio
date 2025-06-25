@@ -3,7 +3,7 @@
     "module": "commonjs",
     "noImplicitReturns": true,
     "noUnusedLocals": true,
-    "outDir": "lib",
+    "outDir": "lib/functions",
     "sourceMap": true,
     "strict": true,
     "target": "es2021",
@@ -19,7 +19,7 @@
   },
   "compileOnSave": true,
   "include": [
-    "src/functions/index.ts"
+    "src/lib/functions/index.ts"
   ],
   "exclude": [
     "node_modules"

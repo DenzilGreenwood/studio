@@ -71,7 +71,7 @@ const prompt = ai.definePrompt({
       * \`sessionHistory\`: The updated session history.`, 
 });
 
-const cognitiveEdgeProtocolFlow = ai.defineFlow(
+export const cognitiveEdgeProtocolFlow = ai.defineFlow(
   {
     name: 'cognitiveEdgeProtocolFlow',
     inputSchema: CognitiveEdgeProtocolInputSchema,

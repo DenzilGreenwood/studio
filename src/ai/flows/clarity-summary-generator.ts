@@ -41,7 +41,7 @@ const prompt = ai.definePrompt({
   Insight Summary:`,
 });
 
-const claritySummaryFlow = ai.defineFlow(
+export const claritySummaryFlow = ai.defineFlow(
   {
     name: 'claritySummaryFlow',
     inputSchema: ClaritySummaryInputSchema,

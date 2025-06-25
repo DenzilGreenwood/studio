@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase-admin/app';
-import { onFlow } from '@genkit-ai/firebase/functions';
+import { genkit } from 'genkit';
 
-// The flows must be imported so that they are registered with Genkit.
+// The flows must be imported so that they are registered with Genkit.g
 import '@/ai/flows/clarity-summary-generator';
 import '@/ai/flows/cognitive-edge-protocol';
 import '@/ai/flows/sentiment-analysis-flow';
@@ -14,7 +14,7 @@ import { goalGeneratorFlow } from '@/ai/flows/goal-generator-flow';
 
 initializeApp();
 
-export const cognitiveEdgeProtocol = onFlow(cognitiveEdgeProtocolFlow);
-export const generateClaritySummary = onFlow(claritySummaryFlow);
-export const analyzeSentiment = onFlow(sentimentAnalysisFlow);
-export const generateGoals = onFlow(goalGeneratorFlow);
+export const cognitiveEdgeProtocol = genkit(cognitiveEdgeProtocolFlow);
+export const generateClaritySummary = genkit.onFlow(claritySummaryFlow);
+export const analyzeSentiment = genkit.onFlow(sentimentAnalysisFlow);
+export const generateGoals = genkit.onFlow(goalGeneratorFlow);
