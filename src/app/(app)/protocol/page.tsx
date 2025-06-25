@@ -22,10 +22,11 @@ import {
   updateDoc,
   Timestamp,
   where,
-  writeBatch,
-  functions
+  writeBatch
 } from '@/lib/firebase';
-import { httpsCallable } from 'firebase/functions';
+import { cognitiveEdgeProtocol } from '@/ai/flows/cognitive-edge-protocol';
+import { generateClaritySummary } from '@/ai/flows/clarity-summary-generator';
+import { analyzeSentiment } from '@/ai/flows/sentiment-analysis-flow';
 import type { ProtocolSession, ChatMessage as FirestoreChatMessage } from '@/types';
 import { useRouter } from 'next/navigation'; 
 import { ClaritySummary } from '@/components/protocol/clarity-summary';
@@ -111,10 +112,8 @@ async function generateAndSaveSummary(
       legacyStatement: summaryInputData.actualLegacyStatement,
       topEmotions: summaryInputData.topEmotions,
     };
-
-    const generateClaritySummaryFunction = httpsCallable<ClaritySummaryInput, ClaritySummaryOutput>(functions, 'generateClaritySummary');
-    const summaryResult = await generateClaritySummaryFunction(summaryInputForAI);
-    const summaryOutput = summaryResult.data;
+    
+    const summaryOutput = await generateClaritySummary(summaryInputForAI);
     
     const summaryToPersist: ClaritySummaryContentType = {
       insightSummary: summaryOutput.insightSummary,
@@ -286,9 +285,7 @@ export default function ProtocolPage() {
         sessionHistory: sessionHistoryForAI,
       };
 
-      const cognitiveEdgeProtocolFunction = httpsCallable<CognitiveEdgeProtocolInput, CognitiveEdgeProtocolOutput>(functions, 'cognitiveEdgeProtocol');
-      const result = await cognitiveEdgeProtocolFunction(input);
-      const output = result.data;
+      const output = await cognitiveEdgeProtocol(input);
       
       const aiResponseUIMessage: UIMessage = {
         id: crypto.randomUUID(),
@@ -344,9 +341,8 @@ export default function ProtocolPage() {
             
             if (userMessagesText.trim()) {
               const sentimentInput: SentimentAnalysisInput = { userMessages: userMessagesText };
-              const analyzeSentimentFunction = httpsCallable<SentimentAnalysisInput, SentimentAnalysisOutput>(functions, 'analyzeSentiment');
-              const sentimentResult = await analyzeSentimentFunction(sentimentInput);
-              detectedUserEmotions = sentimentResult.data.detectedEmotions;
+              const sentimentResult = await analyzeSentiment(sentimentInput);
+              detectedUserEmotions = sentimentResult.detectedEmotions;
             }
           } catch (sentimentError: any) {
             const errorMessage = sentimentError.message || "An unexpected error occurred.";

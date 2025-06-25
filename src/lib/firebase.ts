@@ -25,7 +25,7 @@ import {
   enableNetwork,
   disableNetwork
 } from 'firebase/firestore';
-import { getFunctions, type Functions, connectFunctionsEmulator } from 'firebase/functions'; // Added connectFunctionsEmulator
+
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -40,7 +40,7 @@ const firebaseConfig = {
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
-let functions: Functions;
+
 // let storage: FirebaseStorage;
 
 if (getApps().length === 0) {
@@ -51,7 +51,7 @@ if (getApps().length === 0) {
 
 auth = getAuth(app);
 db = getFirestore(app);
-functions = getFunctions(app);
+
 
 // Connect to emulators in development
 if (process.env.NODE_ENV === 'development') {
@@ -59,8 +59,6 @@ if (process.env.NODE_ENV === 'development') {
     // Make sure emulators are running before connecting
     connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
     connectFirestoreEmulator(db, 'localhost', 8080);
-    connectFunctionsEmulator(functions, 'localhost', 5001);
-    // connectStorageEmulator(storage, 'localhost', 9199);
     console.log("Firebase Emulators connected.");
   } catch (error) {
     console.error("Error connecting to Firebase Emulators:", error);
@@ -73,7 +71,6 @@ export {
   app, 
   auth, 
   db, 
-  functions,
   collection,
   collectionGroup,
   doc,
