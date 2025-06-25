@@ -1,3 +1,5 @@
+// src/ai/flows/clarity-summary-generator.ts
+'use server';
 
 /**
  * @fileOverview Generates a summary of the Cognitive Edge Protocol session, 
@@ -8,8 +10,8 @@
  * - ClaritySummaryOutput - The return type for the generateClaritySummary function.
  */
 
-import { ai} from '@/ai/genkit';
-import {z} from 'zod';
+import {ai} from '@/ai/genkit';
+import {z} from 'genkit';
 
 const ClaritySummaryInputSchema = z.object({
   reframedBelief: z
@@ -37,12 +39,12 @@ export async function generateClaritySummary(
 
 const prompt = ai.definePrompt({
   name: 'claritySummaryPrompt',
-  model: 'googleai/gemini-1.5-pro-latest',
   input: {schema: ClaritySummaryInputSchema},
   output: {schema: ClaritySummaryOutputSchema},
   prompt: `You are an AI assistant designed to generate insightful summaries of Cognitive Edge Protocol sessions.
 
   Based on the user's reframed belief, legacy statement, and top emotions, create a concise and impactful insight summary.
+  The summary should be written in a supportive and encouraging tone, and it should highlight the user's growth and progress during the session.
 
   Reframed Belief: {{{reframedBelief}}}
   Legacy Statement: {{{legacyStatement}}}
@@ -51,7 +53,7 @@ const prompt = ai.definePrompt({
   Insight Summary:`,
 });
 
-export const claritySummaryFlow = ai.defineFlow(
+const claritySummaryFlow = ai.defineFlow(
   {
     name: 'claritySummaryFlow',
     inputSchema: ClaritySummaryInputSchema,

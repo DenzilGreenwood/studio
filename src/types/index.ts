@@ -14,8 +14,6 @@ export interface UserProfile {
   fcmToken?: string; // For push notifications
   sessionCount?: number;
   hasConsentedToDataUse?: boolean; // New field for consent
-  lastCheckInAt?: Timestamp | Date; // For reflective growth tracking
-  isAdmin?: boolean;
 }
 
 // Individual Chat Message stored in Firestore subcollection
@@ -27,35 +25,15 @@ export interface ChatMessage {
   phaseName: string; // Name of the protocol phase
 }
 
-// Goal object for journaling
-export interface Goal {
-  text: string;
-  completed: boolean;
-  createdAt: Timestamp | Date;
-}
-
 // Session Data stored in Firestore
 export interface ProtocolSession {
   sessionId: string; // Document ID (same as Firestore document ID)
   userId: string;
-  ageRange?: string; // The user's age range at the time of session creation
   circumstance: string; // The primary challenge category for this session
   startTime: Timestamp | Date;
   endTime?: Timestamp | Date;
   completedPhases: number;
-  reframedBelief?: string; 
-  legacyStatement?: string; 
-  topEmotions?: string; 
   
-  reframedBeliefInteraction?: {
-    aiQuestion: string;
-    userResponse: string;
-  };
-  legacyStatementInteraction?: {
-    aiQuestion: string;
-    userResponse: string;
-  };
-
   summary?: {
     insightSummary: string; 
     actualReframedBelief: string; 
@@ -67,12 +45,11 @@ export interface ProtocolSession {
     downloadUrl?: string; 
   };
 
+  reflection?: string; // User-added reflection
+  implementationPlan?: string; // User-added implementation plan
+
   feedbackId?: string; // ID of the feedback document in the 'feedback' collection
   feedbackSubmittedAt?: Timestamp | Date; // When feedback was submitted
-
-  userReflection?: string;
-  userReflectionUpdatedAt?: Timestamp | Date;
-  goals?: Goal[];
 }
 
 

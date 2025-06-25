@@ -2,45 +2,35 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check for admin status based on a field in the user's profile
-    function isAdmin(userId) {
-      return exists(/databases/$(database)/documents/users/$(userId)) &&
-             get(/databases/$(database)/documents/users/$(userId)).data.isAdmin == true;
+    // By default, deny all reads and writes.
+    // You should secure your database rules before deploying to production.
+    match /{document=**} {
+      allow read, write: if false;
     }
-
-    // User Profiles:
-    // Users can read/write their own profile. Admins can read anyone's profile.
+    
+    // Example rules for the 'users' collection.
+    // This allows a user to read and write their own document.
     match /users/{userId} {
-      allow read, write: if request.auth.uid == userId;
-      allow get: if isAdmin(request.auth.uid);
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
     }
 
-    // This is the critical rule for the Session History page (and Admin page).
-    // It allows collection group queries on 'sessions' for the data owner or an admin.
-    match /{path=**}/sessions/{sessionId} {
-      allow get, list: if request.auth.uid == resource.data.userId || isAdmin(request.auth.uid);
-    }
-
-    // Sessions & Messages (for direct access by path):
-    // Users can access their own data. Admins can access anyone's data.
+    // Example for a user's sessions.
+    // A user can read/write their own sessions and messages.
     match /users/{userId}/sessions/{sessionId} {
-      // Allow full access for the user who owns the data
-      allow read, write: if request.auth.uid == userId;
-      // Allow read-only access for admins
-      allow get, list: if isAdmin(request.auth.uid);
-
+      allow read, write: if request.auth != null && request.auth.uid == userId;
       match /messages/{messageId} {
-        allow read, write: if request.auth.uid == userId;
-        allow get, list: if isAdmin(request.auth.uid);
+        allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
-    // Feedback:
-    // Any authenticated user can create feedback. Admins can read all feedback.
+    // Rules for feedback collection.
+    // Allow authenticated users to create feedback.
+    // Only admins should be able to read all feedback.
     match /feedback/{feedbackId} {
-      allow create: if request.auth != null;
-      allow read: if isAdmin(request.auth.uid);
+        allow create: if request.auth != null;
+        // This read rule is just an example, admin logic should be implemented.
+        allow read: if false; // Secure by default
     }
   }
 }
