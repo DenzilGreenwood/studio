@@ -1,6 +1,4 @@
 
-'use server';
-
 /**
  * @fileOverview Generates a summary of the Cognitive Edge Protocol session, 
  * including the reframed belief and legacy statement.

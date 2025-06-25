@@ -1,6 +1,4 @@
 
-'use server';
-
 /**
  * @fileOverview Generates actionable goals based on a user's session summary and reflection.
  *

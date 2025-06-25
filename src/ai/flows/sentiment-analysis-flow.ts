@@ -1,6 +1,4 @@
 
-'use server';
-
 /**
  * @fileOverview Analyzes user conversation history to detect prominent emotional states.
  *

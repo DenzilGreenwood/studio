@@ -1,6 +1,5 @@
 
 // cognitive-edge-protocol.ts
-'use server';
 
 /**
  * @fileOverview Implements the Cognitive Edge Protocol as a conversational AI experience.
