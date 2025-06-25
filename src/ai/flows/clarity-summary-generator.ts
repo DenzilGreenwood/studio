@@ -11,25 +11,12 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-
-const ClaritySummaryInputSchema = z.object({
-  reframedBelief: z
-    .string()
-    .describe('The reframed belief of the user after the session.'),
-  legacyStatement: z
-    .string()
-    .describe('The legacy statement created by the user during the session.'),
-  topEmotions: z
-    .string()
-    .describe('The top emotions expressed by the user during the session.'),
-});
-export type ClaritySummaryInput = z.infer<typeof ClaritySummaryInputSchema>;
-
-const ClaritySummaryOutputSchema = z.object({
-  insightSummary: z.string().describe('The generated insight summary.'),
-});
-export type ClaritySummaryOutput = z.infer<typeof ClaritySummaryOutputSchema>;
+import {
+  ClaritySummaryInputSchema,
+  type ClaritySummaryInput,
+  ClaritySummaryOutputSchema,
+  type ClaritySummaryOutput,
+} from '@/types';
 
 export async function generateClaritySummary(
   input: ClaritySummaryInput
@@ -39,6 +26,7 @@ export async function generateClaritySummary(
 
 const prompt = ai.definePrompt({
   name: 'claritySummaryPrompt',
+  model: 'googleai/gemini-1.5-pro-latest',
   input: {schema: ClaritySummaryInputSchema},
   output: {schema: ClaritySummaryOutputSchema},
   prompt: `You are an AI assistant designed to generate insightful summaries of Cognitive Edge Protocol sessions.

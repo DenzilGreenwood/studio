@@ -8,29 +8,13 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'zod';
+import {
+  SentimentAnalysisInputSchema,
+  type SentimentAnalysisInput,
+  SentimentAnalysisOutputSchema,
+  type SentimentAnalysisOutput,
+} from '@/types';
 
-const SentimentAnalysisInputSchema = z.object({
-  userMessages: z
-    .string()
-    .describe(
-      'A string containing all user messages from the conversation, concatenated.'
-    ),
-});
-export type SentimentAnalysisInput = z.infer<
-  typeof SentimentAnalysisInputSchema
->;
-
-const SentimentAnalysisOutputSchema = z.object({
-  detectedEmotions: z
-    .string()
-    .describe(
-      'A comma-separated list of the most prominent emotions expressed by the user during the conversation. Aim for 3-5 key emotions that capture the overall emotional journey.'
-    ),
-});
-export type SentimentAnalysisOutput = z.infer<
-  typeof SentimentAnalysisOutputSchema
->;
 
 export async function analyzeSentiment(
   input: SentimentAnalysisInput

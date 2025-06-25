@@ -7,7 +7,7 @@ import { useAuth } from '@/context/auth-context';
 import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp, updateDoc, serverTimestamp, writeBatch, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import type { ProtocolSession, ChatMessage as FirestoreChatMessage, UserProfile, Goal } from '@/types'; 
-import type { GoalGeneratorInput, GoalGeneratorOutput } from '@/ai/flows/goal-generator-flow';
+import type { GoalGeneratorInput, GoalGeneratorOutput } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';

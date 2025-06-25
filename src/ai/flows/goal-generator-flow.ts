@@ -8,28 +8,12 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'zod';
-
-const GoalGeneratorInputSchema = z.object({
-  sessionSummary: z
-    .string()
-    .describe('The AI-generated summary of the cognitive session.'),
-  userReflection: z
-    .string()
-    .describe(
-      "The user's personal reflection or journal entry about the session."
-    ),
-});
-export type GoalGeneratorInput = z.infer<typeof GoalGeneratorInputSchema>;
-
-const GoalGeneratorOutputSchema = z.object({
-  suggestedGoals: z
-    .array(z.string())
-    .describe(
-      'An array of 3-5 actionable and meaningful goal suggestions based on the input.'
-    ),
-});
-export type GoalGeneratorOutput = z.infer<typeof GoalGeneratorOutputSchema>;
+import {
+  GoalGeneratorInputSchema,
+  type GoalGeneratorInput,
+  GoalGeneratorOutputSchema,
+  type GoalGeneratorOutput,
+} from '@/types';
 
 export async function generateGoals(
   input: GoalGeneratorInput

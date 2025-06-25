@@ -31,21 +31,21 @@ import { useRouter } from 'next/navigation';
 import { ClaritySummary } from '@/components/protocol/clarity-summary';
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
 
-// Type imports from AI flows
-import type { CognitiveEdgeProtocolInput, CognitiveEdgeProtocolOutput } from '@/ai/flows/cognitive-edge-protocol';
-import type { ClaritySummaryInput, ClaritySummaryOutput } from '@/ai/flows/clarity-summary-generator';
-import type { SentimentAnalysisInput, SentimentAnalysisOutput } from '@/ai/flows/sentiment-analysis-flow';
+// Type imports from the central types file
+import { 
+  protocolPhaseNames,
+  type ProtocolPhase,
+  type CognitiveEdgeProtocolInput, 
+  type CognitiveEdgeProtocolOutput,
+  type ClaritySummaryInput, 
+  type ClaritySummaryOutput,
+  type SentimentAnalysisInput, 
+  type SentimentAnalysisOutput
+} from '@/types';
 
 
 const TOTAL_PHASES = 6;
-const PHASE_NAMES = [
-  "Stabilize & Structure",
-  "Listen for Core Frame",
-  "Validate Emotion / Reframe",
-  "Provide Grounded Support",
-  "Reflective Pattern Discovery",
-  "Empower & Legacy Statement"
-];
+const PHASE_NAMES = protocolPhaseNames.slice(0, TOTAL_PHASES); // Use the source of truth from types
 
 interface KeyInteraction {
   aiQuestion: string;
@@ -157,7 +157,7 @@ export default function ProtocolPage() {
   const router = useRouter(); 
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [currentPhase, setCurrentPhase] = useState(1);
-  const [currentPhaseName, setCurrentPhaseName] = useState(PHASE_NAMES[0]);
+  const [currentPhaseName, setCurrentPhaseName] = useState<ProtocolPhase>(PHASE_NAMES[0]);
   const [isLoading, setIsLoading] = useState(false);
   const [sessionHistoryForAI, setSessionHistoryForAI] = useState<string | undefined>(undefined);
   const [isProtocolComplete, setIsProtocolComplete] = useState(false);
@@ -193,7 +193,7 @@ export default function ProtocolPage() {
     const newSessionId = newSessionRef.id;
     setCurrentSessionId(newSessionId);
 
-    const initialSessionData: ProtocolSession = {
+    const initialSessionData: Partial<ProtocolSession> = {
       sessionId: newSessionId,
       userId: firebaseUser.uid,
       circumstance: circumstance,
@@ -282,7 +282,7 @@ export default function ProtocolPage() {
     try {
       const input: CognitiveEdgeProtocolInput = {
         userInput: currentUserInputText,
-        phase: currentPhaseName as CognitiveEdgeProtocolInput['phase'],
+        phase: currentPhaseName,
         sessionHistory: sessionHistoryForAI,
       };
 
@@ -313,8 +313,9 @@ export default function ProtocolPage() {
          setPendingAiQuestion(output.response);
       }
 
-      const nextPhaseIndex = PHASE_NAMES.indexOf(output.nextPhase);
-      const newPhaseNumber = nextPhaseIndex + 1;
+      const nextPhaseIndex = protocolPhaseNames.indexOf(output.nextPhase);
+      const newPhaseNumber = nextPhaseIndex >= 0 ? nextPhaseIndex + 1 : currentPhase;
+
 
       const sessionDocRef = doc(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}`);
 
@@ -371,9 +372,11 @@ export default function ProtocolPage() {
           batch.update(sessionDocRef, {
             completedPhases: TOTAL_PHASES,
             endTime: serverTimestamp(),
-            reframedBelief: finalDataForFirestore.actualReframedBelief, 
-            legacyStatement: finalDataForFirestore.actualLegacyStatement, 
-            topEmotions: finalDataForFirestore.topEmotions, 
+            'summary.actualReframedBelief': finalDataForFirestore.actualReframedBelief, 
+            'summary.actualLegacyStatement': finalDataForFirestore.actualLegacyStatement, 
+            'summary.topEmotions': finalDataForFirestore.topEmotions,
+            'summary.reframedBeliefInteraction': finalDataForFirestore.reframedBeliefInteraction,
+            'summary.legacyStatementInteraction': finalDataForFirestore.legacyStatementInteraction,
           });
 
           batch.update(userDocRef, {
@@ -397,6 +400,7 @@ export default function ProtocolPage() {
           return; 
         }
       } else {
+         setCurrentPhaseName(output.nextPhase);
          setIsLoading(false); 
       }
       
