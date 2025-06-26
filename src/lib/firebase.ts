@@ -53,17 +53,7 @@ auth = getAuth(app);
 db = getFirestore(app);
 
 
-// Connect to emulators in development
-if (process.env.NODE_ENV === 'development') {
-  try {
-    // Make sure emulators are running before connecting
-    connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-    connectFirestoreEmulator(db, 'localhost', 8080);
-    console.log("Firebase Emulators connected.");
-  } catch (error) {
-    console.error("Error connecting to Firebase Emulators:", error);
-  }
-}
+
 
 // storage = getStorage(app);
 
