@@ -8,7 +8,7 @@
  * - GoalGeneratorOutput - The return type for the generateGoals function.
  */
 
-import {ai} from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import {
   GoalGeneratorInputSchema,
   type GoalGeneratorInput,
