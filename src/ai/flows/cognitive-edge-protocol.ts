@@ -18,9 +18,13 @@ import {
   protocolPhaseNames,
 } from '@/types';
 
-
 export async function cognitiveEdgeProtocol(input: CognitiveEdgeProtocolInput): Promise<CognitiveEdgeProtocolOutput> {
-  return cognitiveEdgeProtocolFlow(input);
+  try {
+    return await cognitiveEdgeProtocolFlow(input);
+  } catch (error) {
+    console.error('Error in cognitiveEdgeProtocol:', error);
+    throw new Error(`Failed to process cognitive edge protocol: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 const prompt = ai.definePrompt({
@@ -78,16 +82,22 @@ export const cognitiveEdgeProtocolFlow = ai.defineFlow(
     outputSchema: CognitiveEdgeProtocolOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    if (!output) {
-      throw new Error('AI failed to generate a response for the Cognitive Edge Protocol. The output was empty.');
-    }
-    // Ensure nextPhase is always a valid phase
-    if (!protocolPhaseNames.includes(output.nextPhase)) {
-      console.warn(`AI returned an invalid nextPhase: '${output.nextPhase}'. Defaulting to current phase: '${input.phase}'`);
-      output.nextPhase = input.phase;
-    }
+    try {
+      const {output} = await prompt(input);
+      if (!output) {
+        throw new Error('AI failed to generate a response for the Cognitive Edge Protocol. The output was empty.');
+      }
+      
+      // Ensure nextPhase is always a valid phase
+      if (!protocolPhaseNames.includes(output.nextPhase)) {
+        console.warn(`AI returned an invalid nextPhase: '${output.nextPhase}'. Defaulting to current phase: '${input.phase}'`);
+        output.nextPhase = input.phase;
+      }
 
-    return output;
+      return output;
+    } catch (error) {
+      console.error('Error in cognitiveEdgeProtocolFlow:', error);
+      throw error;
+    }
   }
 );

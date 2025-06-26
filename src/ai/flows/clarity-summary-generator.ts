@@ -21,7 +21,12 @@ import {
 export async function generateClaritySummary(
   input: ClaritySummaryInput
 ): Promise<ClaritySummaryOutput> {
-  return claritySummaryFlow(input);
+  try {
+    return await claritySummaryFlow(input);
+  } catch (error) {
+    console.error('Error in generateClaritySummary:', error);
+    throw new Error(`Failed to generate clarity summary: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 const prompt = ai.definePrompt({
@@ -48,10 +53,15 @@ export const claritySummaryFlow = ai.defineFlow(
     outputSchema: ClaritySummaryOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    if (!output) {
-      throw new Error('AI failed to generate a clarity summary. The output was empty.');
+    try {
+      const {output} = await prompt(input);
+      if (!output) {
+        throw new Error('AI failed to generate a clarity summary. The output was empty.');
+      }
+      return output;
+    } catch (error) {
+      console.error('Error in claritySummaryFlow:', error);
+      throw error;
     }
-    return output;
   }
 );

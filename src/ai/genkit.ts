@@ -4,7 +4,9 @@ import nextPlugin from '@genkit-ai/next';
 
 export const ai = genkit({
   plugins: [
-    googleAI(),
-
+    googleAI({
+      apiKey: process.env.GOOGLE_API_KEY,
+    }),
+    nextPlugin(),
   ],
 });
