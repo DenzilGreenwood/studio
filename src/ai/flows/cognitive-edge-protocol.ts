@@ -18,33 +18,13 @@ import {
   protocolPhaseNames,
 } from '@/types';
 
-const protocolPhases = [
-  'Stabilize & Structure',
-  'Listen for Core Frame',
-  'Validate Emotion / Reframe',
-  'Provide Grounded Support',
-  'Reflective Pattern Discovery',
-  'Empower & Legacy Statement',
-  'Complete',
-] as const;
-
-const CognitiveEdgeProtocolInputSchema = z.object({
-  userInput: z.string().describe('The user input for the current phase.'),
-  phase: z.enum(protocolPhases).describe('The current phase of the Cognitive Edge Protocol.'),
-  sessionHistory: z.string().optional().describe('The session history to maintain context.'),
-  attemptCount: z.number().optional().describe('The number of attempts to get a key response (like a reframe or legacy statement).')
-});
-export type CognitiveEdgeProtocolInput = z.infer<typeof CognitiveEdgeProtocolInputSchema>;
-
-const CognitiveEdgeProtocolOutputSchema = z.object({
-  response: z.string().describe('The AI response for the current phase.'),
-  nextPhase: z.enum(protocolPhases).describe('The next phase of the Cognitive Edge Protocol.'),
-  sessionHistory: z.string().describe('The updated session history.'),
-});
-export type CognitiveEdgeProtocolOutput = z.infer<typeof CognitiveEdgeProtocolOutputSchema>;
-
 export async function cognitiveEdgeProtocol(input: CognitiveEdgeProtocolInput): Promise<CognitiveEdgeProtocolOutput> {
-  return cognitiveEdgeProtocolFlow(input);
+  try {
+    return await cognitiveEdgeProtocolFlow(input);
+  } catch (error) {
+    console.error('Error in cognitiveEdgeProtocol:', error);
+    throw new Error(`Failed to process cognitive edge protocol: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 const prompt = ai.definePrompt({
@@ -102,16 +82,22 @@ export const cognitiveEdgeProtocolFlow = ai.defineFlow(
     outputSchema: CognitiveEdgeProtocolOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    if (!output) {
-      throw new Error('AI failed to generate a response for the Cognitive Edge Protocol. The output was empty.');
-    }
-    // Ensure nextPhase is always a valid phase
-    if (!protocolPhaseNames.includes(output.nextPhase)) {
-      console.warn(`AI returned an invalid nextPhase: '${output.nextPhase}'. Defaulting to current phase: '${input.phase}'`);
-      output.nextPhase = input.phase;
-    }
+    try {
+      const {output} = await prompt(input);
+      if (!output) {
+        throw new Error('AI failed to generate a response for the Cognitive Edge Protocol. The output was empty.');
+      }
+      
+      // Ensure nextPhase is always a valid phase
+      if (!protocolPhaseNames.includes(output.nextPhase)) {
+        console.warn(`AI returned an invalid nextPhase: '${output.nextPhase}'. Defaulting to current phase: '${input.phase}'`);
+        output.nextPhase = input.phase;
+      }
 
-    return output;
+      return output;
+    } catch (error) {
+      console.error('Error in cognitiveEdgeProtocolFlow:', error);
+      throw error;
+    }
   }
 );

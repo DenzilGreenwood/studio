@@ -19,7 +19,12 @@ import {
 export async function generateGoals(
   input: GoalGeneratorInput
 ): Promise<GoalGeneratorOutput> {
-  return goalGeneratorFlow(input);
+  try {
+    return await goalGeneratorFlow(input);
+  } catch (error) {
+    console.error('Error in generateGoals:', error);
+    throw new Error(`Failed to generate goals: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 const prompt = ai.definePrompt({
@@ -49,10 +54,15 @@ export const goalGeneratorFlow = ai.defineFlow(
     outputSchema: GoalGeneratorOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    if (!output) {
-      throw new Error('AI failed to generate goal suggestions.');
+    try {
+      const {output} = await prompt(input);
+      if (!output) {
+        throw new Error('AI failed to generate goal suggestions.');
+      }
+      return output;
+    } catch (error) {
+      console.error('Error in goalGeneratorFlow:', error);
+      throw error;
     }
-    return output;
   }
 );

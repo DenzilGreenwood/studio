@@ -16,11 +16,15 @@ import {
   type SentimentAnalysisOutput,
 } from '@/types';
 
-
 export async function analyzeSentiment(
   input: SentimentAnalysisInput
 ): Promise<SentimentAnalysisOutput> {
-  return sentimentAnalysisFlow(input);
+  try {
+    return await sentimentAnalysisFlow(input);
+  } catch (error) {
+    console.error('Error in analyzeSentiment:', error);
+    throw new Error(`Failed to analyze sentiment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 const prompt = ai.definePrompt({
@@ -47,10 +51,15 @@ export const sentimentAnalysisFlow = ai.defineFlow(
     outputSchema: SentimentAnalysisOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    if (!output) {
-      throw new Error('AI failed to generate sentiment analysis. The output was empty.');
+    try {
+      const {output} = await prompt(input);
+      if (!output) {
+        throw new Error('AI failed to generate sentiment analysis. The output was empty.');
+      }
+      return output;
+    } catch (error) {
+      console.error('Error in sentimentAnalysisFlow:', error);
+      throw error;
     }
-    return output;
   }
 );
