@@ -20,7 +20,8 @@ import {
   updateDoc,
   Timestamp,
   where,
-  writeBatch
+  writeBatch,
+  getDoc
 } from '@/lib/firebase';
 import { cognitiveEdgeProtocol } from '@/ai/flows/cognitive-edge-protocol';
 import { generateClaritySummary } from '@/ai/flows/clarity-summary-generator';
@@ -28,8 +29,11 @@ import { analyzeSentiment } from '@/ai/flows/sentiment-analysis-flow';
 import type { ProtocolSession, ChatMessage as FirestoreChatMessage } from '@/types';
 import { useRouter } from 'next/navigation'; 
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
+import { ClaritySummary } from '@/components/protocol/clarity-summary';
+import { Button } from '@/components/ui/button';
 
 // Type imports from the central types file
+import type { FieldValue } from 'firebase/firestore';
 import { 
   protocolPhaseNames,
   type ProtocolPhase,
@@ -66,8 +70,7 @@ interface SessionDataForSummaryFunctionArg {
   topEmotions: string;
 }
 
-
-type ClaritySummaryContentType = ClaritySummaryOutput & SessionDataForSummaryFunctionArg;
+type ClaritySummaryContentType = ClaritySummaryOutput & SessionDataForSummaryFunctionArg & { generatedAt?: FieldValue | Date };
 
 
 async function generateAndSaveSummary(
@@ -95,13 +98,12 @@ async function generateAndSaveSummary(
 
   if (!summaryInputData.actualReframedBelief.trim() && !summaryInputData.actualLegacyStatement.trim()) {
     showToast({ variant: "destructive", title: "Missing Key Data", description: "Crucial session elements (reframed belief or legacy statement) were not captured. A full AI summary cannot be generated." });
-     await updateDoc(sessionDocRef, {
-       ...finalUpdatePayload,
+     await setDoc(sessionDocRef, {
        summary: { 
         ...baseSummaryContentToSaveOnError,
-        generatedAt: serverTimestamp()
+        generatedAt: serverTimestamp() as unknown as Date
       }
-    });
+    }, { merge: true });
     return baseSummaryContentToSaveOnError;
   }
 
@@ -123,13 +125,12 @@ async function generateAndSaveSummary(
       legacyStatementInteraction: summaryInputData.legacyStatementInteraction || null,
     };
 
-    await updateDoc(sessionDocRef, {
-      ...finalUpdatePayload,
+    await setDoc(sessionDocRef, {
       summary: { 
         ...summaryToPersist,
-        generatedAt: serverTimestamp()
+        generatedAt: serverTimestamp() as unknown as Date
       }
-    });
+    }, { merge: true });
     return summaryToPersist;
 
   } catch (error: any) {
@@ -140,13 +141,12 @@ async function generateAndSaveSummary(
       ...baseSummaryContentToSaveOnError,
       insightSummary: "Failed to generate AI summary. Please try downloading raw insights or contact support.",
     };
-    await updateDoc(sessionDocRef, {
-      ...finalUpdatePayload,
+    await setDoc(sessionDocRef, {
       summary: { 
         ...errorSummaryToPersist,
-        generatedAt: serverTimestamp()
+        generatedAt: serverTimestamp() as unknown as Date
       }
-    });
+    }, { merge: true });
     return errorSummaryToPersist;
   }
 }
@@ -165,6 +165,7 @@ export default function ProtocolPage() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [finalClaritySummary, setFinalClaritySummary] = useState<ClaritySummaryContentType | null>(null);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [currentCircumstance, setCurrentCircumstance] = useState<string | null>(null); // <-- Added
   
   const [keyQuestionAttemptCount, setKeyQuestionAttemptCount] = useState(1);
   const [lastAiQuestion, setLastAiQuestion] = useState<string | null>(null);
@@ -204,6 +205,7 @@ export default function ProtocolPage() {
     setShowFeedbackForm(false); 
     
     const circumstance = user.primaryChallenge;
+    setCurrentCircumstance(circumstance); // <-- Set state
 
     const newSessionRef = doc(collection(db, `users/${firebaseUser.uid}/sessions`));
     const newSessionId = newSessionRef.id;
@@ -214,14 +216,14 @@ export default function ProtocolPage() {
       userId: firebaseUser.uid,
       circumstance: circumstance,
       ageRange: user.ageRange,
-      startTime: serverTimestamp(),
+      startTime: serverTimestamp() as unknown as Date, // allow FieldValue
       completedPhases: 0,
       summary: {
         insightSummary: "",
         actualReframedBelief: "",
         actualLegacyStatement: "",
         topEmotions: "",
-        generatedAt: serverTimestamp(), 
+        generatedAt: serverTimestamp() as unknown as Date, // allow FieldValue
       }
     };
     await setDoc(newSessionRef, initialSessionData);
@@ -299,7 +301,6 @@ export default function ProtocolPage() {
       await generateAndSaveSummary(
         currentSessionId, 
         firebaseUser.uid, 
-        currentCircumstance,
         finalDataForFirestore, 
         toast,
         TOTAL_PHASES
@@ -462,7 +463,8 @@ export default function ProtocolPage() {
             currentSessionId, 
             firebaseUser.uid, 
             finalDataForFirestore, 
-            toast
+            toast,
+            TOTAL_PHASES
           );
 
           setFinalClaritySummary(generatedSummary); 

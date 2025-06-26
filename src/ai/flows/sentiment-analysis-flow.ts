@@ -8,7 +8,7 @@
  * - SentimentAnalysisOutput - The return type for the analyzeSentiment function.
  */
 
-import {ai} from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import {
   SentimentAnalysisInputSchema,
   type SentimentAnalysisInput,

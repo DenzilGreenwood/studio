@@ -9,7 +9,7 @@
  * - CognitiveEdgeProtocolOutput - The return type for the cognitiveEdgeProtocol function.
  */
 
-import {ai} from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import {
   CognitiveEdgeProtocolInputSchema,
   type CognitiveEdgeProtocolInput,
