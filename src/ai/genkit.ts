@@ -1,13 +1,12 @@
-// src/ai/genkit.ts
-import {genkit} from 'genkit';
-
-// Use require to bypass bundler static analysis for these server-only packages.
-const {googleAI} = require('@genkit-ai/googleai');
-const nextPlugin = require('@genkit-ai/next').default;
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
+import nextPlugin from '@genkit-ai/next';
 
 export const ai = genkit({
   plugins: [
-    googleAI(),
+    googleAI({
+      apiKey: process.env.GOOGLE_API_KEY,
+    }),
     nextPlugin(),
   ],
 });
