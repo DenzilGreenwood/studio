@@ -5,9 +5,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ChatInterface, type Message as UIMessage } from '@/components/protocol/chat-interface';
 import { PhaseIndicator } from '@/components/protocol/phase-indicator';
 import { useToast } from '@/hooks/use-toast';
-import { cognitiveEdgeProtocol, type CognitiveEdgeProtocolInput, type CognitiveEdgeProtocolOutput } from '@/ai/flows/cognitive-edge-protocol';
-import { generateClaritySummary, type ClaritySummaryInput, type ClaritySummaryOutput } from '@/ai/flows/clarity-summary-generator';
-import { analyzeSentiment, type SentimentAnalysisInput, type SentimentAnalysisOutput } from '@/ai/flows/sentiment-analysis-flow';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { TTSSettings } from '@/components/ui/tts-settings';
@@ -27,9 +24,6 @@ import {
   writeBatch,
   getDoc
 } from '@/lib/firebase';
-import { cognitiveEdgeProtocol } from '@/ai/flows/cognitive-edge-protocol';
-import { generateClaritySummary } from '@/ai/flows/clarity-summary-generator';
-import { analyzeSentiment } from '@/ai/flows/sentiment-analysis-flow';
 import type { ProtocolSession, ChatMessage as FirestoreChatMessage } from '@/types';
 import { useRouter } from 'next/navigation'; 
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
@@ -48,6 +42,11 @@ import {
   type SentimentAnalysisInput, 
   type SentimentAnalysisOutput
 } from '@/types';
+
+// AI flow imports
+import { cognitiveEdgeProtocol } from '@/ai/flows/cognitive-edge-protocol';
+import { generateClaritySummary } from '@/ai/flows/clarity-summary-generator';
+import { analyzeSentiment } from '@/ai/flows/sentiment-analysis-flow';
 
 
 const TOTAL_PHASES = 6;
@@ -88,6 +87,7 @@ type ClaritySummaryContentType = ClaritySummaryOutput & SessionDataForSummaryFun
 async function generateAndSaveSummary(
   sessionId: string,
   userId: string,
+  circumstance: string,
   summaryInputData: SessionDataForSummaryFunctionArg, 
   showToast: (options: any) => void,
   completedPhases: number
@@ -106,10 +106,10 @@ async function generateAndSaveSummary(
     legacyStatementInteraction: summaryInputData.legacyStatementInteraction || null,
   };
   
-  const sessionDocRef = doc(db, `users/${userId}/circumstances/${circumstance}/sessions/${sessionId}`);
+  const sessionDocRef = doc(db, `users/${userId}/sessions/${sessionId}`);
   const finalUpdatePayload: Partial<ProtocolSession> = {
     completedPhases,
-    endTime: serverTimestamp(),
+    endTime: serverTimestamp() as any,
   };
 
   if (!summaryInputData.actualReframedBelief.trim() && !summaryInputData.actualLegacyStatement.trim()) {
@@ -181,7 +181,6 @@ export default function ProtocolPage() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentCircumstance, setCurrentCircumstance] = useState<string | null>(null);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
-  const [currentCircumstance, setCurrentCircumstance] = useState<string | null>(null); // <-- Added
   
   const [keyQuestionAttemptCount, setKeyQuestionAttemptCount] = useState(1);
   const [lastAiQuestion, setLastAiQuestion] = useState<string | null>(null);
@@ -317,6 +316,7 @@ export default function ProtocolPage() {
       await generateAndSaveSummary(
         currentSessionId, 
         firebaseUser.uid, 
+        currentCircumstance!,
         finalDataForFirestore, 
         toast,
         TOTAL_PHASES
@@ -479,6 +479,7 @@ export default function ProtocolPage() {
           const generatedSummary = await generateAndSaveSummary(
             currentSessionId, 
             firebaseUser.uid, 
+            currentCircumstance!,
             finalDataForFirestore, 
             toast,
             TOTAL_PHASES

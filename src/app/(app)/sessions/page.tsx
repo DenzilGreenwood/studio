@@ -6,12 +6,18 @@ import { useAuth } from '@/context/auth-context';
 import { db, collectionGroup, query, where, orderBy, getDocs, Timestamp } from '@/lib/firebase';
 import type { ProtocolSession } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, BookOpen, PlusCircle, Eye } from 'lucide-react';
+import { Loader2, BookOpen, PlusCircle, Eye, CheckCircle, Hourglass, Sparkles, PenSquare } from 'lucide-react';
 import Link from 'next/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type SessionWithId = ProtocolSession & { sessionId: string };
+
+// Helper function to convert timestamps to dates
+const toDate = (timestamp: Timestamp | Date): Date => {
+  return timestamp instanceof Timestamp ? timestamp.toDate() : timestamp;
+};
 
 const SessionCard = ({ session }: { session: SessionWithId }) => (
     <Card key={session.sessionId} className="shadow-md hover:shadow-xl transition-shadow duration-300">
@@ -19,7 +25,7 @@ const SessionCard = ({ session }: { session: SessionWithId }) => (
             <div className="flex justify-between items-start">
                 <div>
                     <CardTitle className="font-headline text-2xl text-primary">
-                        Session from {new Date(session.startTime).toLocaleDateString()}
+                        Session from {toDate(session.startTime).toLocaleDateString()}
                     </CardTitle>
                     <CardDescription>
                         Topic: {session.circumstance}
@@ -45,7 +51,7 @@ const SessionCard = ({ session }: { session: SessionWithId }) => (
                 </p>
             ) : (
                 <p className="text-muted-foreground italic">
-                    Session started on {new Date(session.startTime).toLocaleString()}.
+                    Session started on {toDate(session.startTime).toLocaleString()}.
                 </p>
             )}
         </CardContent>
@@ -224,10 +230,10 @@ export default function SessionsPage() {
                         <Card key={session.sessionId} className="shadow-md hover:shadow-xl transition-shadow duration-300">
                             <CardHeader>
                                 <CardTitle className="font-headline text-2xl text-primary">
-                                    Session from {new Date(session.startTime).toLocaleDateString()}
+                                    Session from {toDate(session.startTime).toLocaleDateString()}
                                 </CardTitle>
                                 <CardDescription>
-                                    {session.endTime ? `Completed at ${new Date(session.endTime).toLocaleTimeString()}` : `Started at ${new Date(session.startTime).toLocaleTimeString()}`}
+                                    {session.endTime ? `Completed at ${toDate(session.endTime).toLocaleTimeString()}` : `Started at ${toDate(session.startTime).toLocaleTimeString()}`}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>

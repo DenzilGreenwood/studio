@@ -28,12 +28,22 @@ type ReportSessionData = ProtocolSession & {
   sessionForUser?: UserProfile | null;
 };
 
+export default function SessionReportPage() {
+  const params = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { firebaseUser, user: authProfile, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const isAdmin = useIsAdmin();
 
-    const [sessionData, setSessionData] = useState<ReportSessionData | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-    const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const sessionId = params?.sessionId as string;
+  const userIdFromQuery = searchParams?.get('userId');
+
+  const [sessionData, setSessionData] = useState<ReportSessionData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
 
 
   useEffect(() => {
@@ -110,28 +120,13 @@ type ReportSessionData = ProtocolSession & {
           timestamp: (docSnap.data().timestamp as Timestamp)?.toDate() || new Date(),
         } as DisplayMessage));
         
-        const convertTimestampFields = (data: ProtocolSession): ProtocolSession => {
-          const convertIfTimestamp = (field: any) => 
-            field instanceof Timestamp ? field.toDate() : (field ? new Date(field) : undefined);
-
-          return {
-            ...data,
-            startTime: convertIfTimestamp(data.startTime)!, 
-            endTime: convertIfTimestamp(data.endTime),
-            feedbackSubmittedAt: data.feedbackSubmittedAt ? convertIfTimestamp(data.feedbackSubmittedAt) : undefined,
-            summary: data.summary ? {
-              ...data.summary,
-              generatedAt: convertIfTimestamp(data.summary.generatedAt)!, 
-            } : undefined,
-          };
-        };
-        
         const fullSessionData = { 
-            ...convertTimestampFields(fetchedSessionData), 
+            ...processedSessionData, 
             chatMessages: fetchedMessages,
             sessionForUser: sessionForUser
-        });
+        };
 
+        setSessionData(fullSessionData);
 
       } catch (e: any) {
         console.error("Error fetching session report:", e);
@@ -144,29 +139,7 @@ type ReportSessionData = ProtocolSession & {
     fetchSessionData();
   }, [sessionId, firebaseUser, authProfile, authLoading, router, isAdmin, userIdFromQuery]);
 
-  const handleSaveJournal = async () => {
-    if (!firebaseUser || !circumstance) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Cannot save journal entry. User or context is missing.' });
-      return;
-    }
-    setIsSaving(true);
-    try {
-      const sessionDocRef = doc(db, `users/${firebaseUser.uid}/circumstances/${circumstance}/sessions/${sessionId}`);
-      await updateDoc(sessionDocRef, {
-        reflection: reflection,
-        implementationPlan: implementationPlan,
-      });
-      toast({ title: 'Journal Updated', description: 'Your reflection and implementation plan have been saved.' });
-    } catch (error: any) {
-      console.error('Error saving journal entries:', error);
-      toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save your journal entries. Please try again.' });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-
-    const getInitials = (name?: string | null) => {
+  const getInitials = (name?: string | null) => {
         if (!name) return "?";
         const nameParts = name.split(' ').filter(Boolean);
         if (nameParts.length === 0) return "?";

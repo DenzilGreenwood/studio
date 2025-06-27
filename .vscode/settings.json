@@ -1,5 +1,12 @@
 {
     "IDX.aI.enableInlineCompletion": true,
     "IDX.aI.enableCodebaseIndexing": true,
+
+    "terminal.integrated.copyOnSelection": true,
+    "terminal.integrated.rightClickBehavior": "copyPaste",
+    "terminal.integrated.fastScrollSensitivity": 5,
+    "output.smartScroll.enabled": true,
+
     "C_Cpp.copilotHover": "enabled"
+
 }

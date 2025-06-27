@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { Brain, UserCircle, LogOut, Settings, ChevronDown, Trash2, Loader2, BookOpen, Shield } from "lucide-react";
+import { Brain, UserCircle, LogOut, ChevronDown, Trash2, Loader2, BookOpen, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -109,10 +109,6 @@ export function AppHeader() {
               <DropdownMenuItem onClick={() => router.push('/sessions')}>
                 <BookOpen className="mr-2 h-4 w-4" />
                 <span>My Journal</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
               </DropdownMenuItem>
               {isAdmin && (
                 <>
