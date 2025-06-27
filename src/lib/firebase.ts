@@ -54,6 +54,7 @@ db = getFirestore(app);
 
 
 // Connect to emulators in development
+/*
 if (process.env.NODE_ENV === 'development') {
   try {
     // Make sure emulators are running before connecting
@@ -64,6 +65,7 @@ if (process.env.NODE_ENV === 'development') {
     console.error("Error connecting to Firebase Emulators:", error);
   }
 }
+*/
 
 // storage = getStorage(app);
 

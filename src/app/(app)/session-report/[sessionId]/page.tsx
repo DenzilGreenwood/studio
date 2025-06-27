@@ -5,13 +5,11 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams, notFound } from 'next/navigation'; 
 import { useAuth } from '@/context/auth-context';
 import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp, updateDoc, serverTimestamp, writeBatch } from '@/lib/firebase';
-import { generateGoals } from '@/ai/flows/goal-generator-flow';
-import type { ProtocolSession, ChatMessage as FirestoreChatMessage, UserProfile, Goal } from '@/types'; 
-import type { GoalGeneratorInput, GoalGeneratorOutput } from '@/types';
+import type { ProtocolSession, ChatMessage as FirestoreChatMessage, UserProfile } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Brain, User, Loader2, AlertTriangle, FileText, Lightbulb, Milestone, Bot, MessageSquare, Edit3, CheckCircle, Download, Shield, PenSquare, Target, Sparkles, PlusCircle, Trash2 } from 'lucide-react';
+import { Brain, User, Loader2, AlertTriangle, FileText, Lightbulb, Milestone, Bot, MessageSquare, Edit3, CheckCircle, Download, Shield, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -20,10 +18,6 @@ import jsPDF from 'jspdf';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
 import { useIsAdmin } from '@/hooks/use-is-admin';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 interface DisplayMessage extends FirestoreChatMessage {
   id: string; 
@@ -40,18 +34,6 @@ type ReportSessionData = ProtocolSession & {
     const [error, setError] = useState<string | null>(null);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
-
-    // New state for Journaling & Goals
-    const [reflectionText, setReflectionText] = useState('');
-    const [userGoals, setUserGoals] = useState<Goal[]>([]);
-    const [newGoalText, setNewGoalText] = useState('');
-    const [isGeneratingGoals, setIsGeneratingGoals] = useState(false);
-    const [suggestedGoals, setSuggestedGoals] = useState<string[]>([]);
-    const [isSavingJournal, setIsSavingJournal] = useState(false);
-
-    const completedGoals = useMemo(() => userGoals.filter(g => g.completed).length, [userGoals]);
-    const totalGoals = userGoals.length;
-    const canEditJournal = !isSavingJournal && !(isAdmin && !!userIdFromQuery);
 
 
   useEffect(() => {
@@ -200,88 +182,6 @@ type ReportSessionData = ProtocolSession & {
         setSessionData(prev => prev ? { ...prev, feedbackId: feedbackId } : null);
         toast({ title: "Feedback Submitted", description: "Thank you for your valuable input!" });
     };
-
-  const handleGenerateGoals = async () => {
-    if (!reflectionText.trim()) {
-        toast({
-            variant: 'destructive',
-            title: 'Cannot Generate Goals',
-            description: 'Please write a reflection first to give the AI some context.',
-        });
-        return;
-    }
-    setIsGeneratingGoals(true);
-    setSuggestedGoals([]);
-    try {
-        const input: GoalGeneratorInput = {
-            sessionSummary: sessionData?.summary?.insightSummary || 'No summary available.',
-            userReflection: reflectionText
-        };
-        const result = await generateGoals(input);
-        setSuggestedGoals(result.suggestedGoals);
-    } catch(e: any) {
-        const errorMessage = e.message || "An unexpected error occurred.";
-        console.error("Error generating goals:", e);
-        toast({ variant: 'destructive', title: 'Goal Generation Failed', description: `Could not get suggestions from the AI. Details: ${errorMessage}` });
-    } finally {
-        setIsGeneratingGoals(false);
-    }
-  };
-
-  const addSuggestedGoal = (goalText: string) => {
-    if (!userGoals.some(g => g.text === goalText)) {
-        setUserGoals(prev => [...prev, { text: goalText, completed: false, createdAt: new Date() }]);
-    }
-    setSuggestedGoals(prev => prev.filter(g => g !== goalText));
-  };
-  
-  const handleAddNewGoal = () => {
-      if(newGoalText.trim()){
-          setUserGoals(prev => [...prev, { text: newGoalText.trim(), completed: false, createdAt: new Date() }]);
-          setNewGoalText('');
-      }
-  };
-
-  const toggleGoalCompletion = (index: number) => {
-    setUserGoals(prev => prev.map((goal, i) => i === index ? { ...goal, completed: !goal.completed } : goal));
-  };
-
-  const removeGoal = (index: number) => {
-    setUserGoals(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSaveJournalAndGoals = async () => {
-    if (!firebaseUser || !sessionData) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Cannot save. Missing user or session data.'});
-      return;
-    }
-    setIsSavingJournal(true);
-    try {
-      const sessionDocRef = doc(db, `users/${firebaseUser.uid}/sessions/${sessionId}`);
-      const userDocRef = doc(db, `users/${firebaseUser.uid}`);
-      
-      const goalsToSave = userGoals.map(g => ({
-          ...g,
-          createdAt: g.createdAt instanceof Date ? Timestamp.fromDate(g.createdAt) : g.createdAt
-      }));
-
-      const batch = writeBatch(db);
-      batch.update(sessionDocRef, {
-        userReflection: reflectionText,
-        goals: goalsToSave,
-        userReflectionUpdatedAt: serverTimestamp(),
-      });
-      batch.update(userDocRef, { lastCheckInAt: serverTimestamp() });
-      await batch.commit();
-
-      toast({ title: 'Journal & Goals Saved', description: 'Your progress has been successfully saved.' });
-    } catch (e: any) {
-      console.error("Error saving journal and goals:", e);
-      toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save your journal. Please try again.' });
-    } finally {
-      setIsSavingJournal(false);
-    }
-  };
   
   const handleDownloadPdf = async () => {
     toast({title: "PDF Download", description: "PDF generation logic needs to be updated to include new journal section."});

@@ -24,7 +24,8 @@ import {
   updateDoc,
   Timestamp,
   where,
-  writeBatch
+  writeBatch,
+  getDoc
 } from '@/lib/firebase';
 import { cognitiveEdgeProtocol } from '@/ai/flows/cognitive-edge-protocol';
 import { generateClaritySummary } from '@/ai/flows/clarity-summary-generator';
@@ -405,18 +406,20 @@ export default function ProtocolPage() {
       const nextPhaseIndex = PHASE_NAMES.indexOf(output.nextPhase);
       const newPhaseNumber = nextPhaseIndex >= 0 ? nextPhaseIndex + 1 : currentPhase;
 
-
       const sessionDocRef = doc(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}`);
 
-      if (newPhaseNumber > currentPhase || (currentPhase === TOTAL_PHASES && output.nextPhase === PHASE_NAMES[TOTAL_PHASES-1])) {
-        if (currentPhase < TOTAL_PHASES) {
+      // Check if protocol is complete
+      const isProtocolComplete = output.nextPhase === 'Complete';
+
+      if (newPhaseNumber > currentPhase || isProtocolComplete) {
+        if (currentPhase < TOTAL_PHASES && !isProtocolComplete) {
           setCurrentPhase(newPhaseNumber);
           setCurrentPhaseName(output.nextPhase);
           await updateDoc(sessionDocRef, {
-            completedPhases: currentPhase
+            completedPhases: newPhaseNumber
           });
            setIsLoading(false); 
-        } else if (currentPhase === TOTAL_PHASES && output.nextPhase === PHASE_NAMES[TOTAL_PHASES - 1]) {
+        } else if (isProtocolComplete) {
           setIsLoading(true); // Keep loading while generating summary etc.
           
           let detectedUserEmotions = "Emotions not analyzed";
@@ -477,7 +480,8 @@ export default function ProtocolPage() {
             currentSessionId, 
             firebaseUser.uid, 
             finalDataForFirestore, 
-            toast
+            toast,
+            TOTAL_PHASES
           );
 
           setIsProtocolComplete(true); 
@@ -486,7 +490,10 @@ export default function ProtocolPage() {
           return; 
         }
       } else {
-         setCurrentPhaseName(output.nextPhase);
+         // Only update phase name if not complete
+         if (!isProtocolComplete) {
+           setCurrentPhaseName(output.nextPhase);
+         }
          setIsLoading(false); 
       }
       

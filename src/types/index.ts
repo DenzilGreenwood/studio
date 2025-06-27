@@ -58,6 +58,15 @@ export interface ProtocolSession {
   goals?: Goal[];
   feedbackId?: string;
   feedbackSubmittedAt?: Timestamp | Date;
+  aiReflection?: {
+    conversationalHighlights: string;
+    actionableItems: string[];
+    emotionalInsights: string;
+    progressReflection: string;
+    encouragingMessage: string;
+    reflectionPrompts: string[];
+    generatedAt: Timestamp | Date;
+  };
 }
 
 export interface SessionFeedback {

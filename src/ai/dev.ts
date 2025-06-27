@@ -1,8 +1,5 @@
-import { ai } from './genkit';
-import '@/ai/flows/clarity-summary-generator';
-import '@/ai/flows/cognitive-edge-protocol';
-import '@/ai/flows/sentiment-analysis-flow';
-import '@/ai/flows/goal-generator-flow';
-import '@/ai/flows/session-reflection-flow';
-
-export { ai };
+import { ai } from '@/ai/genkit';
+import '@/ai/flows/clarity-summary-generator.ts';
+import '@/ai/flows/cognitive-edge-protocol.ts';
+import '@/ai/flows/sentiment-analysis-flow.ts';
+import '@/ai/flows/goal-generator-flow.ts';
