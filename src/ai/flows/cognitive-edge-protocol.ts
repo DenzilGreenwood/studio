@@ -17,13 +17,20 @@ import {
   type CognitiveEdgeProtocolOutput,
   protocolPhaseNames,
 } from '@/types';
+import { runGenkitFlowWithRetry, formatAIError, logAIFlowExecution } from '@/lib/genkit-utils';
 
 export async function cognitiveEdgeProtocol(input: CognitiveEdgeProtocolInput): Promise<CognitiveEdgeProtocolOutput> {
   try {
-    return await cognitiveEdgeProtocolFlow(input);
+    return await runGenkitFlowWithRetry(
+      cognitiveEdgeProtocolFlow,
+      input,
+      'cognitiveEdgeProtocol',
+      2
+    );
   } catch (error) {
-    console.error('Error in cognitiveEdgeProtocol:', error);
-    throw new Error(`Failed to process cognitive edge protocol: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    const formattedError = formatAIError(error, 'Cognitive Edge Protocol');
+    logAIFlowExecution('cognitiveEdgeProtocol', input, undefined, error instanceof Error ? error : new Error(String(error)));
+    throw new Error(formattedError);
   }
 }
 
@@ -64,10 +71,10 @@ const prompt = ai.definePrompt({
           *   Guide the user to recognize recurring patterns in their challenges.
 
       6.  **Empower & Legacy Statement:**
-          *   Your goal is to help the user create a **Legacy Statement**. Ask a direct question like: "Based on your growth, what is the legacy you want to build from this point forward?"
-          *   **Crucial:** If the user's response is not a clear statement about their legacy, you must help.
-          *   If this is attempt number {{{attemptCount}}} (and {{{attemptCount}}} is 2 or more), you **MUST** propose a concrete example based on their reframed belief and session history. Do not just repeat the question. For instance: "Considering your new belief about your value, a legacy statement could be: 'I will build a career that not only uses my skills but also inspires others to find their own value.' How does that resonate with you?"
-          *   After the user provides a satisfactory legacy statement, set \`nextPhase\` to \`Complete\` and provide a final, encouraging remark in your \`response\`.
+          * Your goal is to help the user to create a **Legacy Statement**. Ask a direct question like: "Based on your growth, what is the legacy you want to build from this point forward?"
+          * **Crucial:** If the user's response is not a clear statement about their legacy, you must help.
+          * If this is attempt number {{{attemptCount}}} (and {{{attemptCount}}} is 2 or more), you **MUST** propose a concrete example based on their reframed belief and session history. Do not just repeat the question. For instance: "Considering your new belief about your value, a legacy statement could be: 'I will build a career that not only uses my skills but also inspires others to find their own value.' How does that resonate with you?"
+          * After the user provides a satisfactory legacy statement, set \`nextPhase\` to \`Complete\` and provide a final, encouraging remark in your \`response\`.
 
       **Your Output:**
       *   \`response\`: Your conversational reply to the user.

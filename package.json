@@ -10,7 +10,11 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "genkit:dev": "genkit start -- npm run dev",
+    "genkit:flows": "genkit flow:list",
+    "genkit:trace": "genkit trace",
+    "health": "curl -s http://localhost:3000/api/health | jq"
   },
   "dependencies": {
     "@genkit-ai/googleai": "1.8.0",

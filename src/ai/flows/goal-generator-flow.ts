@@ -15,15 +15,22 @@ import {
   GoalGeneratorOutputSchema,
   type GoalGeneratorOutput,
 } from '@/types';
+import { runGenkitFlowWithRetry, formatAIError, logAIFlowExecution } from '@/lib/genkit-utils';
 
 export async function generateGoals(
   input: GoalGeneratorInput
 ): Promise<GoalGeneratorOutput> {
   try {
-    return await goalGeneratorFlow(input);
+    return await runGenkitFlowWithRetry(
+      goalGeneratorFlow,
+      input,
+      'generateGoals',
+      2
+    );
   } catch (error) {
-    console.error('Error in generateGoals:', error);
-    throw new Error(`Failed to generate goals: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    const formattedError = formatAIError(error, 'Goal Generation');
+    logAIFlowExecution('generateGoals', input, undefined, error instanceof Error ? error : new Error(String(error)));
+    throw new Error(formattedError);
   }
 }
 

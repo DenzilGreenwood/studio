@@ -53,12 +53,11 @@ export interface ProtocolSession {
     generatedAt: Timestamp | Date;
     downloadUrl?: string;
   };
-
-  reflection?: string; // User-added reflection
-  implementationPlan?: string; // User-added implementation plan
-
-  feedbackId?: string; // ID of the feedback document in the 'feedback' collection
-  feedbackSubmittedAt?: Timestamp | Date; // When feedback was submitted
+  userReflection?: string;
+  userReflectionUpdatedAt?: Timestamp | Date;
+  goals?: Goal[];
+  feedbackId?: string;
+  feedbackSubmittedAt?: Timestamp | Date;
 }
 
 export interface SessionFeedback {
@@ -150,3 +149,5 @@ export const GoalGeneratorOutputSchema = z.object({
   suggestedGoals: z.array(z.string()).describe('An array of 3-5 actionable and meaningful goal suggestions based on the input.'),
 });
 export type GoalGeneratorOutput = z.infer<typeof GoalGeneratorOutputSchema>;
+
+

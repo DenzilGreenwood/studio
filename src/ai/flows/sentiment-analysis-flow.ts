@@ -15,15 +15,22 @@ import {
   SentimentAnalysisOutputSchema,
   type SentimentAnalysisOutput,
 } from '@/types';
+import { runGenkitFlowWithRetry, formatAIError, logAIFlowExecution } from '@/lib/genkit-utils';
 
 export async function analyzeSentiment(
   input: SentimentAnalysisInput
 ): Promise<SentimentAnalysisOutput> {
   try {
-    return await sentimentAnalysisFlow(input);
+    return await runGenkitFlowWithRetry(
+      sentimentAnalysisFlow,
+      input,
+      'analyzeSentiment',
+      2
+    );
   } catch (error) {
-    console.error('Error in analyzeSentiment:', error);
-    throw new Error(`Failed to analyze sentiment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    const formattedError = formatAIError(error, 'Sentiment Analysis');
+    logAIFlowExecution('analyzeSentiment', input, undefined, error instanceof Error ? error : new Error(String(error)));
+    throw new Error(formattedError);
   }
 }
 

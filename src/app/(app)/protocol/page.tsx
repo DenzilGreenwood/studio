@@ -10,6 +10,7 @@ import { generateClaritySummary, type ClaritySummaryInput, type ClaritySummaryOu
 import { analyzeSentiment, type SentimentAnalysisInput, type SentimentAnalysisOutput } from '@/ai/flows/sentiment-analysis-flow';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
+import { TTSSettings } from '@/components/ui/tts-settings';
 import { 
   db, 
   doc, 
@@ -285,7 +286,7 @@ export default function ProtocolPage() {
       let detectedUserEmotions = "Emotions not analyzed";
       try {
         const messagesQuery = query(
-          collection(db, `users/${firebaseUser.uid}/circumstances/${currentCircumstance}/sessions/${currentSessionId}/messages`),
+          collection(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}/messages`),
           orderBy("timestamp", "asc")
         );
         const messagesSnap = await getDocs(messagesQuery);
@@ -403,10 +404,19 @@ export default function ProtocolPage() {
 
       const nextPhaseIndex = PHASE_NAMES.indexOf(output.nextPhase);
       const newPhaseNumber = nextPhaseIndex >= 0 ? nextPhaseIndex + 1 : currentPhase;
-      setCurrentPhase(newPhaseNumber);
-      setCurrentPhaseName(output.nextPhase);
-      
-      if (output.nextPhase === 'Complete') {
+
+
+      const sessionDocRef = doc(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}`);
+
+      if (newPhaseNumber > currentPhase || (currentPhase === TOTAL_PHASES && output.nextPhase === PHASE_NAMES[TOTAL_PHASES-1])) {
+        if (currentPhase < TOTAL_PHASES) {
+          setCurrentPhase(newPhaseNumber);
+          setCurrentPhaseName(output.nextPhase);
+          await updateDoc(sessionDocRef, {
+            completedPhases: currentPhase
+          });
+           setIsLoading(false); 
+        } else if (currentPhase === TOTAL_PHASES && output.nextPhase === PHASE_NAMES[TOTAL_PHASES - 1]) {
           setIsLoading(true); // Keep loading while generating summary etc.
           
           let detectedUserEmotions = "Emotions not analyzed";
@@ -474,16 +484,14 @@ export default function ProtocolPage() {
           setShowFeedbackForm(true); // Show feedback form immediately
           setIsLoading(false); 
           return; 
+        }
+      } else {
+         setCurrentPhaseName(output.nextPhase);
+         setIsLoading(false); 
       }
       
-      if (isPhaseAdvancing) {
-        const sessionDocRef = doc(db, `users/${firebaseUser.uid}/circumstances/${currentCircumstance}/sessions/${currentSessionId}`);
-        await updateDoc(sessionDocRef, { completedPhases: newPhaseNumber - 1 });
-      }
-
-      setIsLoading(false); 
-      
-    } catch (error) {
+    } catch (error: any) {
+      const errorMessage = error.message || "An unexpected error occurred. Check the server logs for more details.";
       console.error("Error in AI protocol:", error);
       toast({
         variant: "destructive",
@@ -525,13 +533,16 @@ export default function ProtocolPage() {
 
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-4xl flex flex-col gap-4 md:gap-6 min-h-[calc(100vh-theme(spacing.32))]">
-      <PhaseIndicator
-        currentPhase={currentPhase > TOTAL_PHASES ? TOTAL_PHASES : currentPhase}
-        totalPhases={TOTAL_PHASES}
-        phaseName={currentPhaseName}
-        isCompleted={isProtocolComplete}
-        isLoadingNextPhase={isLoading && !isProtocolComplete && currentPhase <= TOTAL_PHASES}
-      />
+      <div className="flex justify-between items-center">
+        <PhaseIndicator
+          currentPhase={currentPhase > TOTAL_PHASES ? TOTAL_PHASES : currentPhase}
+          totalPhases={TOTAL_PHASES}
+          phaseName={currentPhaseName}
+          isCompleted={isProtocolComplete}
+          isLoadingNextPhase={isLoading && !isProtocolComplete && currentPhase <= TOTAL_PHASES}
+        />
+        <TTSSettings />
+      </div>
       
       {isLoading && isProtocolComplete ? ( 
          <div className="flex flex-col items-center justify-center text-center p-8 bg-card rounded-lg shadow-md flex-grow">

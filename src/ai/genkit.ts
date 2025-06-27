@@ -1,7 +1,8 @@
-// src/ai/genkit.ts
-import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
+import nextPlugin from '@genkit-ai/next';
 
+// Configure Genkit for production use
 export const ai = genkit({
   plugins: [
     googleAI({
