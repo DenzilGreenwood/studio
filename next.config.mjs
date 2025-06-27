@@ -1,5 +1,4 @@
 const nextConfig = {
-  /* config options here */
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -15,6 +14,14 @@ const nextConfig = {
         pathname: '/**',
       },
     ],
+  },
+  // Enable experimental features for better Genkit support
+  experimental: {
+    serverComponentsExternalPackages: ['genkit'],
+  },
+  // Ensure proper environment variable handling
+  env: {
+    GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
   },
 };
 

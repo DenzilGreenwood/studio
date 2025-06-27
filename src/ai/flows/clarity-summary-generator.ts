@@ -17,15 +17,22 @@ import {
   ClaritySummaryOutputSchema,
   type ClaritySummaryOutput,
 } from '@/types';
+import { runGenkitFlowWithRetry, formatAIError, logAIFlowExecution } from '@/lib/genkit-utils';
 
 export async function generateClaritySummary(
   input: ClaritySummaryInput
 ): Promise<ClaritySummaryOutput> {
   try {
-    return await claritySummaryFlow(input);
+    return await runGenkitFlowWithRetry(
+      claritySummaryFlow,
+      input,
+      'generateClaritySummary',
+      2
+    );
   } catch (error) {
-    console.error('Error in generateClaritySummary:', error);
-    throw new Error(`Failed to generate clarity summary: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    const formattedError = formatAIError(error, 'Clarity Summary Generation');
+    logAIFlowExecution('generateClaritySummary', input, undefined, error instanceof Error ? error : new Error(String(error)));
+    throw new Error(formattedError);
   }
 }
 

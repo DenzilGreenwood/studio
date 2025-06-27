@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Lightbulb, Milestone, Bot, User, Eye } from "lucide-react"; 
-import type { ClaritySummaryOutput } from "@/ai/flows/clarity-summary-generator"; 
+import type { ClaritySummaryOutput } from "@/types"; 
 
 interface KeyInteraction {
   aiQuestion: string;

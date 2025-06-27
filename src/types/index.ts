@@ -57,6 +57,15 @@ export interface ProtocolSession {
   goals?: Goal[];
   feedbackId?: string;
   feedbackSubmittedAt?: Timestamp | Date;
+  aiReflection?: {
+    conversationalHighlights: string;
+    actionableItems: string[];
+    emotionalInsights: string;
+    progressReflection: string;
+    encouragingMessage: string;
+    reflectionPrompts: string[];
+    generatedAt: Timestamp | Date;
+  };
 }
 
 export interface SessionFeedback {
@@ -148,3 +157,5 @@ export const GoalGeneratorOutputSchema = z.object({
   suggestedGoals: z.array(z.string()).describe('An array of 3-5 actionable and meaningful goal suggestions based on the input.'),
 });
 export type GoalGeneratorOutput = z.infer<typeof GoalGeneratorOutputSchema>;
+
+

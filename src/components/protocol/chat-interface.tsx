@@ -9,6 +9,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Send, User, Brain, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/auth-context';
+import { TTSControl } from '@/components/ui/tts-control';
+import { useTTSSettings } from '@/hooks/use-tts-settings';
 
 // This declaration allows 'maxRows' as a custom attribute on textarea elements for TypeScript
 declare module 'react' {
@@ -36,6 +38,7 @@ export function ChatInterface({ messages, onSendMessage, isLoadingResponse, curr
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null); // Ref for the chat textarea
   const { user } = useAuth();
+  const { settings } = useTTSSettings();
 
   const handleSend = async () => {
     if (inputText.trim() === '' || isLoadingResponse) return;
@@ -137,20 +140,34 @@ export function ChatInterface({ messages, onSendMessage, isLoadingResponse, curr
                   </AvatarFallback>
                 </Avatar>
               )}
-              <div
-                className={cn(
-                  'max-w-[70%] rounded-xl px-4 py-3 shadow-sm text-sm md:text-base break-words',
-                  msg.sender === 'user'
-                    ? 'bg-primary text-primary-foreground rounded-br-none'
-                    : 'bg-muted text-muted-foreground rounded-bl-none'
+              <div className="flex flex-col max-w-[70%]">
+                <div
+                  className={cn(
+                    'rounded-xl px-4 py-3 shadow-sm text-sm md:text-base break-words',
+                    msg.sender === 'user'
+                      ? 'bg-primary text-primary-foreground rounded-br-none'
+                      : 'bg-muted text-muted-foreground rounded-bl-none'
+                  )}
+                >
+                  {msg.text.split('\n').map((line, index, arr) => (
+                      <React.Fragment key={index}>
+                          {line}
+                          {index < arr.length - 1 && <br />}
+                      </React.Fragment>
+                  ))}
+                </div>
+                {msg.sender === 'ai' && (
+                  <div className="flex justify-end mt-1">
+                    <TTSControl 
+                      text={msg.text} 
+                      autoPlay={
+                        messages.indexOf(msg) === messages.length - 1 && // Only the latest AI message
+                        settings.autoPlay && // User has enabled auto-play
+                        settings.enabled // TTS is enabled
+                      }
+                    />
+                  </div>
                 )}
-              >
-                {msg.text.split('\n').map((line, index, arr) => (
-                    <React.Fragment key={index}>
-                        {line}
-                        {index < arr.length - 1 && <br />}
-                    </React.Fragment>
-                ))}
               </div>
               {msg.sender === 'user' && user && (
                 <Avatar className="h-8 w-8 self-start">

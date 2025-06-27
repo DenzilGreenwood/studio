@@ -5,13 +5,11 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams, notFound } from 'next/navigation'; 
 import { useAuth } from '@/context/auth-context';
 import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp, updateDoc, serverTimestamp, writeBatch } from '@/lib/firebase';
-import { generateGoals } from '@/ai/flows/goal-generator-flow';
-import type { ProtocolSession, ChatMessage as FirestoreChatMessage, UserProfile, Goal } from '@/types'; 
-import type { GoalGeneratorInput, GoalGeneratorOutput } from '@/types';
+import type { ProtocolSession, ChatMessage as FirestoreChatMessage, UserProfile } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Brain, User, Loader2, AlertTriangle, FileText, Lightbulb, Milestone, Bot, MessageSquare, Edit3, CheckCircle, Download, Shield, PenSquare, Target, Sparkles, PlusCircle, Trash2 } from 'lucide-react';
+import { Brain, User, Loader2, AlertTriangle, FileText, Lightbulb, Milestone, Bot, MessageSquare, Edit3, CheckCircle, Download, Shield, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -20,10 +18,6 @@ import jsPDF from 'jspdf';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
 import { useIsAdmin } from '@/hooks/use-is-admin';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 interface DisplayMessage extends FirestoreChatMessage {
   id: string; 
@@ -50,18 +44,6 @@ export default function SessionReportPage() {
     const [error, setError] = useState<string | null>(null);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
-
-    // New state for Journaling & Goals
-    const [reflectionText, setReflectionText] = useState('');
-    const [userGoals, setUserGoals] = useState<Goal[]>([]);
-    const [newGoalText, setNewGoalText] = useState('');
-    const [isGeneratingGoals, setIsGeneratingGoals] = useState(false);
-    const [suggestedGoals, setSuggestedGoals] = useState<string[]>([]);
-    const [isSavingJournal, setIsSavingJournal] = useState(false);
-
-    const completedGoals = useMemo(() => userGoals.filter(g => g.completed).length, [userGoals]);
-    const totalGoals = userGoals.length;
-    const canEditJournal = !isSavingJournal && !(isAdmin && !!userIdFromQuery);
 
 
   useEffect(() => {
@@ -119,8 +101,6 @@ export default function SessionReportPage() {
         };
 
         const processedSessionData = convertTimestampFields(fetchedSessionData);
-        setReflectionText(processedSessionData.userReflection || '');
-        setUserGoals(processedSessionData.goals || []);
         
         let sessionForUser: UserProfile | null = null;
         if (isAdmin && userIdFromQuery) {
@@ -143,10 +123,7 @@ export default function SessionReportPage() {
             ...processedSessionData, 
             chatMessages: fetchedMessages,
             sessionForUser: sessionForUser
-        };
-        setSessionData(fullSessionData);
-        setReflection(fullSessionData.reflection || '');
-        setImplementationPlan(fullSessionData.implementationPlan || '');
+        });
 
 
       } catch (e: any) {
@@ -176,88 +153,6 @@ export default function SessionReportPage() {
         setSessionData(prev => prev ? { ...prev, feedbackId: feedbackId } : null);
         toast({ title: "Feedback Submitted", description: "Thank you for your valuable input!" });
     };
-
-  const handleGenerateGoals = async () => {
-    if (!reflectionText.trim()) {
-        toast({
-            variant: 'destructive',
-            title: 'Cannot Generate Goals',
-            description: 'Please write a reflection first to give the AI some context.',
-        });
-        return;
-    }
-    setIsGeneratingGoals(true);
-    setSuggestedGoals([]);
-    try {
-        const input: GoalGeneratorInput = {
-            sessionSummary: sessionData?.summary?.insightSummary || 'No summary available.',
-            userReflection: reflectionText
-        };
-        const result = await generateGoals(input);
-        setSuggestedGoals(result.suggestedGoals);
-    } catch(e: any) {
-        const errorMessage = e.message || "An unexpected error occurred.";
-        console.error("Error generating goals:", e);
-        toast({ variant: 'destructive', title: 'Goal Generation Failed', description: `Could not get suggestions from the AI. Details: ${errorMessage}` });
-    } finally {
-        setIsGeneratingGoals(false);
-    }
-  };
-
-  const addSuggestedGoal = (goalText: string) => {
-    if (!userGoals.some(g => g.text === goalText)) {
-        setUserGoals(prev => [...prev, { text: goalText, completed: false, createdAt: new Date() }]);
-    }
-    setSuggestedGoals(prev => prev.filter(g => g !== goalText));
-  };
-  
-  const handleAddNewGoal = () => {
-      if(newGoalText.trim()){
-          setUserGoals(prev => [...prev, { text: newGoalText.trim(), completed: false, createdAt: new Date() }]);
-          setNewGoalText('');
-      }
-  };
-
-  const toggleGoalCompletion = (index: number) => {
-    setUserGoals(prev => prev.map((goal, i) => i === index ? { ...goal, completed: !goal.completed } : goal));
-  };
-
-  const removeGoal = (index: number) => {
-    setUserGoals(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSaveJournalAndGoals = async () => {
-    if (!firebaseUser || !sessionData) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Cannot save. Missing user or session data.'});
-      return;
-    }
-    setIsSavingJournal(true);
-    try {
-      const sessionDocRef = doc(db, `users/${firebaseUser.uid}/sessions/${sessionId}`);
-      const userDocRef = doc(db, `users/${firebaseUser.uid}`);
-      
-      const goalsToSave = userGoals.map(g => ({
-          ...g,
-          createdAt: g.createdAt instanceof Date ? Timestamp.fromDate(g.createdAt) : g.createdAt
-      }));
-
-      const batch = writeBatch(db);
-      batch.update(sessionDocRef, {
-        userReflection: reflectionText,
-        goals: goalsToSave,
-        userReflectionUpdatedAt: serverTimestamp(),
-      });
-      batch.update(userDocRef, { lastCheckInAt: serverTimestamp() });
-      await batch.commit();
-
-      toast({ title: 'Journal & Goals Saved', description: 'Your progress has been successfully saved.' });
-    } catch (e: any) {
-      console.error("Error saving journal and goals:", e);
-      toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save your journal. Please try again.' });
-    } finally {
-      setIsSavingJournal(false);
-    }
-  };
   
   const handleDownloadPdf = async () => {
     toast({title: "PDF Download", description: "PDF generation logic needs to be updated to include new journal section."});
@@ -455,145 +350,47 @@ export default function SessionReportPage() {
             )}
 
             {/* Reflection and Implementation Plan Sections */}
-            {!isAdmin && (
-              <Card className="pt-6 border-t mt-8 bg-muted/20">
-                <CardContent className="space-y-6">
-                  <section>
-                    <h2 className="font-headline text-xl font-semibold text-foreground mb-3 flex items-center">
-                      <BookOpen className="h-6 w-6 mr-2 text-accent" />
-                      My Reflection
-                    </h2>
-                    <div className="grid w-full gap-1.5">
-                      <Label htmlFor="reflection-area">What are your key takeaways from this session?</Label>
-                      <Textarea
-                        id="reflection-area"
-                        placeholder="Type your reflections here..."
-                        value={reflection}
-                        onChange={(e) => setReflection(e.target.value)}
-                        className="min-h-[120px] bg-background"
-                      />
-                    </div>
-                  </section>
-                  <section>
-                    <h2 className="font-headline text-xl font-semibold text-foreground mb-3 flex items-center">
-                      <Target className="h-6 w-6 mr-2 text-accent" />
-                      My Implementation Plan
-                    </h2>
-                     <div className="grid w-full gap-1.5">
-                      <Label htmlFor="implementation-area">What are your next steps?</Label>
-                      <Textarea
-                        id="implementation-area"
-                        placeholder="List your action items here..."
-                        value={implementationPlan}
-                        onChange={(e) => setImplementationPlan(e.target.value)}
-                        className="min-h-[120px] bg-background"
-                      />
-                    </div>
-                  </section>
-                   <Button onClick={handleSaveJournal} disabled={isSaving}>
-                      {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                      {isSaving ? 'Saving...' : 'Save Journal Entries'}
-                    </Button>
-                </CardContent>
-              </Card>
-            )}
+            {/* Removed duplicate/unused Reflection & Implementation Plan card to resolve errors and avoid confusion. */}
 
 
             <section className="pt-6 border-t">
                 <Card className="bg-secondary/30 border-secondary shadow-inner">
                     <CardHeader>
-                        <div className="flex items-center gap-3">
-                            <PenSquare className="h-8 w-8 text-primary" />
-                            <div>
-                                <CardTitle className="font-headline text-2xl text-primary">Journal & Goals</CardTitle>
-                                <CardDescription>Reflect on your session and set meaningful goals for what comes next.</CardDescription>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <BookOpen className="h-8 w-8 text-primary" />
+                                <div>
+                                    <CardTitle className="font-headline text-2xl text-primary">Session Journal</CardTitle>
+                                    <CardDescription>Reflect on your session with AI insights and set meaningful goals.</CardDescription>
+                                </div>
                             </div>
+                            <Link href={`/journal/${sessionId}`}>
+                                <Button className="flex items-center gap-2">
+                                    <BookOpen className="h-4 w-4" />
+                                    Open Journal
+                                </Button>
+                            </Link>
                         </div>
                     </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div>
-                            <Label htmlFor="reflection" className="text-lg font-semibold text-foreground flex items-center mb-2">Your Private Reflection</Label>
-                            <Textarea
-                                id="reflection"
-                                value={reflectionText}
-                                onChange={(e) => setReflectionText(e.target.value)}
-                                placeholder="What are your thoughts now, looking back at this session? Use this space to track your evolution. This is only visible to you."
-                                className="min-h-[150px] text-base bg-background"
-                                disabled={!canEditJournal}
-                            />
-                        </div>
-
-                        <div>
-                            <h3 className="text-lg font-semibold text-foreground flex items-center mb-2">
-                                <Target className="mr-2 h-5 w-5"/>
-                                Your Goals & Achievements
-                            </h3>
-                            <div className="p-4 bg-background rounded-md border space-y-4">
-                                {userGoals.length > 0 ? (
-                                    <div className="space-y-3">
-                                      <p className="text-sm text-muted-foreground">{completedGoals} of {totalGoals} completed.</p>
-                                      {userGoals.map((goal, index) => (
-                                          <div key={index} className="flex items-center gap-3 group">
-                                              <Checkbox id={`goal-${index}`} checked={goal.completed} onCheckedChange={() => toggleGoalCompletion(index)} disabled={!canEditJournal} />
-                                              <label htmlFor={`goal-${index}`} className={cn("flex-1 text-sm cursor-pointer", goal.completed && "line-through text-muted-foreground")}>{goal.text}</label>
-                                              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => removeGoal(index)} disabled={!canEditJournal}>
-                                                <Trash2 className="h-4 w-4 text-destructive"/>
-                                              </Button>
-                                          </div>
-                                      ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-sm text-muted-foreground text-center py-4">No goals defined yet. Add one below or get AI suggestions.</p>
-                                )}
-                                
-                                {canEditJournal && (
-                                <div className="flex items-center gap-2 pt-4 border-t">
-                                    <Input 
-                                        value={newGoalText}
-                                        onChange={e => setNewGoalText(e.target.value)}
-                                        placeholder="Add a new goal manually"
-                                        disabled={!canEditJournal}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleAddNewGoal()}
-                                    />
-                                    <Button onClick={handleAddNewGoal} disabled={!canEditJournal || !newGoalText.trim()}><PlusCircle className="mr-2"/>Add</Button>
-                                </div>
-                                )}
+                    <CardContent>
+                        <div className="text-center py-8 space-y-4">
+                            <div className="text-muted-foreground">
+                                <p className="mb-2">Your journal has moved to a dedicated page with enhanced features:</p>
+                                <ul className="text-sm space-y-1 text-left max-w-md mx-auto">
+                                    <li>• AI-generated session reflection and insights</li>
+                                    <li>• Progress tracking across multiple sessions</li>
+                                    <li>• Enhanced goal management</li>
+                                    <li>• Personalized emotional support</li>
+                                </ul>
                             </div>
-                        </div>
-
-                        {canEditJournal && (
-                            <div className="space-y-4">
-                                <Button onClick={handleGenerateGoals} disabled={isGeneratingGoals} variant="outline" className="w-full">
-                                    {isGeneratingGoals ? (
-                                        <><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Generating...</>
-                                    ) : (
-                                        <><Sparkles className="mr-2 h-4 w-4 text-accent"/>Get AI Goal Suggestions</>
-                                    )}
+                            <Link href={`/journal/${sessionId}`}>
+                                <Button size="lg" className="mt-4">
+                                    <BookOpen className="mr-2 h-5 w-5" />
+                                    Go to Session Journal
                                 </Button>
-                                {suggestedGoals.length > 0 && (
-                                    <div className="p-4 bg-background rounded-md border space-y-3">
-                                        <h4 className="text-sm font-semibold">AI Suggestions (click to add):</h4>
-                                        <div className="flex flex-wrap gap-2">
-                                            {suggestedGoals.map((g, i) => (
-                                                <Button key={i} variant="secondary" size="sm" onClick={() => addSuggestedGoal(g)}>
-                                                    <PlusCircle className="mr-2 h-4 w-4"/> {g}
-                                                </Button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                            </Link>
+                        </div>
                     </CardContent>
-                    <CardFooter>
-                         <Button onClick={handleSaveJournalAndGoals} disabled={!canEditJournal} className="w-full sm:w-auto">
-                            {isSavingJournal ? (
-                                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
-                            ) : (
-                                'Save Journal & Goals'
-                            )}
-                        </Button>
-                    </CardFooter>
                 </Card>
             </section>
 
