@@ -6,10 +6,6 @@
       "queryScope": "COLLECTION_GROUP",
       "fields": [
         {
-          "fieldPath": "userId",
-          "order": "ASCENDING"
-        },
-        {
           "fieldPath": "completedPhases",
           "order": "ASCENDING"
         },
@@ -52,12 +48,12 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "isDeleted",
+          "fieldPath": "completedPhases",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "deletedAt",
-          "order": "ASCENDING"
+          "fieldPath": "startTime",
+          "order": "DESCENDING"
         }
       ]
     }
