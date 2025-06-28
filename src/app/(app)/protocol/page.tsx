@@ -545,7 +545,47 @@ export default function ProtocolPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get AI response');
+        // Get more detailed error information
+        let errorMessage = 'Failed to get AI response';
+        let errorDetails = '';
+        
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+          errorDetails = errorData.details || '';
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError);
+        }
+        
+        console.error('Protocol API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorMessage,
+          errorDetails
+        });
+        
+        // Show user-friendly error message based on status
+        if (response.status === 400) {
+          toast({
+            variant: "destructive",
+            title: "Invalid Request",
+            description: "There was an issue with your message. Please try again."
+          });
+        } else if (response.status === 500) {
+          toast({
+            variant: "destructive",
+            title: "AI Service Error",
+            description: "The AI service is temporarily unavailable. Please try again in a moment."
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Connection Error",
+            description: "Unable to connect to the AI service. Please check your connection and try again."
+          });
+        }
+        
+        throw new Error(`${errorMessage}${errorDetails ? ': ' + errorDetails : ''}`);
       }
 
       const output = await response.json();

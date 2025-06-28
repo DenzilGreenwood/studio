@@ -188,15 +188,18 @@ export class PDFGenerator {
     this.tocEntries.forEach(entry => {
       const yPos = this.currentY;
       
+      // Check for page break within TOC
+      this.checkPageBreak(12);
+      
       // Section title
       this.doc.setFont('helvetica', entry.hasContent ? 'normal' : 'italic');
       this.doc.setTextColor(entry.hasContent ? 0 : 128, entry.hasContent ? 0 : 128, entry.hasContent ? 0 : 128);
-      this.doc.text(entry.title, this.margin, yPos);
+      this.doc.text(entry.title, this.margin, this.currentY);
       
       // Page number
       const pageText = entry.page.toString();
       const pageWidth = this.doc.getTextWidth(pageText);
-      this.doc.text(pageText, this.pageWidth - this.margin - pageWidth, yPos);
+      this.doc.text(pageText, this.pageWidth - this.margin - pageWidth, this.currentY);
       
       // Dotted line
       const titleWidth = this.doc.getTextWidth(entry.title);
@@ -204,22 +207,24 @@ export class PDFGenerator {
       const dotsEnd = this.pageWidth - this.margin - pageWidth - 5;
       const dotSpacing = 3;
       
+      this.doc.setTextColor(128, 128, 128); // Gray color for dots
       for (let x = dotsStart; x < dotsEnd; x += dotSpacing) {
-        this.doc.circle(x, yPos - 1, 0.2, 'F');
+        this.doc.circle(x, this.currentY - 1, 0.2, 'F');
       }
       
       this.currentY += 12;
     });
     
-    // Add new page for content
-    this.doc.addPage();
-    this.currentY = this.margin;
+    // Reset text color
+    this.doc.setTextColor(0, 0, 0);
+    
+    // TOC should stay on page 2 - no page break needed
   }
 
   private addTOCEntry(title: string, hasContent: boolean): void {
     this.tocEntries.push({
       title,
-      page: this.doc.getNumberOfPages(),
+      page: this.doc.getNumberOfPages(), // This will be the actual page number where content appears
       hasContent
     });
   }
@@ -433,16 +438,23 @@ export class PDFGenerator {
     // Reset TOC entries for new document
     this.tocEntries = [];
     
-    // Add cover page
+    // Add cover page (Page 1)
     this.addCoverPage(sessionData);
     
-    // Generate content and collect TOC entries
+    // Reserve page 2 for TOC - we'll come back to it
+    this.doc.addPage();
+    const tocPageNumber = this.doc.getNumberOfPages();
+    
+    // Add content starting from Page 3
+    this.doc.addPage();
+    this.currentY = this.margin;
+    
     this.addSessionHeader(sessionData);
     this.addSessionSummary(sessionData);
     this.addJournalSection(sessionData);
     
     // Now go back and add the table of contents on page 2
-    this.doc.setPage(2);
+    this.doc.setPage(tocPageNumber);
     this.currentY = this.margin;
     this.addTableOfContents();
     
