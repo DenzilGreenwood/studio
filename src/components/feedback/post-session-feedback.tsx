@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { db, addDoc, collection, serverTimestamp, doc, updateDoc } from '@/lib/firebase';
+import { db, addDoc, collection, serverTimestamp, doc, updateDoc, type Timestamp } from '@/lib/firebase';
 import type { SessionFeedback } from '@/types';
 import { Loader2, MessageSquare, Send, ArrowLeft } from 'lucide-react';
 
@@ -44,7 +44,7 @@ export function PostSessionFeedback({ sessionId, userId, circumstance, onFeedbac
 
     setIsSubmitting(true);
     try {
-      const feedbackData: Omit<SessionFeedback, 'feedbackId' | 'timestamp'> = {
+      const feedbackData: Omit<SessionFeedback, 'feedbackId'> = {
         sessionId,
         userId,
         circumstance,

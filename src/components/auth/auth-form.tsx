@@ -42,23 +42,25 @@ const signupSchema = formSchemaBase.extend({
   }),
 });
 
+type LoginFormValues = z.infer<typeof formSchemaBase>;
+type SignupFormValues = z.infer<typeof signupSchema>;
+
 export function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
   const { toast } = useToast();
 
-  const currentSchema = mode === "signup" ? signupSchema : formSchemaBase;
-  type FormValues = z.infer<typeof currentSchema>;
-
-  const form = useForm<FormValues>({
-    resolver: zodResolver(currentSchema),
+  // Always use the signup schema which is a superset
+  const form = useForm<SignupFormValues>({
+    resolver: zodResolver(mode === "signup" ? signupSchema : formSchemaBase),
     defaultValues: {
       email: "",
       password: "",
-      ...(mode === "signup" && { pseudonym: "", consentAgreed: false }),
+      pseudonym: "",
+      consentAgreed: false,
     },
   });
 
-  async function onSubmit(values: FormValues) {
+  async function onSubmit(values: SignupFormValues) {
     form.clearErrors(); 
     try {
       if (mode === "login") {
@@ -73,10 +75,9 @@ export function AuthForm({ mode }: AuthFormProps) {
         }
 
       } else { // mode === "signup"
-        const signupValues = values as z.infer<typeof signupSchema>;
-        const userCredential = await createUserWithEmailAndPassword(auth, signupValues.email, signupValues.password);
+        const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
         
-        const pseudonymToUse = signupValues.pseudonym ? signupValues.pseudonym.trim() : "";
+        const pseudonymToUse = values.pseudonym ? values.pseudonym.trim() : "";
 
         if (pseudonymToUse) {
           await updateProfile(userCredential.user, { displayName: pseudonymToUse });
@@ -86,7 +87,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         
         await createUserProfileDocument(userCredential.user, { 
           pseudonym: pseudonymToUse, 
-          hasConsentedToDataUse: signupValues.consentAgreed 
+          hasConsentedToDataUse: values.consentAgreed 
         });
 
         toast({ title: "Signup Successful", description: "Redirecting to profile setup..." });
