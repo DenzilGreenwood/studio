@@ -155,6 +155,8 @@ export default function SessionReportPage() {
       return;
     }
 
+    setIsGeneratingPdf(true);
+
     try {
       const generator = new PDFGenerator();
       const pdfData = prepareSessionDataForPDF(sessionData);
@@ -162,14 +164,14 @@ export default function SessionReportPage() {
       // Add loading toast
       toast({ 
         title: "Generating PDF", 
-        description: "Creating your comprehensive session report..." 
+        description: "Creating your comprehensive session report with cover page and table of contents..." 
       });
       
       await generator.downloadSessionPDF(pdfData);
       
       toast({ 
         title: "PDF Downloaded", 
-        description: "Your complete session report with journal insights has been downloaded." 
+        description: "Your complete session report with all sections and placeholders has been downloaded." 
       });
     } catch (error) {
       console.error('PDF generation error:', error);
@@ -178,6 +180,8 @@ export default function SessionReportPage() {
         title: "PDF Generation Failed", 
         description: "There was an error creating your PDF. Please try again." 
       });
+    } finally {
+      setIsGeneratingPdf(false);
     }
   };
 
