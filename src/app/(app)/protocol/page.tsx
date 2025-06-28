@@ -28,6 +28,7 @@ import type { ProtocolSession, ChatMessage as FirestoreChatMessage } from '@/typ
 import { useRouter } from 'next/navigation'; 
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
 import { ClaritySummary } from '@/components/protocol/clarity-summary';
+import { EmotionalProgression } from '@/components/protocol/emotional-progression';
 import { Button } from '@/components/ui/button';
 
 // Type imports from the central types file
@@ -47,6 +48,8 @@ import {
 import { cognitiveEdgeProtocol } from '@/ai/flows/cognitive-edge-protocol';
 import { generateClaritySummary } from '@/ai/flows/clarity-summary-generator';
 import { analyzeSentiment } from '@/ai/flows/sentiment-analysis-flow';
+import { analyzeEmotionalTone } from '@/ai/flows/emotional-tone-analyzer';
+import type { EmotionalToneInput, EmotionalToneOutput } from '@/ai/flows/emotional-tone-analyzer';
 
 
 const TOTAL_PHASES = 6;
@@ -181,6 +184,37 @@ export default function ProtocolPage() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentCircumstance, setCurrentCircumstance] = useState<string | null>(null);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  
+  // Enhanced emotional tracking
+  const [emotionalProgression, setEmotionalProgression] = useState<Array<{
+    phaseIndex: number;
+    phaseName: string;
+    primaryEmotion: string;
+    intensity: number;
+    timestamp: Date;
+    triggerMessage?: string;
+  }>>([]);
+  
+  const [keyStatements, setKeyStatements] = useState<{
+    reframedBelief?: {
+      statement: string;
+      phaseIndex: number;
+      timestamp: Date;
+      confidence: number;
+    };
+    legacyStatement?: {
+      statement: string;
+      phaseIndex: number;
+      timestamp: Date;
+      confidence: number;
+    };
+    insights?: Array<{
+      insight: string;
+      phaseIndex: number;
+      timestamp: Date;
+      emotionalContext: string;
+    }>;
+  }>({});
   
   const [keyQuestionAttemptCount, setKeyQuestionAttemptCount] = useState(1);
   const [lastAiQuestion, setLastAiQuestion] = useState<string | null>(null);
@@ -390,6 +424,7 @@ export default function ProtocolPage() {
 
     const currentUserInputText = userInput.trim();
     const prevPhaseName = currentPhaseName;
+    const currentPhaseIndex = PHASE_NAMES.indexOf(prevPhaseName);
 
     const newUserUIMessage: UIMessage = {
       id: crypto.randomUUID(),
@@ -405,6 +440,33 @@ export default function ProtocolPage() {
       timestamp: serverTimestamp(),
       phaseName: prevPhaseName,
     });
+
+    // Analyze emotional tone of user input
+    try {
+      const previousEmotion = emotionalProgression.length > 0 
+        ? emotionalProgression[emotionalProgression.length - 1].primaryEmotion 
+        : undefined;
+      
+      const emotionalAnalysis = await analyzeEmotionalTone({
+        userMessage: currentUserInputText,
+        context: `Phase: ${prevPhaseName}. Session context: ${currentCircumstance}`,
+        previousTone: previousEmotion
+      });
+
+      // Add to emotional progression
+      const newEmotionalData = {
+        phaseIndex: currentPhaseIndex,
+        phaseName: prevPhaseName,
+        primaryEmotion: emotionalAnalysis.primaryEmotion,
+        intensity: emotionalAnalysis.intensity,
+        timestamp: new Date(),
+        triggerMessage: currentUserInputText
+      };
+
+      setEmotionalProgression(prev => [...prev, newEmotionalData]);
+    } catch (error) {
+      console.error('Emotional tone analysis failed:', error);
+    }
 
     setIsLoading(true);
     try {
@@ -444,6 +506,17 @@ export default function ProtocolPage() {
                 reframedBeliefInteraction: { aiQuestion: lastAiQuestion!, userResponse: currentUserInputText },
                 actualReframedBelief: currentUserInputText
             }));
+            
+            // Capture reframed belief as key statement
+            setKeyStatements(prev => ({
+              ...prev,
+              reframedBelief: {
+                statement: currentUserInputText,
+                phaseIndex: currentPhaseIndex,
+                timestamp: new Date(),
+                confidence: 0.9 // High confidence for phase completion
+              }
+            }));
         }
         if (prevPhaseName === "Empower & Legacy Statement") {
             setSessionDataForSummary(prev => ({
@@ -451,7 +524,44 @@ export default function ProtocolPage() {
                 legacyStatementInteraction: { aiQuestion: lastAiQuestion!, userResponse: currentUserInputText },
                 actualLegacyStatement: currentUserInputText
             }));
+            
+            // Capture legacy statement as key statement
+            setKeyStatements(prev => ({
+              ...prev,
+              legacyStatement: {
+                statement: currentUserInputText,
+                phaseIndex: currentPhaseIndex,
+                timestamp: new Date(),
+                confidence: 0.9 // High confidence for phase completion
+              }
+            }));
         }
+        
+        // Check for key insights in any phase
+        const insightKeywords = ['realize', 'understand', 'see now', 'breakthrough', 'clarity', 'aha', 'insight'];
+        const hasInsight = insightKeywords.some(keyword => 
+          currentUserInputText.toLowerCase().includes(keyword)
+        );
+        
+        if (hasInsight) {
+          const currentEmotion = emotionalProgression.length > 0 
+            ? emotionalProgression[emotionalProgression.length - 1].primaryEmotion 
+            : 'neutral';
+            
+          setKeyStatements(prev => ({
+            ...prev,
+            insights: [
+              ...(prev.insights || []),
+              {
+                insight: currentUserInputText,
+                phaseIndex: currentPhaseIndex,
+                timestamp: new Date(),
+                emotionalContext: currentEmotion
+              }
+            ]
+          }));
+        }
+        
         setKeyQuestionAttemptCount(1);
       } else {
         setKeyQuestionAttemptCount(prev => prev + 1);
@@ -516,6 +626,8 @@ export default function ProtocolPage() {
           batch.update(sessionDocRef, {
             completedPhases: TOTAL_PHASES,
             endTime: serverTimestamp(),
+            emotionalProgression: emotionalProgression,
+            keyStatements: keyStatements,
             'summary.actualReframedBelief': finalDataForFirestore.actualReframedBelief, 
             'summary.actualLegacyStatement': finalDataForFirestore.actualLegacyStatement, 
             'summary.topEmotions': finalDataForFirestore.topEmotions,
@@ -629,9 +741,21 @@ export default function ProtocolPage() {
           <p className="text-muted-foreground">Just a moment while we prepare your insights and feedback form.</p>
         </div>
       ) : !isProtocolComplete ? (
-        <div className="flex-grow flex flex-col min-h-[400px] md:min-h-[500px]">
-            <ChatInterface messages={messages} onSendMessage={handleSendMessage} isLoadingResponse={isLoading} currentPhaseName={currentPhaseName} />
-        </div>
+        <>
+          <div className="flex-grow flex flex-col min-h-[400px] md:min-h-[500px]">
+              <ChatInterface messages={messages} onSendMessage={handleSendMessage} isLoadingResponse={isLoading} currentPhaseName={currentPhaseName} />
+          </div>
+          
+          {/* Show emotional progression when there's meaningful data */}
+          {emotionalProgression.length > 1 && (
+            <div className="mt-6">
+              <EmotionalProgression 
+                emotionalProgression={emotionalProgression}
+                keyStatements={keyStatements}
+              />
+            </div>
+          )}
+        </>
       ) : null}
       
       {isProtocolComplete && showFeedbackForm && currentSessionId && firebaseUser && currentCircumstance && (

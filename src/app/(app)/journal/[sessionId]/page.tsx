@@ -17,10 +17,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Heart, Target, Lightbulb, MessageSquare, Plus, Trash2, ArrowLeft, Sparkles, BookOpen, Save } from 'lucide-react';
+import { Loader2, Heart, Target, Lightbulb, MessageSquare, Plus, Trash2, ArrowLeft, Sparkles, BookOpen, Save, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, convertProtocolSessionTimestamps } from '@/lib/utils';
 import Link from 'next/link';
+import { PDFGenerator, prepareSessionDataForPDF } from '@/lib/pdf-generator';
 
 interface JournalSessionData {
   sessionId: string;
@@ -96,24 +97,7 @@ export default function JournalPage() {
       const fetchedSessionData = sessionSnap.data() as ProtocolSession;
       
       // Convert timestamps
-      const convertTimestampFields = (data: ProtocolSession): JournalSessionData => {
-        const convert = (field: any) => field instanceof Timestamp ? field.toDate() : (field ? new Date(field) : undefined);
-        return {
-          ...data,
-          startTime: convert(data.startTime)!,
-          endTime: convert(data.endTime),
-          feedbackSubmittedAt: data.feedbackSubmittedAt ? convert(data.feedbackSubmittedAt) : undefined,
-          summary: data.summary ? { ...data.summary, generatedAt: convert(data.summary.generatedAt)! } : undefined,
-          userReflectionUpdatedAt: data.userReflectionUpdatedAt ? convert(data.userReflectionUpdatedAt) : undefined,
-          goals: data.goals?.map(g => ({ ...g, createdAt: convert(g.createdAt)! })) || [],
-          aiReflection: data.aiReflection ? {
-            ...data.aiReflection,
-            generatedAt: convert(data.aiReflection.generatedAt)
-          } : undefined,
-        };
-      };
-
-      const processedSessionData = convertTimestampFields(fetchedSessionData);
+      const processedSessionData = convertProtocolSessionTimestamps(fetchedSessionData) as JournalSessionData;
       setSessionData(processedSessionData);
       setReflectionText(processedSessionData.userReflection || '');
       setUserGoals(processedSessionData.goals || []);
@@ -256,6 +240,52 @@ export default function JournalPage() {
     }
   };
 
+  // PDF Download handler
+  const handleDownloadPdf = async () => {
+    if (!sessionData) {
+      toast({ 
+        variant: "destructive", 
+        title: "Error", 
+        description: "Session data not available for PDF generation." 
+      });
+      return;
+    }
+
+    try {
+      const generator = new PDFGenerator();
+      
+      // Convert JournalSessionData to ProtocolSession format for PDF
+      const pdfSessionData = {
+        ...sessionData,
+        startTime: sessionData.startTime instanceof Date ? sessionData.startTime : new Date(sessionData.startTime),
+        endTime: sessionData.endTime instanceof Date ? sessionData.endTime : (sessionData.endTime ? new Date(sessionData.endTime) : undefined),
+        goals: userGoals.length > 0 ? userGoals : sessionData.goals
+      };
+      
+      const pdfData = prepareSessionDataForPDF(pdfSessionData as any);
+      
+      // Add loading toast
+      toast({ 
+        title: "Generating PDF", 
+        description: "Creating your comprehensive session report with journal..." 
+      });
+      
+      await generator.downloadSessionPDF(pdfData);
+      
+      toast({ 
+        title: "PDF Downloaded", 
+        description: "Your complete session report with journal insights has been downloaded." 
+      });
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast({ 
+        variant: "destructive", 
+        title: "PDF Generation Failed", 
+        description: "There was an error creating your PDF. Please try again." 
+      });
+    }
+  };
+
   if (isLoading || authLoading) {
     return (
       <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center text-primary">
@@ -290,21 +320,31 @@ export default function JournalPage() {
     <div className="bg-secondary/30 min-h-screen py-8">
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="outline" asChild>
-            <Link href={`/session-report/${sessionId}`}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Report
-            </Link>
-          </Button>
-          <div>
-            <h1 className="font-headline text-3xl font-bold text-primary flex items-center gap-2">
-              <BookOpen className="h-8 w-8" />
-              Journal & Reflection
-            </h1>
-            <p className="text-muted-foreground">
-              Session from {sessionData.startTime.toLocaleDateString()} • {sessionData.circumstance}
-            </p>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" asChild>
+              <Link href={`/session-report/${sessionId}`}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Report
+              </Link>
+            </Button>
+            <div>
+              <h1 className="font-headline text-3xl font-bold text-primary flex items-center gap-2">
+                <BookOpen className="h-8 w-8" />
+                Journal & Reflection
+              </h1>
+              <p className="text-muted-foreground">
+                Session from {sessionData.startTime.toLocaleDateString()} • {sessionData.circumstance}
+              </p>
+            </div>
+          </div>
+          
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            <Button onClick={handleDownloadPdf} variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              Download PDF
+            </Button>
           </div>
         </div>
 
@@ -535,6 +575,17 @@ export default function JournalPage() {
                   Save Journal
                 </>
               )}
+            </Button>
+
+            {/* Download PDF Button */}
+            <Button 
+              onClick={handleDownloadPdf} 
+              className="w-full" 
+              size="lg"
+              variant="outline"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download Session Report as PDF
             </Button>
           </div>
         </div>

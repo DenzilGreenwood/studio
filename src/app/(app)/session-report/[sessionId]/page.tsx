@@ -12,12 +12,14 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Brain, User, Loader2, AlertTriangle, FileText, Lightbulb, Milestone, Bot, MessageSquare, Edit3, CheckCircle, Download, Shield, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
+import { cn, convertProtocolSessionTimestamps } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast'; 
 import jsPDF from 'jspdf';
+import { PDFGenerator, prepareSessionDataForPDF } from '@/lib/pdf-generator';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
 import { useIsAdmin } from '@/hooks/use-is-admin';
+import { EmotionalProgression } from '@/components/protocol/emotional-progression';
 
 interface DisplayMessage extends FirestoreChatMessage {
   id: string; 
@@ -88,20 +90,7 @@ export default function SessionReportPage() {
 
         const fetchedSessionData = sessionSnap.data() as ProtocolSession;
         
-        const convertTimestampFields = (data: ProtocolSession): ProtocolSession => {
-          const convert = (field: any) => field instanceof Timestamp ? field.toDate() : (field ? new Date(field) : undefined);
-          return {
-            ...data,
-            startTime: convert(data.startTime)!, 
-            endTime: convert(data.endTime),
-            feedbackSubmittedAt: data.feedbackSubmittedAt ? convert(data.feedbackSubmittedAt) : undefined,
-            summary: data.summary ? { ...data.summary, generatedAt: convert(data.summary.generatedAt)! } : undefined,
-            userReflectionUpdatedAt: data.userReflectionUpdatedAt ? convert(data.userReflectionUpdatedAt) : undefined,
-            goals: data.goals?.map(g => ({ ...g, createdAt: convert(g.createdAt)! })) || [],
-          };
-        };
-
-        const processedSessionData = convertTimestampFields(fetchedSessionData);
+        const processedSessionData = convertProtocolSessionTimestamps(fetchedSessionData);
         
         let sessionForUser: UserProfile | null = null;
         if (isAdmin && userIdFromQuery) {
@@ -157,8 +146,40 @@ export default function SessionReportPage() {
     };
   
   const handleDownloadPdf = async () => {
-    toast({title: "PDF Download", description: "PDF generation logic needs to be updated to include new journal section."});
-  }
+    if (!sessionData) {
+      toast({ 
+        variant: "destructive", 
+        title: "Error", 
+        description: "Session data not available for PDF generation." 
+      });
+      return;
+    }
+
+    try {
+      const generator = new PDFGenerator();
+      const pdfData = prepareSessionDataForPDF(sessionData);
+      
+      // Add loading toast
+      toast({ 
+        title: "Generating PDF", 
+        description: "Creating your comprehensive session report..." 
+      });
+      
+      await generator.downloadSessionPDF(pdfData);
+      
+      toast({ 
+        title: "PDF Downloaded", 
+        description: "Your complete session report with journal insights has been downloaded." 
+      });
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast({ 
+        variant: "destructive", 
+        title: "PDF Generation Failed", 
+        description: "There was an error creating your PDF. Please try again." 
+      });
+    }
+  };
 
     if (isLoading || authLoading) {
         return (
@@ -351,9 +372,68 @@ export default function SessionReportPage() {
               <p className="text-muted-foreground text-center py-4">No summary information available for this session.</p>
             )}
 
+            {/* Emotional Progression and Key Statements */}
+            {(sessionData.emotionalProgression && sessionData.emotionalProgression.length > 0) || sessionData.keyStatements ? (
+              <section className="pt-6 border-t">
+                <EmotionalProgression 
+                  emotionalProgression={sessionData.emotionalProgression?.map(ep => ({
+                    ...ep,
+                    timestamp: ep.timestamp instanceof Timestamp ? ep.timestamp.toDate() : ep.timestamp
+                  }))}
+                  keyStatements={sessionData.keyStatements ? {
+                    reframedBelief: sessionData.keyStatements.reframedBelief ? {
+                      ...sessionData.keyStatements.reframedBelief,
+                      timestamp: sessionData.keyStatements.reframedBelief.timestamp instanceof Timestamp 
+                        ? sessionData.keyStatements.reframedBelief.timestamp.toDate() 
+                        : sessionData.keyStatements.reframedBelief.timestamp
+                    } : undefined,
+                    legacyStatement: sessionData.keyStatements.legacyStatement ? {
+                      ...sessionData.keyStatements.legacyStatement,
+                      timestamp: sessionData.keyStatements.legacyStatement.timestamp instanceof Timestamp 
+                        ? sessionData.keyStatements.legacyStatement.timestamp.toDate() 
+                        : sessionData.keyStatements.legacyStatement.timestamp
+                    } : undefined,
+                    insights: sessionData.keyStatements.insights?.map(insight => ({
+                      ...insight,
+                      timestamp: insight.timestamp instanceof Timestamp ? insight.timestamp.toDate() : insight.timestamp
+                    }))
+                  } : undefined}
+                />
+              </section>
+            ) : null}
+
             {/* Reflection and Implementation Plan Sections */}
             {/* Removed duplicate/unused Reflection & Implementation Plan card to resolve errors and avoid confusion. */}
 
+            {/* Emotional Progression and Key Statements */}
+            {(sessionData.emotionalProgression || sessionData.keyStatements) && (
+              <section className="pt-6 border-t">
+                <EmotionalProgression 
+                  emotionalProgression={sessionData.emotionalProgression?.map(emotion => ({
+                    ...emotion,
+                    timestamp: emotion.timestamp instanceof Date ? emotion.timestamp : new Date()
+                  }))}
+                  keyStatements={sessionData.keyStatements ? {
+                    reframedBelief: sessionData.keyStatements.reframedBelief ? {
+                      ...sessionData.keyStatements.reframedBelief,
+                      timestamp: sessionData.keyStatements.reframedBelief.timestamp instanceof Date 
+                        ? sessionData.keyStatements.reframedBelief.timestamp 
+                        : new Date()
+                    } : undefined,
+                    legacyStatement: sessionData.keyStatements.legacyStatement ? {
+                      ...sessionData.keyStatements.legacyStatement,
+                      timestamp: sessionData.keyStatements.legacyStatement.timestamp instanceof Date 
+                        ? sessionData.keyStatements.legacyStatement.timestamp 
+                        : new Date()
+                    } : undefined,
+                    insights: sessionData.keyStatements.insights?.map(insight => ({
+                      ...insight,
+                      timestamp: insight.timestamp instanceof Date ? insight.timestamp : new Date()
+                    }))
+                  } : undefined}
+                />
+              </section>
+            )}
 
             <section className="pt-6 border-t">
                 <Card className="bg-secondary/30 border-secondary shadow-inner">

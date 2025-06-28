@@ -26,6 +26,23 @@ export interface ChatMessage {
   text: string;
   timestamp: Timestamp | Date;
   phaseName: string;
+  emotionalTone?: {
+    primary: string;
+    intensity: number; // 1-10 scale
+    secondary?: string;
+    confidence: number; // 0-1 scale
+  };
+  isKeyStatement?: boolean;
+  statementType?: 'reframed_belief' | 'legacy_statement' | 'insight' | 'breakthrough';
+}
+
+export interface EmotionalProgression {
+  phaseIndex: number;
+  phaseName: string;
+  primaryEmotion: string;
+  intensity: number;
+  timestamp: Timestamp | Date;
+  triggerMessage?: string;
 }
 
 export interface Goal {
@@ -43,11 +60,35 @@ export interface ProtocolSession {
   endTime?: Timestamp | Date;
   completedPhases: number;
   
+  // Enhanced emotional progression tracking
+  emotionalProgression?: EmotionalProgression[];
+  keyStatements?: {
+    reframedBelief?: {
+      statement: string;
+      phaseIndex: number;
+      timestamp: Timestamp | Date;
+      confidence: number;
+    };
+    legacyStatement?: {
+      statement: string;
+      phaseIndex: number;
+      timestamp: Timestamp | Date;
+      confidence: number;
+    };
+    insights?: Array<{
+      insight: string;
+      phaseIndex: number;
+      timestamp: Timestamp | Date;
+      emotionalContext: string;
+    }>;
+  };
+  
   summary?: {
     insightSummary: string;
     actualReframedBelief: string;
     actualLegacyStatement: string;
     topEmotions: string;
+    emotionalJourney?: string; // New: narrative of emotional progression
     reframedBeliefInteraction?: { aiQuestion: string; userResponse: string } | null;
     legacyStatementInteraction?: { aiQuestion: string; userResponse: string } | null;
     generatedAt: Timestamp | Date;

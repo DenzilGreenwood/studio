@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/auth-context';
-import { db, collectionGroup, query, where, orderBy, getDocs, Timestamp } from '@/lib/firebase';
+import { db, collection, query, where, orderBy, getDocs, Timestamp } from '@/lib/firebase';
 import type { ProtocolSession } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -103,8 +103,7 @@ export default function SessionsPage() {
       setError(null);
       try {
         const sessionsQuery = query(
-          collectionGroup(db, `sessions`),
-          where("userId", "==", firebaseUser.uid),
+          collection(db, `users/${firebaseUser.uid}/sessions`),
           orderBy("startTime", "desc")
         );
         const querySnapshot = await getDocs(sessionsQuery);

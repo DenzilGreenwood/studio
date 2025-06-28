@@ -37,6 +37,12 @@ service cloud.firestore {
       allow read: if isAdmin();
     }
 
+    // COLLECTION GROUP QUERIES
+    // Allow admins to query sessions across all users (for admin dashboard)
+    match /{path=**}/sessions/{sessionId} {
+      allow read: if isAdmin();
+    }
+
     // MESSAGES
     // Allow users to manage messages within their own sessions.
     // Allow admins to read all messages.
