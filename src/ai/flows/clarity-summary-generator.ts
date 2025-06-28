@@ -1,5 +1,4 @@
 // src/ai/flows/clarity-summary-generator.ts
-'use server';
 
 /**
  * @fileOverview Generates a summary of the Cognitive Edge Protocol session, 
@@ -59,7 +58,7 @@ export const claritySummaryFlow = ai.defineFlow(
     inputSchema: ClaritySummaryInputSchema,
     outputSchema: ClaritySummaryOutputSchema,
   },
-  async input => {
+  async (input: ClaritySummaryInput) => {
     try {
       const {output} = await prompt(input);
       if (!output) {

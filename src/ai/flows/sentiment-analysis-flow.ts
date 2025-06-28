@@ -1,5 +1,3 @@
-'use server';
-
 /**
  * @fileOverview Analyzes user conversation history to detect prominent emotional states.
  *
@@ -57,7 +55,7 @@ export const sentimentAnalysisFlow = ai.defineFlow(
     inputSchema: SentimentAnalysisInputSchema,
     outputSchema: SentimentAnalysisOutputSchema,
   },
-  async input => {
+  async (input: SentimentAnalysisInput) => {
     try {
       const {output} = await prompt(input);
       if (!output) {

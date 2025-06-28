@@ -1,5 +1,4 @@
 // cognitive-edge-protocol.ts
-'use server';
 
 /**
  * @fileOverview Implements the Cognitive Edge Protocol as a conversational AI experience.
@@ -100,7 +99,7 @@ export const cognitiveEdgeProtocolFlow = ai.defineFlow(
     inputSchema: CognitiveEdgeProtocolInputSchema,
     outputSchema: CognitiveEdgeProtocolOutputSchema,
   },
-  async input => {
+  async (input: CognitiveEdgeProtocolInput) => {
     try {
       const {output} = await prompt(input);
       if (!output) {
