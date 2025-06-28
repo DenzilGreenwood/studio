@@ -60,6 +60,11 @@ export interface ProtocolSession {
   endTime?: Timestamp | Date;
   completedPhases: number;
   
+  // Trash/deletion tracking
+  isDeleted?: boolean;
+  deletedAt?: Timestamp | Date;
+  deletedBy?: string; // userId who deleted it
+  
   // Enhanced emotional progression tracking
   emotionalProgression?: EmotionalProgression[];
   keyStatements?: {

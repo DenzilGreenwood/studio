@@ -3,14 +3,16 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/auth-context';
-import { db, collection, query, where, orderBy, getDocs, Timestamp } from '@/lib/firebase';
+import { db, collection, query, where, orderBy, getDocs, doc, updateDoc, serverTimestamp, Timestamp } from '@/lib/firebase';
 import type { ProtocolSession } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, BookOpen, PlusCircle, Eye, CheckCircle, Hourglass, Sparkles, PenSquare } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Loader2, BookOpen, PlusCircle, Eye, CheckCircle, Hourglass, Sparkles, PenSquare, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 
 type SessionWithId = ProtocolSession & { sessionId: string };
 
@@ -19,7 +21,7 @@ const toDate = (timestamp: Timestamp | Date): Date => {
   return timestamp instanceof Timestamp ? timestamp.toDate() : timestamp;
 };
 
-const SessionCard = ({ session }: { session: SessionWithId }) => (
+const SessionCard = ({ session, onDelete }: { session: SessionWithId; onDelete: (sessionId: string) => void }) => (
     <Card key={session.sessionId} className="shadow-md hover:shadow-xl transition-shadow duration-300">
         <CardHeader>
             <div className="flex justify-between items-start">
@@ -56,29 +58,53 @@ const SessionCard = ({ session }: { session: SessionWithId }) => (
             )}
         </CardContent>
         <CardFooter className="flex gap-2">
-            {session.completedPhases === 6 ? (
-                <>
-                    <Button asChild variant="outline" className="flex-1">
-                        <Link href={`/session-report/${session.sessionId}`}>
-                            View Report
+            <div className="flex gap-2 flex-1">
+                {session.completedPhases === 6 ? (
+                    <>
+                        <Button asChild variant="outline" className="flex-1">
+                            <Link href={`/session-report/${session.sessionId}`}>
+                                View Report
+                                <Eye className="ml-2 h-4 w-4" />
+                            </Link>
+                        </Button>
+                        <Button asChild variant="default" className="flex-1">
+                            <Link href={`/journal/${session.sessionId}`}>
+                                Open Journal
+                                <PenSquare className="ml-2 h-4 w-4" />
+                            </Link>
+                        </Button>
+                    </>
+                ) : (
+                    <Button asChild variant="outline" className="w-full">
+                        <Link href={`/protocol`}>
+                            Continue Session
                             <Eye className="ml-2 h-4 w-4" />
                         </Link>
                     </Button>
-                    <Button asChild variant="default" className="flex-1">
-                        <Link href={`/journal/${session.sessionId}`}>
-                            Open Journal
-                            <PenSquare className="ml-2 h-4 w-4" />
-                        </Link>
+                )}
+            </div>
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                        <Trash2 className="h-4 w-4" />
                     </Button>
-                </>
-            ) : (
-                <Button asChild variant="outline" className="w-full">
-                    <Link href={`/protocol`}>
-                        Continue Session
-                        <Eye className="ml-2 h-4 w-4" />
-                    </Link>
-                </Button>
-            )}
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Move to Trash</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will move the session from {toDate(session.startTime).toLocaleDateString()} to the trash. 
+                            You can restore it from the trash within 30 days.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => onDelete(session.sessionId)}>
+                            Move to Trash
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </CardFooter>
     </Card>
 );
@@ -91,6 +117,7 @@ export default function SessionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCheckIn, setShowCheckIn] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (authLoading || !firebaseUser) {
@@ -104,6 +131,7 @@ export default function SessionsPage() {
       try {
         const sessionsQuery = query(
           collection(db, `users/${firebaseUser.uid}/sessions`),
+          where('isDeleted', '!=', true), // Exclude deleted sessions
           orderBy("startTime", "desc")
         );
         const querySnapshot = await getDocs(sessionsQuery);
@@ -138,6 +166,34 @@ export default function SessionsPage() {
 
     fetchSessions();
   }, [firebaseUser, authLoading, user]);
+
+  const deleteSession = async (sessionId: string) => {
+    if (!firebaseUser) return;
+
+    try {
+      const sessionRef = doc(db, `users/${firebaseUser.uid}/sessions/${sessionId}`);
+      await updateDoc(sessionRef, {
+        isDeleted: true,
+        deletedAt: serverTimestamp(),
+        deletedBy: firebaseUser.uid
+      });
+
+      toast({
+        title: "Session moved to trash",
+        description: "The session has been moved to trash and can be restored within 30 days"
+      });
+
+      // Remove from current sessions list
+      setSessions(prev => prev.filter(session => session.sessionId !== sessionId));
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete session"
+      });
+    }
+  };
 
   const { completedSessions, inProgressSessions } = useMemo(() => {
     const completed = sessions.filter(s => s.completedPhases === 6);
@@ -176,12 +232,20 @@ export default function SessionsPage() {
     <div className="bg-secondary/30 min-h-screen py-8">
         <div className="container mx-auto p-4 md:p-6 max-w-3xl">
             <header className="mb-8">
-                <div className="flex items-center gap-3">
-                    <BookOpen className="h-10 w-10 text-primary" />
-                    <div>
-                        <h1 className="font-headline text-4xl font-bold text-primary">Session History</h1>
-                        <p className="text-muted-foreground text-lg">Access your sessions, view detailed reports, and open your personal journal with AI insights and goal tracking.</p>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <BookOpen className="h-10 w-10 text-primary" />
+                        <div>
+                            <h1 className="font-headline text-4xl font-bold text-primary">Session History</h1>
+                            <p className="text-muted-foreground text-lg">Access your sessions, view detailed reports, and open your personal journal with AI insights and goal tracking.</p>
+                        </div>
                     </div>
+                    <Button asChild variant="outline">
+                        <Link href="/trash">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Trash
+                        </Link>
+                    </Button>
                 </div>
                  <Button asChild size="lg" className="mt-6 w-full sm:w-auto">
                     <Link href="/protocol">
@@ -266,35 +330,7 @@ export default function SessionsPage() {
                 
                 <div className="space-y-6">
                     {filteredSessions.length > 0 ? filteredSessions.map(session => (
-                        <Card key={session.sessionId} className="shadow-md hover:shadow-xl transition-shadow duration-300">
-                            <CardHeader>
-                                <CardTitle className="font-headline text-2xl text-primary">
-                                    Session from {toDate(session.startTime).toLocaleDateString()}
-                                </CardTitle>
-                                <CardDescription>
-                                    {session.endTime ? `Completed at ${toDate(session.endTime).toLocaleTimeString()}` : `Started at ${toDate(session.startTime).toLocaleTimeString()}`}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {session.summary?.insightSummary ? (
-                                    <p className="text-muted-foreground italic truncate">
-                                        <strong>AI Insight:</strong> "{session.summary.insightSummary}"
-                                    </p>
-                                ) : (
-                                     <p className="text-muted-foreground italic">
-                                        Session in progress or summary not available.
-                                    </p>
-                                )}
-                            </CardContent>
-                            <CardFooter>
-                                <Button asChild>
-                                    <Link href={`/session-report/${session.sessionId}?circumstance=${encodeURIComponent(session.circumstance)}`}>
-                                        Open Journal Entry
-                                        <Eye className="ml-2 h-4 w-4" />
-                                    </Link>
-                                </Button>
-                            </CardFooter>
-                        </Card>
+                        <SessionCard key={session.sessionId} session={session} onDelete={deleteSession} />
                     )) : (
                         <Card className="text-center p-8">
                              <CardHeader>
