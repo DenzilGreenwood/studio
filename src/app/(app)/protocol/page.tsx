@@ -490,25 +490,40 @@ export default function ProtocolPage() {
         }),
       });
 
-      if (!emotionalToneResponse.ok) {
-        throw new Error('Failed to analyze emotional tone');
+      let emotionalAnalysis = null;
+      
+      if (emotionalToneResponse.ok) {
+        emotionalAnalysis = await emotionalToneResponse.json();
+        
+        // Add to emotional progression
+        const newEmotionalData = {
+          phaseIndex: currentPhaseIndex,
+          phaseName: prevPhaseName,
+          primaryEmotion: emotionalAnalysis.primaryEmotion || 'neutral',
+          intensity: emotionalAnalysis.intensity || 5,
+          timestamp: new Date(),
+          triggerMessage: currentUserInputText
+        };
+
+        setEmotionalProgression(prev => [...prev, newEmotionalData]);
+      } else {
+        console.warn('Emotional tone analysis failed, continuing without it');
+        
+        // Add a fallback emotional data entry
+        const fallbackEmotionalData = {
+          phaseIndex: currentPhaseIndex,
+          phaseName: prevPhaseName,
+          primaryEmotion: 'neutral',
+          intensity: 5,
+          timestamp: new Date(),
+          triggerMessage: currentUserInputText
+        };
+        
+        setEmotionalProgression(prev => [...prev, fallbackEmotionalData]);
       }
-
-      const emotionalAnalysis = await emotionalToneResponse.json();
-
-      // Add to emotional progression
-      const newEmotionalData = {
-        phaseIndex: currentPhaseIndex,
-        phaseName: prevPhaseName,
-        primaryEmotion: emotionalAnalysis.primaryEmotion,
-        intensity: emotionalAnalysis.intensity,
-        timestamp: new Date(),
-        triggerMessage: currentUserInputText
-      };
-
-      setEmotionalProgression(prev => [...prev, newEmotionalData]);
     } catch (error) {
       console.error('Emotional tone analysis failed:', error);
+      // Continue without emotional analysis rather than breaking the flow
     }
 
     setIsLoading(true);
