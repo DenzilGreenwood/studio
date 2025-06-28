@@ -55,13 +55,30 @@ const SessionCard = ({ session }: { session: SessionWithId }) => (
                 </p>
             )}
         </CardContent>
-        <CardFooter>
-            <Button asChild variant="outline">
-                <Link href={session.completedPhases === 6 ? `/session-report/${session.sessionId}` : `/protocol`}>
-                    {session.completedPhases === 6 ? 'View Full Report' : 'Continue Session'}
-                    <Eye className="ml-2 h-4 w-4" />
-                </Link>
-            </Button>
+        <CardFooter className="flex gap-2">
+            {session.completedPhases === 6 ? (
+                <>
+                    <Button asChild variant="outline" className="flex-1">
+                        <Link href={`/session-report/${session.sessionId}`}>
+                            View Report
+                            <Eye className="ml-2 h-4 w-4" />
+                        </Link>
+                    </Button>
+                    <Button asChild variant="default" className="flex-1">
+                        <Link href={`/journal/${session.sessionId}`}>
+                            Open Journal
+                            <PenSquare className="ml-2 h-4 w-4" />
+                        </Link>
+                    </Button>
+                </>
+            ) : (
+                <Button asChild variant="outline" className="w-full">
+                    <Link href={`/protocol`}>
+                        Continue Session
+                        <Eye className="ml-2 h-4 w-4" />
+                    </Link>
+                </Button>
+            )}
         </CardFooter>
     </Card>
 );
@@ -163,8 +180,8 @@ export default function SessionsPage() {
                 <div className="flex items-center gap-3">
                     <BookOpen className="h-10 w-10 text-primary" />
                     <div>
-                        <h1 className="font-headline text-4xl font-bold text-primary">My Journal</h1>
-                        <p className="text-muted-foreground text-lg">Review your past sessions, add reflections, and track your growth.</p>
+                        <h1 className="font-headline text-4xl font-bold text-primary">Session History</h1>
+                        <p className="text-muted-foreground text-lg">Access your sessions, view detailed reports, and open your personal journal with AI insights and goal tracking.</p>
                     </div>
                 </div>
                  <Button asChild size="lg" className="mt-6 w-full sm:w-auto">
@@ -174,6 +191,29 @@ export default function SessionsPage() {
                     </Link>
                 </Button>
             </header>
+
+            {/* Journal Features Info Card */}
+            <Card className="mb-6 bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
+                <CardContent className="p-6">
+                    <div className="flex items-start gap-4">
+                        <div className="bg-primary/10 p-2 rounded-lg">
+                            <PenSquare className="h-6 w-6 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="font-semibold text-primary mb-2">Enhanced Journaling Experience</h3>
+                            <p className="text-muted-foreground text-sm mb-3">
+                                Each completed session now includes a personal journal with AI-generated insights, emotional analysis, and personalized goal tracking.
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                <Badge variant="secondary" className="text-xs">AI Reflection</Badge>
+                                <Badge variant="secondary" className="text-xs">Goal Tracking</Badge>
+                                <Badge variant="secondary" className="text-xs">Progress Analytics</Badge>
+                                <Badge variant="secondary" className="text-xs">Personal Notes</Badge>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
             {showCheckIn && latestSession && (
                 <Card className="mb-8 bg-accent/20 border-accent/50 shadow-lg">

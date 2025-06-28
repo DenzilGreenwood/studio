@@ -215,12 +215,66 @@ export default function ProtocolPage() {
       return;
     }
 
+    // Check if there's already an active session
+    try {
+      // Get all sessions and filter in memory to avoid index requirements
+      const allSessionsQuery = query(
+        collection(db, `users/${firebaseUser.uid}/sessions`),
+        orderBy("startTime", "desc")
+      );
+      const allSessionsSnap = await getDocs(allSessionsQuery);
+      
+      // Find the first active session (completedPhases < 6)
+      const activeSessionDoc = allSessionsSnap.docs.find(doc => {
+        const data = doc.data();
+        return (data.completedPhases || 0) < 6;
+      });
+      
+      if (activeSessionDoc) {
+        const sessionData = activeSessionDoc.data() as ProtocolSession;
+        
+        // Resume existing session
+        setCurrentSessionId(activeSessionDoc.id);
+        setCurrentCircumstance(sessionData.circumstance);
+        setCurrentPhase(sessionData.completedPhases + 1);
+        setCurrentPhaseName(PHASE_NAMES[sessionData.completedPhases] || PHASE_NAMES[0]);
+        
+        // Load existing messages
+        const messagesQuery = query(
+          collection(db, `users/${firebaseUser.uid}/sessions/${activeSessionDoc.id}/messages`),
+          orderBy("timestamp", "asc")
+        );
+        const messagesSnap = await getDocs(messagesQuery);
+        const existingMessages: UIMessage[] = messagesSnap.docs.map(docSnap => {
+          const data = docSnap.data() as FirestoreChatMessage;
+          return {
+            id: docSnap.id,
+            sender: data.sender,
+            text: data.text,
+            timestamp: (data.timestamp as Timestamp)?.toDate() || new Date(),
+          };
+        });
+        
+        setMessages(existingMessages);
+        
+        toast({
+          title: "Session Resumed",
+          description: `Continuing your session: ${sessionData.circumstance}`,
+          variant: "default",
+        });
+        
+        return;
+      }
+    } catch (error) {
+      console.error("Error checking for active sessions:", error);
+    }
+
     setIsLoading(true);
     setIsProtocolComplete(false); 
     setShowFeedbackForm(false); 
     
     const circumstance = user.primaryChallenge;
-    setCurrentCircumstance(circumstance); // <-- Set state
+    setCurrentCircumstance(circumstance);
 
     const newSessionRef = doc(collection(db, `users/${firebaseUser.uid}/sessions`));
     const newSessionId = newSessionRef.id;
@@ -231,19 +285,19 @@ export default function ProtocolPage() {
       userId: firebaseUser.uid,
       circumstance: circumstance,
       ageRange: user.ageRange,
-      startTime: serverTimestamp() as unknown as Date, // allow FieldValue
+      startTime: serverTimestamp() as unknown as Date,
       completedPhases: 0,
       summary: {
         insightSummary: "",
         actualReframedBelief: "",
         actualLegacyStatement: "",
         topEmotions: "",
-        generatedAt: serverTimestamp() as unknown as Date, // allow FieldValue
+        generatedAt: serverTimestamp() as unknown as Date,
       }
     };
     await setDoc(newSessionRef, initialSessionData);
     
-    const firstMessageText = `Welcome to CognitiveInsight! Let's begin with Phase 1: ${PHASE_NAMES[0]}. Please describe the challenge or situation you're facing.`;
+    const firstMessageText = `Welcome to CognitiveInsight! Let's begin with Phase 1: ${PHASE_NAMES[0]}. Please describe the challenge or situation you're facing: "${circumstance}". Take your time to share what's on your mind.`;
     const firstUIMessage: UIMessage = {
       id: crypto.randomUUID(),
       sender: 'ai',
@@ -425,7 +479,7 @@ export default function ProtocolPage() {
           let detectedUserEmotions = "Emotions not analyzed";
           try {
             const messagesQuery = query(
-              collection(db, `users/${firebaseUser.uid}/circumstances/${currentCircumstance}/sessions/${currentSessionId}/messages`),
+              collection(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}/messages`),
               orderBy("timestamp", "asc")
             );
             const messagesSnap = await getDocs(messagesQuery);
@@ -526,6 +580,10 @@ export default function ProtocolPage() {
     setKeyQuestionAttemptCount(1);
     setLastAiQuestion(null);
     setIsFinishing(false);
+    setCurrentPhase(1);
+    setCurrentPhaseName(PHASE_NAMES[0]);
+    setSessionDataForSummary({ topEmotions: "Not analyzed" });
+    setSessionHistoryForAI(undefined);
   };
 
 
@@ -549,7 +607,19 @@ export default function ProtocolPage() {
           isCompleted={isProtocolComplete}
           isLoadingNextPhase={isLoading && !isProtocolComplete && currentPhase <= TOTAL_PHASES}
         />
-        <TTSSettings />
+        <div className="flex items-center gap-2">
+          <TTSSettings />
+          {!isProtocolComplete && currentSessionId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={restartProtocol}
+              disabled={isLoading}
+            >
+              New Session
+            </Button>
+          )}
+        </div>
       </div>
       
       {isLoading && isProtocolComplete ? ( 

@@ -6,8 +6,14 @@ service cloud.firestore {
     // Helper function to check if user is admin
     function isAdmin() {
       return request.auth != null && 
+             request.auth.uid != null &&
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Helper function to check if user owns the resource
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
     }
 
     // Deny all reads and writes by default.
@@ -19,7 +25,7 @@ service cloud.firestore {
     // Allow users to read and update their own profile.
     // Allow admins to read all user profiles.
     match /users/{userId} {
-      allow read, update, create: if request.auth != null && request.auth.uid == userId;
+      allow read, update, create: if isOwner(userId);
       allow read: if isAdmin();
     }
 
@@ -27,7 +33,7 @@ service cloud.firestore {
     // Allow users to manage their own session documents.
     // Allow admins to read all sessions.
     match /users/{userId}/sessions/{sessionId} {
-      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      allow read, write, delete: if isOwner(userId);
       allow read: if isAdmin();
     }
 
@@ -35,7 +41,7 @@ service cloud.firestore {
     // Allow users to manage messages within their own sessions.
     // Allow admins to read all messages.
     match /users/{userId}/sessions/{sessionId}/messages/{messageId} {
-      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      allow read, write, delete: if isOwner(userId);
       allow read: if isAdmin();
     }
 
