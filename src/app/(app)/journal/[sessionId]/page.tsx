@@ -5,9 +5,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter, notFound } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { db, doc, getDoc, updateDoc, writeBatch, serverTimestamp, Timestamp, collection, query, where, orderBy, getDocs } from '@/lib/firebase';
-import { generateSessionReflection } from '@/ai/flows/session-reflection-flow';
 import type { ProtocolSession, Goal } from '@/types';
-import type { SessionReflectionInput, SessionReflectionOutput } from '@/ai/flows/session-reflection-flow';
+import type { SessionReflectionOutput } from '@/ai/flows/session-reflection-flow';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -22,6 +21,25 @@ import { useToast } from '@/hooks/use-toast';
 import { cn, convertProtocolSessionTimestamps } from '@/lib/utils';
 import Link from 'next/link';
 import { PDFGenerator, prepareSessionDataForPDF } from '@/lib/pdf-generator';
+
+// Define the input type locally to avoid importing server-side code
+interface SessionReflectionInput {
+  sessionSummary: string;
+  actualReframedBelief: string;
+  actualLegacyStatement: string;
+  topEmotions: string;
+  userReflection?: string;
+  circumstance: string;
+  sessionDate: string;
+  previousSessions?: Array<{
+    date: string;
+    circumstance: string;
+    reframedBelief?: string;
+    legacyStatement?: string;
+    goals?: string[];
+    completed?: boolean;
+  }>;
+}
 
 interface JournalSessionData {
   sessionId: string;
@@ -149,7 +167,20 @@ export default function JournalPage() {
         previousSessions: previousSessions.length > 0 ? previousSessions : undefined
       };
 
-      const aiReflection = await generateSessionReflection(reflectionInput);
+      // Call the API to generate the AI reflection
+      const response = await fetch('/api/session-reflection', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reflectionInput),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate AI reflection');
+      }
+
+      const aiReflection: SessionReflectionOutput = await response.json();
 
       // Save the AI reflection to the session
       const sessionDocRef = doc(db, `users/${firebaseUser.uid}/sessions/${sessionId}`);

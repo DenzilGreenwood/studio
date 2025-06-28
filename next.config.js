@@ -17,6 +17,35 @@ const nextConfig = {
       },
     ],
   },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Exclude Node.js modules from client bundle
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+        stream: false,
+        util: false,
+        buffer: false,
+        process: false,
+        'child_process': false,
+        'worker_threads': false,
+        'perf_hooks': false,
+      };
+      
+      // Ignore specific problematic modules
+      config.externals = config.externals || [];
+      config.externals.push({
+        '@google-cloud/logging': 'commonjs @google-cloud/logging',
+        '@google/generative-ai/dist/server/index.js': 'commonjs @google/generative-ai/dist/server/index.js',
+        '@grpc/grpc-js': 'commonjs @grpc/grpc-js',
+        '@opentelemetry/winston-transport': 'commonjs @opentelemetry/winston-transport',
+      });
+    }
+    return config;
+  },
 };
 
 module.exports = nextConfig;

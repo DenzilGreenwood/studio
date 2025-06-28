@@ -44,12 +44,15 @@ import {
   type SentimentAnalysisOutput
 } from '@/types';
 
-// AI flow imports
-import { cognitiveEdgeProtocol } from '@/ai/flows/cognitive-edge-protocol';
-import { generateClaritySummary } from '@/ai/flows/clarity-summary-generator';
-import { analyzeSentiment } from '@/ai/flows/sentiment-analysis-flow';
-import { analyzeEmotionalTone } from '@/ai/flows/emotional-tone-analyzer';
-import type { EmotionalToneInput, EmotionalToneOutput } from '@/ai/flows/emotional-tone-analyzer';
+// Type imports only (no functions)
+import type { EmotionalToneOutput } from '@/ai/flows/emotional-tone-analyzer';
+
+// Define input types locally to avoid importing server-side code
+interface EmotionalToneInput {
+  userMessage: string;
+  context?: string;
+  previousTone?: string;
+}
 
 
 const TOTAL_PHASES = 6;
@@ -133,7 +136,20 @@ async function generateAndSaveSummary(
       topEmotions: summaryInputData.topEmotions,
     };
     
-    const summaryOutput = await generateClaritySummary(summaryInputForAI);
+    // Call the API for clarity summary
+    const summaryResponse = await fetch('/api/clarity-summary', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(summaryInputForAI),
+    });
+
+    if (!summaryResponse.ok) {
+      throw new Error('Failed to generate clarity summary');
+    }
+
+    const summaryOutput = await summaryResponse.json();
     
     const summaryToPersist: ClaritySummaryContentType = {
       insightSummary: summaryOutput.insightSummary,
@@ -385,8 +401,22 @@ export default function ProtocolPage() {
         
         if (userMessagesText.trim()) {
           const sentimentInput: SentimentAnalysisInput = { userMessages: userMessagesText };
-          const sentimentOutput = await analyzeSentiment(sentimentInput);
-          detectedUserEmotions = sentimentOutput.detectedEmotions;
+          
+          // Call the API for sentiment analysis
+          const sentimentResponse = await fetch('/api/sentiment-analysis', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(sentimentInput),
+          });
+
+          if (sentimentResponse.ok) {
+            const sentimentOutput = await sentimentResponse.json();
+            detectedUserEmotions = sentimentOutput.detectedEmotions;
+          } else {
+            throw new Error('Failed to analyze sentiment');
+          }
         }
       } catch (sentimentError) {
         console.error("Error analyzing sentiment:", sentimentError);
@@ -447,11 +477,24 @@ export default function ProtocolPage() {
         ? emotionalProgression[emotionalProgression.length - 1].primaryEmotion 
         : undefined;
       
-      const emotionalAnalysis = await analyzeEmotionalTone({
-        userMessage: currentUserInputText,
-        context: `Phase: ${prevPhaseName}. Session context: ${currentCircumstance}`,
-        previousTone: previousEmotion
+      // Call the API for emotional tone analysis
+      const emotionalToneResponse = await fetch('/api/emotional-tone', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userMessage: currentUserInputText,
+          context: `Phase: ${prevPhaseName}. Session context: ${currentCircumstance}`,
+          previousTone: previousEmotion
+        }),
       });
+
+      if (!emotionalToneResponse.ok) {
+        throw new Error('Failed to analyze emotional tone');
+      }
+
+      const emotionalAnalysis = await emotionalToneResponse.json();
 
       // Add to emotional progression
       const newEmotionalData = {
@@ -477,7 +520,20 @@ export default function ProtocolPage() {
         attemptCount: keyQuestionAttemptCount,
       };
 
-      const output = await cognitiveEdgeProtocol(input);
+      // Call the API for cognitive edge protocol
+      const response = await fetch('/api/protocol', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(input),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get AI response');
+      }
+
+      const output = await response.json();
       
       const aiResponseUIMessage: UIMessage = {
         id: crypto.randomUUID(),
@@ -600,8 +656,22 @@ export default function ProtocolPage() {
             
             if (userMessagesText.trim()) {
               const sentimentInput: SentimentAnalysisInput = { userMessages: userMessagesText };
-              const sentimentOutput = await analyzeSentiment(sentimentInput);
-              detectedUserEmotions = sentimentOutput.detectedEmotions;
+              
+              // Call the API for sentiment analysis
+              const sentimentResponse = await fetch('/api/sentiment-analysis', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(sentimentInput),
+              });
+
+              if (sentimentResponse.ok) {
+                const sentimentOutput = await sentimentResponse.json();
+                detectedUserEmotions = sentimentOutput.detectedEmotions;
+              } else {
+                throw new Error('Failed to analyze sentiment');
+              }
             }
           } catch (sentimentError) {
             console.error("Error analyzing sentiment:", sentimentError);
