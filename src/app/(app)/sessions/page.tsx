@@ -129,12 +129,30 @@ export default function SessionsPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const sessionsQuery = query(
-          collection(db, `users/${firebaseUser.uid}/sessions`),
-          where('isDeleted', '!=', true), // Exclude deleted sessions
-          orderBy("startTime", "desc")
-        );
-        const querySnapshot = await getDocs(sessionsQuery);
+        // First try with the composite query
+        let querySnapshot;
+        try {
+          const sessionsQuery = query(
+            collection(db, `users/${firebaseUser.uid}/sessions`),
+            where('isDeleted', '!=', true), // Exclude deleted sessions
+            orderBy("startTime", "desc")
+          );
+          querySnapshot = await getDocs(sessionsQuery);
+        } catch (indexError) {
+          console.log("Composite index not available, falling back to basic query:", indexError);
+          
+          // Fallback: Get all sessions without isDeleted filter
+          const allSessionsQuery = query(
+            collection(db, `users/${firebaseUser.uid}/sessions`),
+            orderBy("startTime", "desc")
+          );
+          const allSessionsSnap = await getDocs(allSessionsQuery);
+          
+          // Filter out deleted sessions in memory
+          const filteredDocs = allSessionsSnap.docs.filter(doc => !doc.data().isDeleted);
+          querySnapshot = { docs: filteredDocs };
+        }
+        
         const fetchedSessions: SessionWithId[] = querySnapshot.docs.map(doc => {
           const data = doc.data() as ProtocolSession;
           const convertTimestamp = (field: any) => 

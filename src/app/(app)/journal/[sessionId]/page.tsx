@@ -16,7 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Heart, Target, Lightbulb, MessageSquare, Plus, Trash2, ArrowLeft, Sparkles, BookOpen, Save, Download } from 'lucide-react';
+import { Loader2, Heart, Target, Lightbulb, MessageSquare, Plus, Trash2, ArrowLeft, Sparkles, BookOpen, Save, Download, PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn, convertProtocolSessionTimestamps } from '@/lib/utils';
 import Link from 'next/link';
@@ -108,11 +108,23 @@ export default function JournalPage() {
       const sessionSnap = await getDoc(sessionDocRef);
 
       if (!sessionSnap.exists()) {
-        notFound();
+        setError("Session not found. It may have been deleted or doesn't exist.");
         return;
       }
 
       const fetchedSessionData = sessionSnap.data() as ProtocolSession;
+      
+      // Check if session is deleted
+      if (fetchedSessionData.isDeleted) {
+        setError("This session has been moved to trash. Please restore it from the trash to access the journal.");
+        return;
+      }
+      
+      // Check if session is completed (required for journal access)
+      if (fetchedSessionData.completedPhases < 6) {
+        setError("Journal access is only available for completed sessions. Please complete the session first.");
+        return;
+      }
       
       // Convert timestamps
       const processedSessionData = convertProtocolSessionTimestamps(fetchedSessionData) as JournalSessionData;
@@ -331,13 +343,56 @@ export default function JournalPage() {
       <div className="container mx-auto p-4 md:p-8 max-w-3xl text-center">
         <Card className="border-destructive">
           <CardHeader>
-            <CardTitle className="text-destructive">Error Loading Journal</CardTitle>
+            <CardTitle className="text-destructive flex items-center justify-center gap-2">
+              <BookOpen className="h-6 w-6" />
+              Error Loading Journal
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">{error || 'Session not found'}</p>
-            <Button asChild>
-              <Link href="/sessions">Go Back to Sessions</Link>
-            </Button>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">{error || 'Session not found'}</p>
+            
+            {error?.includes('completed sessions') && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Tip:</strong> Complete your session first to unlock the journal feature with AI insights and goal tracking.
+                </p>
+              </div>
+            )}
+            
+            {error?.includes('trash') && (
+              <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                <p className="text-sm text-orange-800">
+                  <strong>Tip:</strong> You can restore this session from the trash page.
+                </p>
+              </div>
+            )}
+            
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button asChild>
+                <Link href="/sessions">
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  View All Sessions
+                </Link>
+              </Button>
+              
+              {error?.includes('trash') && (
+                <Button asChild variant="outline">
+                  <Link href="/trash">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Go to Trash
+                  </Link>
+                </Button>
+              )}
+              
+              {error?.includes('completed') && (
+                <Button asChild variant="outline">
+                  <Link href="/protocol">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Continue Session
+                  </Link>
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

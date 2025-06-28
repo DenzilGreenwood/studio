@@ -19,12 +19,13 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Brain, Loader2 } from "lucide-react";
+import { Brain, Loader2, Play, BookOpen, PlusCircle } from "lucide-react";
 import Link from "next/link";
 import { useAuth, updateUserProfileDocument } from "@/context/auth-context";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 // import { serverTimestamp } from "firebase/firestore"; // Not currently used
 import type { UserProfile } from "@/types";
+import { checkForActiveSession, getCompletedSessions, type ActiveSession } from "@/lib/session-utils";
 
 
 const profileFormSchema = z.object({
@@ -50,6 +51,9 @@ export function ProfileForm() {
   const router = useRouter();
   const { toast } = useToast();
   const { user, loading, firebaseUser } = useAuth();
+  const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
+  const [completedSessionsCount, setCompletedSessionsCount] = useState(0);
+  const [checkingSession, setCheckingSession] = useState(false);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -79,6 +83,30 @@ export function ProfileForm() {
     }
   }, [user, firebaseUser, loading, router, form]);
 
+  // Check for active sessions and completed sessions
+  useEffect(() => {
+    const checkSessionData = async () => {
+      if (!firebaseUser) return;
+      
+      setCheckingSession(true);
+      try {
+        const [activeSession, completedSessions] = await Promise.all([
+          checkForActiveSession(firebaseUser.uid),
+          getCompletedSessions(firebaseUser.uid)
+        ]);
+        
+        setActiveSession(activeSession);
+        setCompletedSessionsCount(completedSessions.length);
+      } catch (error) {
+        console.error("Error checking session data:", error);
+      } finally {
+        setCheckingSession(false);
+      }
+    };
+
+    checkSessionData();
+  }, [firebaseUser]);
+
   async function onSubmit(values: ProfileFormValues) {
     if (!firebaseUser) {
         toast({ variant: "destructive", title: "Error", description: "No user session found. Please login again."});
@@ -105,8 +133,16 @@ export function ProfileForm() {
 
       await updateUserProfileDocument(firebaseUser.uid, dataToUpdate);
       
-      toast({ title: "Profile Updated", description: "Redirecting to protocol..." });
-      router.push("/protocol");
+      toast({ title: "Profile Updated", description: "Your profile has been saved successfully." });
+      
+      // Refresh session data after profile update
+      const [newActiveSession, newCompletedSessions] = await Promise.all([
+        checkForActiveSession(firebaseUser.uid),
+        getCompletedSessions(firebaseUser.uid)
+      ]);
+      
+      setActiveSession(newActiveSession);
+      setCompletedSessionsCount(newCompletedSessions.length);
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -211,10 +247,83 @@ export function ProfileForm() {
                 )}
               />
               <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Saving..." : "Save & Continue to Protocol"}
+                {form.formState.isSubmitting ? "Saving..." : "Save Profile"}
               </Button>
             </form>
           </Form>
+
+          {/* Session Navigation Section */}
+          {!checkingSession && firebaseUser && (
+            <div className="mt-6 pt-6 border-t">
+              <h3 className="font-semibold text-lg mb-4 text-center">Session Management</h3>
+              
+              {activeSession ? (
+                <div className="space-y-3">
+                  <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                    <h4 className="font-medium text-primary mb-2">Active Session Found</h4>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      You have an ongoing session: "{activeSession.circumstance}"
+                      <br />
+                      Progress: {activeSession.completedPhases}/6 phases completed
+                    </p>
+                    <Button asChild className="w-full">
+                      <Link href="/protocol">
+                        <Play className="mr-2 h-4 w-4" />
+                        Continue Current Session
+                      </Link>
+                    </Button>
+                  </div>
+                  
+                  {completedSessionsCount > 0 && (
+                    <Button asChild variant="outline" className="w-full">
+                      <Link href="/sessions">
+                        <BookOpen className="mr-2 h-4 w-4" />
+                        View Past Sessions ({completedSessionsCount})
+                      </Link>
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {completedSessionsCount > 0 ? (
+                    <>
+                      <Button asChild className="w-full">
+                        <Link href="/protocol">
+                          <PlusCircle className="mr-2 h-4 w-4" />
+                          Start New Session
+                        </Link>
+                      </Button>
+                      <Button asChild variant="outline" className="w-full">
+                        <Link href="/sessions">
+                          <BookOpen className="mr-2 h-4 w-4" />
+                          View Past Sessions ({completedSessionsCount})
+                        </Link>
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="text-center space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Ready to start your journey to clarity?
+                      </p>
+                      <Button asChild className="w-full">
+                        <Link href="/protocol">
+                          <PlusCircle className="mr-2 h-4 w-4" />
+                          Start Your First Session
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {checkingSession && (
+            <div className="mt-6 pt-6 border-t text-center">
+              <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Checking for active sessions...</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

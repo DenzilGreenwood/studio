@@ -7,18 +7,6 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Allow cross-origin requests from local network IPs during development
-  experimental: {
-    allowedDevOrigins: [
-      '192.168.4.51',
-      '192.168.1.*', // Allow all IPs in common local network ranges
-      '192.168.0.*',
-      '10.0.0.*',
-      '172.16.*.*',
-      'localhost',
-      '127.0.0.1',
-    ],
-  },
   images: {
     remotePatterns: [
       {
