@@ -104,7 +104,7 @@ Your task is to create supportive journal assistance that includes:
 Remember: This person just completed meaningful inner work. Honor that courage and help them continue their growth journey through thoughtful reflection.`
 });
 
-export const journalAssistanceFlow = ai.defineFlow(
+const journalAssistanceFlow = ai.defineFlow(
   {
     name: 'journalAssistanceFlow',
     inputSchema: JournalAssistanceInputSchema,

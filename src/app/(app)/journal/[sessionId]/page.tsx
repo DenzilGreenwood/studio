@@ -230,6 +230,7 @@ export default function JournalPage() {
     if (!newGoalText.trim()) return;
     
     const newGoal: Goal = {
+      id: crypto.randomUUID(),
       text: newGoalText.trim(),
       completed: false,
       createdAt: new Date()
