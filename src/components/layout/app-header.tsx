@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { Brain, UserCircle, LogOut, ChevronDown, Trash2, Loader2, BookOpen, Shield, Play } from "lucide-react";
+import { Brain, UserCircle, LogOut, ChevronDown, Trash2, Loader2, BookOpen, Shield, Play, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -181,6 +181,10 @@ export function AppHeader() {
               <DropdownMenuItem onClick={() => router.push('/sessions')}>
                 <BookOpen className="mr-2 h-4 w-4" />
                 <span>Session History</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/my-progress')}>
+                <TrendingUp className="mr-2 h-4 w-4" />
+                <span>My Progress</span>
               </DropdownMenuItem>
               {isAdmin && (
                 <>

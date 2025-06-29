@@ -46,9 +46,12 @@ export interface EmotionalProgression {
 }
 
 export interface Goal {
+  id: string;
   text: string;
   completed: boolean;
   createdAt: Timestamp | Date;
+  completedAt?: Timestamp | Date;
+  priority?: 'low' | 'medium' | 'high';
 }
 
 export interface ProtocolSession {

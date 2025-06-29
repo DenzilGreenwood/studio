@@ -7,6 +7,7 @@ import { useAuth } from '@/context/auth-context';
 import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp, updateDoc, serverTimestamp, writeBatch } from '@/lib/firebase';
 import type { ProtocolSession, ChatMessage as FirestoreChatMessage, UserProfile } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Brain, User, Loader2, AlertTriangle, FileText, Lightbulb, Milestone, Bot, MessageSquare, Edit3, CheckCircle, Download, Shield, BookOpen } from 'lucide-react';
@@ -46,10 +47,12 @@ export default function SessionReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [isNewCompletion, setIsNewCompletion] = useState(false);
 
 
   useEffect(() => {
     const reviewSubmitted = searchParams?.get('review_submitted') === 'true';
+    const newCompletion = searchParams?.get('newCompletion') === 'true';
     const newCircumstance = searchParams?.get('circumstance');
     const newUrl = `/session-report/${sessionId}${newCircumstance ? `?circumstance=${encodeURIComponent(newCircumstance)}` : ''}`;
 
@@ -58,6 +61,17 @@ export default function SessionReportPage() {
         title: "Review Submitted",
         description: "Thank you for your feedback!",
         variant: "default", 
+      });
+      router.replace(newUrl, { scroll: false });
+    }
+
+    if (newCompletion) {
+      setIsNewCompletion(true);
+      toast({
+        title: "Welcome to Your Report! 🎉",
+        description: "Take your time to review your insights. You can provide feedback when you're ready.",
+        variant: "default",
+        duration: 8000,
       });
       router.replace(newUrl, { scroll: false });
     }
@@ -428,39 +442,6 @@ export default function SessionReportPage() {
               </section>
             ) : null}
 
-            {/* Reflection and Implementation Plan Sections */}
-            {/* Removed duplicate/unused Reflection & Implementation Plan card to resolve errors and avoid confusion. */}
-
-            {/* Emotional Progression and Key Statements */}
-            {(sessionData.emotionalProgression || sessionData.keyStatements) && (
-              <section className="pt-6 border-t">
-                <EmotionalProgression 
-                  emotionalProgression={sessionData.emotionalProgression?.map(emotion => ({
-                    ...emotion,
-                    timestamp: emotion.timestamp instanceof Date ? emotion.timestamp : new Date()
-                  }))}
-                  keyStatements={sessionData.keyStatements ? {
-                    reframedBelief: sessionData.keyStatements.reframedBelief ? {
-                      ...sessionData.keyStatements.reframedBelief,
-                      timestamp: sessionData.keyStatements.reframedBelief.timestamp instanceof Date 
-                        ? sessionData.keyStatements.reframedBelief.timestamp 
-                        : new Date()
-                    } : undefined,
-                    legacyStatement: sessionData.keyStatements.legacyStatement ? {
-                      ...sessionData.keyStatements.legacyStatement,
-                      timestamp: sessionData.keyStatements.legacyStatement.timestamp instanceof Date 
-                        ? sessionData.keyStatements.legacyStatement.timestamp 
-                        : new Date()
-                    } : undefined,
-                    insights: sessionData.keyStatements.insights?.map(insight => ({
-                      ...insight,
-                      timestamp: insight.timestamp instanceof Date ? insight.timestamp : new Date()
-                    }))
-                  } : undefined}
-                />
-              </section>
-            )}
-
             <section className="pt-6 border-t">
                 <Card className="bg-secondary/30 border-secondary shadow-inner">
                     <CardHeader>
@@ -556,6 +537,70 @@ export default function SessionReportPage() {
                 </div>
               </ScrollArea>
             </section>
+
+            {/* Feedback Section */}
+            {!sessionData.feedbackId && (
+              <section className="pt-6 border-t">
+                <Card className={cn(
+                  "border-accent/20",
+                  isNewCompletion 
+                    ? "bg-gradient-to-r from-accent/10 to-primary/10 shadow-lg border-accent/40" 
+                    : "bg-gradient-to-r from-accent/5 to-primary/5"
+                )}>
+                  <CardHeader>
+                    <CardTitle className="font-headline text-xl text-primary flex items-center">
+                      <MessageSquare className="mr-3 h-6 w-6" />
+                      Share Your Experience
+                      {isNewCompletion && (
+                        <Badge className="ml-3 bg-accent text-accent-foreground animate-pulse">
+                          New!
+                        </Badge>
+                      )}
+                    </CardTitle>
+                    <CardDescription>
+                      {isNewCompletion 
+                        ? "🎉 Congratulations on completing your session! Your feedback helps us improve the experience for everyone."
+                        : "Help us improve by sharing your thoughts about this session. Your feedback is valuable and anonymous."
+                      }
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                      <div className="text-sm text-muted-foreground">
+                        <p>• How helpful was this session?</p>
+                        <p>• Any suggestions for improvement?</p>
+                        <p>• Want insights delivered later?</p>
+                        {isNewCompletion && (
+                          <p className="text-accent font-medium mt-2">✨ Your input shapes future sessions</p>
+                        )}
+                      </div>
+                      <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button 
+                            size="lg" 
+                            className={cn(
+                              "min-w-[180px]",
+                              isNewCompletion && "bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg"
+                            )}
+                          >
+                            <MessageSquare className="mr-2 h-5 w-5" />
+                            {isNewCompletion ? "Complete Your Journey" : "Provide Feedback"}
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-lg">
+                          <PostSessionFeedback
+                            sessionId={sessionId}
+                            userId={firebaseUser?.uid || ''}
+                            circumstance={sessionData.circumstance}
+                            onFeedbackSubmitted={handleFeedbackSubmitted}
+                          />
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </CardContent>
+                </Card>
+              </section>
+            )}
           </CardContent>
         </Card>
         <footer className="py-6 mt-4 text-center text-sm text-muted-foreground border-t">

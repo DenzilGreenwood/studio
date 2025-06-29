@@ -14,9 +14,11 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Heart, Target, Lightbulb, MessageSquare, Plus, Trash2, ArrowLeft, Sparkles, BookOpen, Save, Download, PlusCircle } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Loader2, Heart, Target, Lightbulb, MessageSquare, Plus, Trash2, ArrowLeft, Sparkles, BookOpen, Save, Download, PlusCircle, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { AiChatAssistant } from '@/components/journal/ai-chat-assistant';
 import Link from 'next/link';
 
 export default function JournalV2Page() {
@@ -419,6 +421,19 @@ export default function JournalV2Page() {
                 )}
               </CardContent>
             </Card>
+
+            {/* AI Chat Assistant */}
+            {report && (
+              <AiChatAssistant
+                sessionSummary={report.insights.insightSummary}
+                reframedBelief={report.insights.primaryReframe}
+                legacyStatement={report.insights.legacyStatement}
+                topEmotions={report.insights.topEmotions}
+                circumstance={report.circumstance}
+                currentReflection={reflectionText}
+                currentGoals={userGoals.map(g => g.text)}
+              />
+            )}
           </div>
 
           {/* Right Column - Personal Journal */}
@@ -434,16 +449,56 @@ export default function JournalV2Page() {
                   Write your thoughts and insights about this session
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                {/* Reflection Prompts */}
+                {journal?.aiJournalSupport?.personalizedQuestions && journal.aiJournalSupport.personalizedQuestions.length > 0 && (
+                  <div className="bg-accent/10 border border-accent/20 rounded-md p-3">
+                    <h4 className="font-semibold text-sm text-primary mb-2">💭 Reflection Starters</h4>
+                    <ul className="text-sm space-y-1 text-muted-foreground">
+                      {journal.aiJournalSupport.personalizedQuestions.slice(0, 3).map((question: string, index: number) => (
+                        <li key={index} className="italic">• {question}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
                 <Textarea
                   value={reflectionText}
                   onChange={(e) => setReflectionText(e.target.value)}
-                  placeholder="How did this session impact you? What insights resonated most? What changes do you want to make moving forward?"
-                  className="min-h-[200px] text-base"
+                  placeholder={journal?.aiJournalSupport?.personalizedQuestions && journal.aiJournalSupport.personalizedQuestions.length > 0 
+                    ? "Use the prompts above to guide your reflection, or write freely about your session experience..."
+                    : "How did this session impact you? What insights resonated most? What changes do you want to make moving forward?"
+                  }
+                  className="min-h-[250px] text-base"
                 />
-                <div className="text-xs text-muted-foreground mt-2">
-                  {reflectionText.split(' ').length} words
+                <div className="flex justify-between items-center text-xs text-muted-foreground">
+                  <span>{reflectionText.split(' ').filter(word => word.trim()).length} words</span>
+                  <span className="text-right">
+                    {reflectionText.length > 100 ? "Great depth! 📝" : 
+                     reflectionText.length > 50 ? "Good start! ✨" : 
+                     reflectionText.length > 0 ? "Keep going... 💭" : ""}
+                  </span>
                 </div>
+                
+                {/* Quick Action Buttons */}
+                {reflectionText.length === 0 && journal?.aiJournalSupport?.reflectionPrompts && (
+                  <div className="border-t pt-3">
+                    <p className="text-xs text-muted-foreground mb-2">Quick start with a guided prompt:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {journal.aiJournalSupport.reflectionPrompts.slice(0, 2).map((prompt: string, index: number) => (
+                        <Button
+                          key={index}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setReflectionText(prompt + "\n\n")}
+                          className="text-xs"
+                        >
+                          {prompt.split(' ').slice(0, 3).join(' ')}...
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -464,11 +519,45 @@ export default function JournalV2Page() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* AI Suggested Actions */}
+                {journal?.aiJournalSupport?.actionableInsights && journal.aiJournalSupport.actionableInsights.length > 0 && userGoals.length === 0 && (
+                  <div className="bg-primary/5 border border-primary/20 rounded-md p-3">
+                    <h4 className="font-semibold text-sm text-primary mb-2 flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      AI-Suggested Actions
+                    </h4>
+                    <p className="text-xs text-muted-foreground mb-2">Click to add as goals:</p>
+                    <div className="space-y-2">
+                      {journal.aiJournalSupport.actionableInsights.slice(0, 3).map((insight: string, index: number) => (
+                        <Button
+                          key={index}
+                          variant="outline"
+                          size="sm"
+                          className="text-left h-auto p-2 text-xs justify-start w-full"
+                          onClick={() => {
+                            const newGoal: Goal = {
+                              id: `ai-goal-${Date.now()}-${index}`,
+                              text: insight,
+                              completed: false,
+                              createdAt: new Date(),
+                              priority: 'medium'
+                            };
+                            setUserGoals(prev => [...prev, newGoal]);
+                          }}
+                        >
+                          <Plus className="h-3 w-3 mr-2 flex-shrink-0" />
+                          <span className="text-left">{insight}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Goals List */}
                 {userGoals.length > 0 ? (
                   <div className="space-y-3">
                     {userGoals.map((goal) => (
-                      <div key={goal.id} className="flex items-center gap-3 group">
+                      <div key={goal.id} className="flex items-center gap-3 group p-2 rounded-md hover:bg-muted/50 transition-colors">
                         <Checkbox
                           id={`goal-${goal.id}`}
                           checked={goal.completed}
@@ -482,6 +571,11 @@ export default function JournalV2Page() {
                           )}
                         >
                           {goal.text}
+                          {goal.completed && goal.completedAt && (
+                            <span className="text-xs text-green-600 ml-2">
+                              ✓ {(goal.completedAt instanceof Date ? goal.completedAt : goal.completedAt.toDate()).toLocaleDateString()}
+                            </span>
+                          )}
                         </label>
                         <Badge variant="outline" className="text-xs">
                           {goal.priority}
@@ -496,24 +590,46 @@ export default function JournalV2Page() {
                         </Button>
                       </div>
                     ))}
+                    
+                    {completedGoals > 0 && (
+                      <div className="text-center py-2">
+                        <Badge variant="default" className="bg-green-100 text-green-800">
+                          🎉 {completedGoals} goal{completedGoals === 1 ? '' : 's'} completed!
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No goals set yet. Add one below to start tracking your progress.
-                  </p>
+                  <div className="text-center py-8">
+                    <Target className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground mb-2">
+                      No goals set yet. Set meaningful actions to build on your session insights.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Try the AI suggestions above or create your own below.
+                    </p>
+                  </div>
                 )}
 
                 {/* Add New Goal */}
-                <div className="flex items-center gap-2 pt-4 border-t">
-                  <Input
-                    value={newGoalText}
-                    onChange={(e) => setNewGoalText(e.target.value)}
-                    placeholder="Add a new goal or action item"
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddGoal()}
-                  />
-                  <Button onClick={handleAddGoal} disabled={!newGoalText.trim()}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                <div className="space-y-3 pt-4 border-t">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={newGoalText}
+                      onChange={(e) => setNewGoalText(e.target.value)}
+                      placeholder="Add a new goal or action item"
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddGoal()}
+                    />
+                    <Button onClick={handleAddGoal} disabled={!newGoalText.trim()}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  {userGoals.length > 0 && (
+                    <div className="text-xs text-muted-foreground text-center">
+                      💡 Tip: Make goals specific and actionable for better success
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

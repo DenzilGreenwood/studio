@@ -84,6 +84,13 @@ export interface SessionJournal {
   completedGoals: number;                  // Count of completed goals
   goalsUpdatedAt: Timestamp | Date;        // Last goal update
   
+  // Quick reflections from session cards
+  quickReflections?: Array<{
+    text: string;
+    createdAt: Timestamp | Date;
+    sessionDate: string;
+  }>;
+  
   // AI Journal Assistance (generated from clean report data)
   aiJournalSupport?: {
     conversationalHighlights: string;      // AI summary for journaling

@@ -5,9 +5,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ChatInterface, type Message as UIMessage } from '@/components/protocol/chat-interface';
 import { PhaseIndicator } from '@/components/protocol/phase-indicator';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CheckCircle, BookOpen, Eye } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { TTSSettings } from '@/components/ui/tts-settings';
+import Link from 'next/link';
 import { 
   db, 
   doc, 
@@ -193,13 +194,14 @@ export default function ProtocolPage() {
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [currentPhase, setCurrentPhase] = useState(1);
   const [currentPhaseName, setCurrentPhaseName] = useState<ProtocolPhase>(PHASE_NAMES[0]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // Changed: Don't start with loading true
   const [sessionHistoryForAI, setSessionHistoryForAI] = useState<string | undefined>(undefined);
   const [isProtocolComplete, setIsProtocolComplete] = useState(false);
   const [sessionDataForSummary, setSessionDataForSummary] = useState<Partial<SessionDataForSummaryInternal>>({});
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentCircumstance, setCurrentCircumstance] = useState<string | null>(null);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [sessionInitialized, setSessionInitialized] = useState(false); // New state to track initialization
   
   // Enhanced emotional tracking
   const [emotionalProgression, setEmotionalProgression] = useState<Array<{
@@ -289,6 +291,46 @@ export default function ProtocolPage() {
         setCurrentPhase(sessionData.completedPhases + 1);
         setCurrentPhaseName(PHASE_NAMES[sessionData.completedPhases] || PHASE_NAMES[0]);
         
+        // Restore session-specific state
+        if (sessionData.emotionalProgression) {
+          setEmotionalProgression(sessionData.emotionalProgression.map(ep => ({
+            ...ep,
+            timestamp: ep.timestamp instanceof Timestamp ? ep.timestamp.toDate() : ep.timestamp
+          })));
+        }
+        
+        if (sessionData.keyStatements) {
+          setKeyStatements({
+            reframedBelief: sessionData.keyStatements.reframedBelief ? {
+              ...sessionData.keyStatements.reframedBelief,
+              timestamp: sessionData.keyStatements.reframedBelief.timestamp instanceof Timestamp 
+                ? sessionData.keyStatements.reframedBelief.timestamp.toDate()
+                : sessionData.keyStatements.reframedBelief.timestamp
+            } : undefined,
+            legacyStatement: sessionData.keyStatements.legacyStatement ? {
+              ...sessionData.keyStatements.legacyStatement,
+              timestamp: sessionData.keyStatements.legacyStatement.timestamp instanceof Timestamp
+                ? sessionData.keyStatements.legacyStatement.timestamp.toDate()
+                : sessionData.keyStatements.legacyStatement.timestamp
+            } : undefined,
+            insights: sessionData.keyStatements.insights?.map(insight => ({
+              ...insight,
+              timestamp: insight.timestamp instanceof Timestamp ? insight.timestamp.toDate() : insight.timestamp
+            }))
+          });
+        }
+        
+        // Restore session data for summary if it exists
+        if (sessionData.summary) {
+          setSessionDataForSummary({
+            actualReframedBelief: sessionData.summary.actualReframedBelief,
+            actualLegacyStatement: sessionData.summary.actualLegacyStatement,
+            topEmotions: sessionData.summary.topEmotions,
+            reframedBeliefInteraction: sessionData.summary.reframedBeliefInteraction,
+            legacyStatementInteraction: sessionData.summary.legacyStatementInteraction,
+          });
+        }
+        
         // Load existing messages
         const messagesQuery = query(
           collection(db, `users/${firebaseUser.uid}/sessions/${activeSessionDoc.id}/messages`),
@@ -306,6 +348,27 @@ export default function ProtocolPage() {
         });
         
         setMessages(existingMessages);
+        
+        // Set the last AI message for context
+        const lastAiMessage = existingMessages.filter(msg => msg.sender === 'ai').pop();
+        if (lastAiMessage) {
+          setLastAiQuestion(lastAiMessage.text);
+        }
+        
+        // Build session history for AI context
+        const conversationHistory = existingMessages
+          .map(msg => `${msg.sender}: ${msg.text}`)
+          .join('\n');
+        setSessionHistoryForAI(conversationHistory);
+        
+        console.log('Session resumed successfully:', {
+          sessionId: activeSessionDoc.id,
+          circumstance: sessionData.circumstance,
+          phase: sessionData.completedPhases + 1,
+          messageCount: existingMessages.length,
+          hasEmotionalProgression: !!sessionData.emotionalProgression,
+          hasKeyStatements: !!sessionData.keyStatements
+        });
         
         toast({
           title: "Session Resumed",
@@ -373,10 +436,12 @@ export default function ProtocolPage() {
   }, [firebaseUser, user, router, toast]);
 
   useEffect(() => {
-    if (firebaseUser && user && !currentSessionId) {
+    if (firebaseUser && user && !currentSessionId && !sessionInitialized) {
+      console.log('Initializing session...', { firebaseUser: !!firebaseUser, user: !!user, currentSessionId, sessionInitialized });
+      setSessionInitialized(true);
       initializeSession();
     }
-  }, [firebaseUser, user, currentSessionId, initializeSession]);
+  }, [firebaseUser, user, currentSessionId, sessionInitialized, initializeSession]);
 
   // This effect runs when the protocol is marked as 'finishing' to handle async operations
   useEffect(() => {
@@ -777,8 +842,21 @@ export default function ProtocolPage() {
           );
 
           setIsProtocolComplete(true); 
-          setShowFeedbackForm(true); // Show feedback form immediately
+          setShowFeedbackForm(false); // Don't show feedback immediately - let user see report first
           setIsLoading(false); 
+          
+          // Show success message and redirect to report
+          toast({
+            title: "Session Complete! 🎉",
+            description: "Your session report is ready. Take a moment to review your insights before providing feedback.",
+            duration: 8000,
+          });
+          
+          // Redirect to session report after a brief moment
+          setTimeout(() => {
+            router.push(`/session-report/${currentSessionId}?newCompletion=true`);
+          }, 2000);
+          
           return; 
         }
       } else {
@@ -821,10 +899,11 @@ export default function ProtocolPage() {
     setCurrentPhaseName(PHASE_NAMES[0]);
     setSessionDataForSummary({ topEmotions: "Not analyzed" });
     setSessionHistoryForAI(undefined);
+    setSessionInitialized(false); // Reset initialization state
   };
 
 
-  if (!firebaseUser || (!currentSessionId && isLoading && !isProtocolComplete)) { 
+  if (!firebaseUser || !user || (!currentSessionId && !sessionInitialized)) { 
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background text-primary">
         <Loader2 className="h-16 w-16 animate-pulse text-primary" />
@@ -863,7 +942,32 @@ export default function ProtocolPage() {
          <div className="flex flex-col items-center justify-center text-center p-8 bg-card rounded-lg shadow-md flex-grow">
           <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
           <h2 className="font-headline text-2xl text-primary mb-2">Finalizing Your Session...</h2>
-          <p className="text-muted-foreground">Just a moment while we prepare your insights and feedback form.</p>
+          <p className="text-muted-foreground">Just a moment while we prepare your insights and report.</p>
+        </div>
+      ) : isProtocolComplete && !showFeedbackForm ? (
+        <div className="flex flex-col items-center justify-center text-center p-8 bg-gradient-to-br from-primary/5 to-accent/5 rounded-lg shadow-md flex-grow border border-primary/20">
+          <CheckCircle className="h-16 w-16 text-green-600 mb-4" />
+          <h2 className="font-headline text-3xl text-primary mb-3">Session Complete! 🎉</h2>
+          <p className="text-muted-foreground text-lg mb-6 max-w-md">
+            Congratulations! You've completed your session. Your personalized report with insights and analysis is ready for review.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md">
+            <Button asChild size="lg" className="flex-1">
+              <Link href={`/session-report/${currentSessionId}`}>
+                <BookOpen className="mr-2 h-5 w-5" />
+                View Report
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="lg" className="flex-1">
+              <Link href="/sessions">
+                <Eye className="mr-2 h-5 w-5" />
+                All Sessions
+              </Link>
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-4">
+            You'll be redirected to your report shortly...
+          </p>
         </div>
       ) : !isProtocolComplete ? (
         <>

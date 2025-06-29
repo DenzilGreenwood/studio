@@ -9,7 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Loader2, BookOpen, PlusCircle, Eye, CheckCircle, Hourglass, Sparkles, PenSquare, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Loader2, BookOpen, PlusCircle, Eye, CheckCircle, Hourglass, Sparkles, PenSquare, Trash2, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -22,7 +24,29 @@ const toDate = (timestamp: Timestamp | Date): Date => {
   return timestamp instanceof Timestamp ? timestamp.toDate() : timestamp;
 };
 
-const SessionCard = ({ session, onDelete }: { session: SessionWithId; onDelete: (sessionId: string) => void }) => (
+const SessionCard = ({ session, onDelete, onQuickReflect }: { 
+  session: SessionWithId; 
+  onDelete: (sessionId: string) => void;
+  onQuickReflect: (sessionId: string, reflection: string) => void;
+}) => {
+  const [quickReflection, setQuickReflection] = React.useState('');
+  const [isQuickReflectOpen, setIsQuickReflectOpen] = React.useState(false);
+  const [isSavingReflection, setIsSavingReflection] = React.useState(false);
+
+  const handleQuickReflectSave = async () => {
+    if (!quickReflection.trim()) return;
+    
+    setIsSavingReflection(true);
+    try {
+      await onQuickReflect(session.sessionId, quickReflection);
+      setQuickReflection('');
+      setIsQuickReflectOpen(false);
+    } finally {
+      setIsSavingReflection(false);
+    }
+  };
+
+  return (
     <Card key={session.sessionId} className="shadow-md hover:shadow-xl transition-shadow duration-300">
         <CardHeader>
             <div className="flex justify-between items-start">
@@ -34,24 +58,50 @@ const SessionCard = ({ session, onDelete }: { session: SessionWithId; onDelete: 
                         Topic: {session.circumstance}
                     </CardDescription>
                 </div>
-                {session.completedPhases === 6 ? (
-                    <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Completed
-                    </Badge>
-                ) : (
-                    <Badge variant="secondary">
-                        <Hourglass className="mr-2 h-4 w-4" />
-                        In Progress
-                    </Badge>
-                )}
+                <div className="flex flex-col gap-2 items-end">
+                    {session.completedPhases === 6 ? (
+                        <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Completed
+                        </Badge>
+                    ) : (
+                        <Badge variant="secondary">
+                            <Hourglass className="mr-2 h-4 w-4" />
+                            In Progress
+                        </Badge>
+                    )}
+                    {/* Show journal availability indicator */}
+                    {session.completedPhases === 6 && (
+                        <div className="flex gap-1">
+                            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                                <BookOpen className="mr-1 h-3 w-3" />
+                                Journal Ready
+                            </Badge>
+                        </div>
+                    )}
+                </div>
             </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
             {session.summary?.actualReframedBelief ? (
-                <p className="text-muted-foreground italic truncate">
-                    <strong>Reframed Belief:</strong> "{session.summary.actualReframedBelief}"
-                </p>
+                <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground italic">
+                        <strong className="text-primary">Reframed Belief:</strong> "{session.summary.actualReframedBelief}"
+                    </p>
+                    {session.summary?.actualLegacyStatement && (
+                        <p className="text-sm text-muted-foreground italic">
+                            <strong className="text-purple-600">Legacy:</strong> "{session.summary.actualLegacyStatement}"
+                        </p>
+                    )}
+                    {session.summary?.topEmotions && (
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-muted-foreground">Emotions:</span>
+                            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                                {session.summary.topEmotions}
+                            </Badge>
+                        </div>
+                    )}
+                </div>
             ) : (
                 <p className="text-muted-foreground italic">
                     Session started on {toDate(session.startTime).toLocaleString()}.
@@ -74,6 +124,39 @@ const SessionCard = ({ session, onDelete }: { session: SessionWithId; onDelete: 
                                 <PenSquare className="ml-2 h-4 w-4" />
                             </Link>
                         </Button>
+                        <Dialog open={isQuickReflectOpen} onOpenChange={setIsQuickReflectOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                                    <MessageSquare className="h-4 w-4" />
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[500px]">
+                                <DialogHeader>
+                                    <DialogTitle>Quick Reflection</DialogTitle>
+                                    <DialogDescription>
+                                        Jot down a quick thought about your session from {toDate(session.startTime).toLocaleDateString()}
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <Textarea
+                                    placeholder="What stands out to you about this session? How are you feeling about it now?"
+                                    value={quickReflection}
+                                    onChange={(e) => setQuickReflection(e.target.value)}
+                                    className="min-h-[100px]"
+                                />
+                                <DialogFooter>
+                                    <Button variant="outline" onClick={() => setIsQuickReflectOpen(false)}>
+                                        Cancel
+                                    </Button>
+                                    <Button 
+                                        onClick={handleQuickReflectSave}
+                                        disabled={!quickReflection.trim() || isSavingReflection}
+                                    >
+                                        {isSavingReflection && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Save Reflection
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     </>
                 ) : (
                     <Button asChild variant="outline" className="w-full">
@@ -108,7 +191,8 @@ const SessionCard = ({ session, onDelete }: { session: SessionWithId; onDelete: 
             </AlertDialog>
         </CardFooter>
     </Card>
-);
+  );
+};
 
 export default function SessionsPage() {
   const { firebaseUser, user, loading: authLoading } = useAuth();
@@ -221,6 +305,35 @@ export default function SessionsPage() {
         variant: "destructive",
         title: "Error",
         description: "Failed to delete session"
+      });
+    }
+  };
+
+  const handleQuickReflect = async (sessionId: string, reflection: string) => {
+    if (!firebaseUser) return;
+
+    try {
+      // Store quick reflection in the session document
+      const sessionRef = doc(db, `users/${firebaseUser.uid}/sessions/${sessionId}`);
+      const currentDate = new Date().toISOString();
+      
+      await updateDoc(sessionRef, {
+        [`quickReflections.${currentDate}`]: {
+          text: reflection,
+          createdAt: serverTimestamp()
+        }
+      });
+
+      toast({
+        title: 'Reflection saved',
+        description: 'Your quick reflection has been added to this session.'
+      });
+    } catch (error) {
+      console.error('Error saving quick reflection:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Save Failed',
+        description: 'Could not save your reflection. Please try again.'
       });
     }
   };
@@ -407,19 +520,38 @@ export default function SessionsPage() {
             ) : (
                 <>
                 <div className="mb-6">
-                    <Select value={selectedCircumstance} onValueChange={setSelectedCircumstance}>
-                      <SelectTrigger className="w-full md:w-[300px]">
-                        <SelectValue placeholder="Select a challenge to review..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">All Challenges ({sessions.length} sessions)</SelectItem>
-                        {circumstances.map(c => (
-                            <SelectItem key={c} value={c}>
-                              {c} ({sessions.filter(s => s.circumstance === c).length} sessions)
-                            </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between">
+                        <Select value={selectedCircumstance} onValueChange={setSelectedCircumstance}>
+                          <SelectTrigger className="w-full md:w-[400px]">
+                            <SelectValue placeholder="Select a challenge to review..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">All Challenges ({sessions.length} sessions)</SelectItem>
+                            {circumstances.map(c => {
+                                const challengeSessions = sessions.filter(s => s.circumstance === c);
+                                const completedCount = challengeSessions.filter(s => s.completedPhases === 6).length;
+                                const inProgressCount = challengeSessions.length - completedCount;
+                                return (
+                                    <SelectItem key={c} value={c}>
+                                      {c} ({challengeSessions.length} total: {completedCount} completed, {inProgressCount} in progress)
+                                    </SelectItem>
+                                );
+                            })}
+                          </SelectContent>
+                        </Select>
+                        
+                        {/* Session Stats */}
+                        <div className="flex gap-4 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                <span>{completedSessions.length} Completed</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <Hourglass className="h-4 w-4 text-orange-600" />
+                                <span>{inProgressSessions.length} In Progress</span>
+                            </div>
+                        </div>
+                    </div>
                     
                     {/* Debug info */}
                     <div className="mt-2 text-sm text-muted-foreground">
@@ -430,7 +562,7 @@ export default function SessionsPage() {
                 
                 <div className="space-y-6">
                     {filteredSessions.length > 0 ? filteredSessions.map(session => (
-                        <SessionCard key={session.sessionId} session={session} onDelete={deleteSession} />
+                        <SessionCard key={session.sessionId} session={session} onDelete={deleteSession} onQuickReflect={handleQuickReflect} />
                     )) : (
                         <Card className="text-center p-8">
                              <CardHeader>
