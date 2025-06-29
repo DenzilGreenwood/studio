@@ -13,6 +13,7 @@ import { Loader2, BookOpen, PlusCircle, Eye, CheckCircle, Hourglass, Sparkles, P
 import Link from 'next/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { getCompleteSessionDataWithMigration } from '@/lib/session-report-utils';
 
 type SessionWithId = ProtocolSession & { sessionId: string };
 
@@ -68,7 +69,7 @@ const SessionCard = ({ session, onDelete }: { session: SessionWithId; onDelete: 
                             </Link>
                         </Button>
                         <Button asChild variant="default" className="flex-1">
-                            <Link href={`/journal/${session.sessionId}`}>
+                            <Link href={`/journal-v2/${session.sessionId}`}>
                                 Open Journal
                                 <PenSquare className="ml-2 h-4 w-4" />
                             </Link>
@@ -117,6 +118,7 @@ export default function SessionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCheckIn, setShowCheckIn] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -169,6 +171,8 @@ export default function SessionsPage() {
 
         console.log("Debug - Fetched sessions:", fetchedSessions.length);
         console.log("Debug - Sessions data:", fetchedSessions);
+        console.log("Debug - Completed sessions:", fetchedSessions.filter(s => s.completedPhases === 6));
+        console.log("Debug - In progress sessions:", fetchedSessions.filter(s => s.completedPhases < 6));
 
         const uniqueCircumstances = [...new Set(fetchedSessions.map(s => s.circumstance))];
         setCircumstances(uniqueCircumstances);
@@ -218,6 +222,47 @@ export default function SessionsPage() {
         title: "Error",
         description: "Failed to delete session"
       });
+    }
+  };
+
+  const testMigration = async () => {
+    if (!firebaseUser || sessions.length === 0) return;
+    
+    setIsMigrating(true);
+    try {
+      const completedSessions = sessions.filter(s => s.completedPhases === 6);
+      console.log("Testing migration for completed sessions:", completedSessions.length);
+      
+      for (const session of completedSessions) {
+        console.log(`Testing migration for session ${session.sessionId}`);
+        try {
+          const result = await getCompleteSessionDataWithMigration(firebaseUser.uid, session.sessionId);
+          console.log(`Migration result for ${session.sessionId}:`, result);
+          
+          if (result.wasMigrated) {
+            toast({
+              title: "Session Migrated",
+              description: `Session from ${toDate(session.startTime).toLocaleDateString()} was successfully migrated!`
+            });
+          }
+        } catch (error) {
+          console.error(`Migration failed for session ${session.sessionId}:`, error);
+        }
+      }
+      
+      toast({
+        title: "Migration Test Complete",
+        description: "Check the console for detailed results"
+      });
+    } catch (error) {
+      console.error("Migration test error:", error);
+      toast({
+        variant: "destructive",
+        title: "Migration Test Failed",
+        description: "Check console for details"
+      });
+    } finally {
+      setIsMigrating(false);
     }
   };
 
@@ -274,6 +319,16 @@ export default function SessionsPage() {
                             Trash
                         </Link>
                     </Button>
+                    {sessions.filter(s => s.completedPhases === 6).length > 0 && (
+                        <Button 
+                            onClick={testMigration} 
+                            disabled={isMigrating}
+                            variant="secondary"
+                            size="sm"
+                        >
+                            {isMigrating ? "Testing..." : "Test Migration"}
+                        </Button>
+                    )}
                 </div>
                  <Button asChild size="lg" className="mt-6 w-full sm:w-auto">
                     <Link href="/protocol">

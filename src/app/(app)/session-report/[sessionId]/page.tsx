@@ -472,7 +472,7 @@ export default function SessionReportPage() {
                                     <CardDescription>Reflect on your session with AI insights and set meaningful goals.</CardDescription>
                                 </div>
                             </div>
-                            <Link href={`/journal/${sessionId}`}>
+                            <Link href={`/journal-v2/${sessionId}`}>
                                 <Button className="flex items-center gap-2">
                                     <BookOpen className="h-4 w-4" />
                                     Open Journal
@@ -491,7 +491,7 @@ export default function SessionReportPage() {
                                     <li>• Personalized emotional support</li>
                                 </ul>
                             </div>
-                            <Link href={`/journal/${sessionId}`}>
+                            <Link href={`/journal-v2/${sessionId}`}>
                                 <Button size="lg" className="mt-4">
                                     <BookOpen className="mr-2 h-5 w-5" />
                                     Go to Session Journal

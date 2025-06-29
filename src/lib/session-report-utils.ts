@@ -35,13 +35,19 @@ export async function generateSessionReport(
       throw new Error('Cannot generate report for incomplete session');
     }
 
-    // Get all messages for analysis
-    const messagesQuery = query(
-      collection(db, `users/${userId}/sessions/${sessionId}/messages`),
-      orderBy('timestamp', 'asc')
-    );
-    const messagesSnap = await getDocs(messagesQuery);
-    const messages = messagesSnap.docs.map(doc => doc.data() as ChatMessage);
+    // Get all messages for analysis (handle case where no messages exist)
+    let messages: ChatMessage[] = [];
+    try {
+      const messagesQuery = query(
+        collection(db, `users/${userId}/sessions/${sessionId}/messages`),
+        orderBy('timestamp', 'asc')
+      );
+      const messagesSnap = await getDocs(messagesQuery);
+      messages = messagesSnap.docs.map(doc => doc.data() as ChatMessage);
+    } catch (error) {
+      console.warn(`No messages found for session ${sessionId}, proceeding with empty message array`);
+      messages = [];
+    }
 
     // Calculate session duration
     const startTime = sessionData.startTime instanceof Timestamp ? sessionData.startTime.toDate() : new Date(sessionData.startTime);
@@ -296,7 +302,21 @@ function analyzePhaseProgression(messages: ChatMessage[]) {
   });
 }
 
+function assessUserEngagement(messages: ChatMessage[]): 'high' | 'medium' | 'low' {
+  if (messages.length === 0) return 'low';
+  const userMessages = messages.filter(msg => msg.sender === 'user');
+  if (userMessages.length === 0) return 'low';
+  
+  const avgLength = userMessages.reduce((sum, msg) => sum + msg.text.length, 0) / userMessages.length;
+  
+  if (avgLength > 150) return 'high';
+  if (avgLength > 75) return 'medium';
+  return 'low';
+}
+
 function extractKeyBreakthroughs(messages: ChatMessage[]): string[] {
+  if (messages.length === 0) return [];
+  
   return messages
     .filter(msg => msg.sender === 'user' && msg.text.length > 100)
     .slice(-3) // Last 3 substantial user messages
@@ -304,6 +324,8 @@ function extractKeyBreakthroughs(messages: ChatMessage[]): string[] {
 }
 
 function extractCognitiveShifts(messages: ChatMessage[]): string[] {
+  if (messages.length === 0) return [];
+  
   // Simple implementation - look for phrases indicating shifts
   const shiftIndicators = ['I realize', 'I understand', 'I see that', 'Now I know', 'I\'ve learned'];
   return messages
@@ -313,22 +335,17 @@ function extractCognitiveShifts(messages: ChatMessage[]): string[] {
     .slice(0, 5);
 }
 
-function assessUserEngagement(messages: ChatMessage[]): 'high' | 'medium' | 'low' {
-  const userMessages = messages.filter(msg => msg.sender === 'user');
-  const avgLength = userMessages.reduce((sum, msg) => sum + msg.text.length, 0) / userMessages.length;
-  
-  if (avgLength > 150) return 'high';
-  if (avgLength > 75) return 'medium';
-  return 'low';
-}
-
 function findBreakthroughPhase(messages: ChatMessage[]): number {
+  if (messages.length === 0) return 1;
+  
   // Find the phase with the most substantial user responses
   const phaseMap = new Map<string, number>();
   messages.filter(msg => msg.sender === 'user').forEach(msg => {
     const current = phaseMap.get(msg.phaseName) || 0;
     phaseMap.set(msg.phaseName, current + msg.text.length);
   });
+
+  if (phaseMap.size === 0) return 1;
 
   let maxPhase = 1;
   let maxLength = 0;
@@ -353,6 +370,8 @@ function generateAIAssessment(sessionData: ProtocolSession, messages: ChatMessag
 }
 
 function extractKeyQuestions(messages: ChatMessage[]) {
+  if (messages.length === 0) return [];
+  
   const aiQuestions = messages.filter(msg => 
     msg.sender === 'ai' && msg.text.includes('?') && msg.text.length > 50
   );
@@ -386,4 +405,113 @@ function calculateJournalCompleteness(reflection: string, goals: Goal[]): number
   else if (goals.length >= 1) completeness += 20;
   
   return Math.min(completeness, 100);
+}
+
+/**
+ * Migrate an old session to the new report/journal structure
+ * This function handles sessions that were created before the new architecture
+ */
+export async function migrateOldSessionToNewStructure(
+  userId: string,
+  sessionId: string
+): Promise<{ report: SessionReport | null; journal: SessionJournal | null }> {
+  try {
+    console.log(`Starting migration for session ${sessionId}`);
+
+    // Get the original session data
+    const sessionDoc = await getDoc(doc(db, `users/${userId}/sessions/${sessionId}`));
+    if (!sessionDoc.exists()) {
+      throw new Error('Original session not found');
+    }
+
+    const sessionData = sessionDoc.data() as ProtocolSession;
+    console.log('Session data found:', {
+      circumstance: sessionData.circumstance,
+      completedPhases: sessionData.completedPhases,
+      hasSummary: !!sessionData.summary
+    });
+
+    // Only migrate completed sessions
+    if (sessionData.completedPhases < 6) {
+      console.log('Session not completed, skipping migration');
+      return { report: null, journal: null };
+    }
+
+    // Check if already migrated
+    const reportDoc = await getDoc(doc(db, `users/${userId}/reports/${sessionId}`));
+    if (reportDoc.exists()) {
+      console.log('Session already migrated');
+      const journalDoc = await getDoc(doc(db, `users/${userId}/journals/${sessionId}`));
+      return {
+        report: reportDoc.data() as SessionReport,
+        journal: journalDoc.exists() ? journalDoc.data() as SessionJournal : null
+      };
+    }
+
+    // Generate the report from the old session data
+    const report = await generateSessionReport(userId, sessionId);
+    if (!report) {
+      throw new Error('Failed to generate report during migration');
+    }
+
+    // Create initial journal if the old session had user reflection
+    let journal: SessionJournal | null = null;
+    if (sessionData.userReflection) {
+      journal = await createSessionJournal(
+        userId,
+        sessionId,
+        sessionData.userReflection,
+        []
+      );
+    } else {
+      // Create empty journal structure
+      journal = await createSessionJournal(userId, sessionId, '', []);
+    }
+
+    console.log(`Migration completed for session ${sessionId}`);
+    return { report, journal };
+
+  } catch (error) {
+    console.error(`Migration failed for session ${sessionId}:`, error);
+    return { report: null, journal: null };
+  }
+}
+
+/**
+ * Enhanced version of getCompleteSessionData that includes automatic migration
+ * for old sessions that haven't been migrated to the new structure
+ */
+export async function getCompleteSessionDataWithMigration(
+  userId: string,
+  sessionId: string
+): Promise<{ report: SessionReport | null; journal: SessionJournal | null; session: ProtocolSessionInteraction | null; wasMigrated: boolean }> {
+  try {
+    // First try to get the data normally
+    const { report, journal, session } = await getCompleteSessionData(userId, sessionId);
+
+    // If we have a report, return as normal
+    if (report) {
+      return { report, journal, session, wasMigrated: false };
+    }
+
+    // If no report but session exists, try migration
+    if (session && session.completedPhases === 6) {
+      console.log(`No report found for completed session ${sessionId}, attempting migration`);
+      const migrationResult = await migrateOldSessionToNewStructure(userId, sessionId);
+      
+      if (migrationResult.report) {
+        return {
+          report: migrationResult.report,
+          journal: migrationResult.journal,
+          session,
+          wasMigrated: true
+        };
+      }
+    }
+
+    return { report, journal, session, wasMigrated: false };
+  } catch (error) {
+    console.error('Error in getCompleteSessionDataWithMigration:', error);
+    return { report: null, journal: null, session: null, wasMigrated: false };
+  }
 }

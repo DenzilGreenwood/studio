@@ -6,7 +6,7 @@ import { useParams, useRouter, notFound } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { db, doc, updateDoc, Timestamp } from '@/lib/firebase';
 import type { SessionReport, SessionJournal, Goal } from '@/types/session-reports';
-import { getCompleteSessionData, generateJournalAssistance } from '@/lib/session-report-utils';
+import { getCompleteSessionDataWithMigration, generateJournalAssistance } from '@/lib/session-report-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -59,7 +59,7 @@ export default function JournalV2Page() {
     setError(null);
 
     try {
-      const { report: reportData, journal: journalData, session } = await getCompleteSessionData(firebaseUser.uid, sessionId);
+      const { report: reportData, journal: journalData, session, wasMigrated } = await getCompleteSessionDataWithMigration(firebaseUser.uid, sessionId);
 
       if (!reportData) {
         setError("Session report not found. This session may not be completed or may need to be migrated to the new structure.");
@@ -69,6 +69,14 @@ export default function JournalV2Page() {
       if (session?.isDeleted) {
         setError("This session has been moved to trash. Please restore it from the trash to access the journal.");
         return;
+      }
+
+      // Show migration success message if applicable
+      if (wasMigrated) {
+        toast({
+          title: 'Session Migrated',
+          description: 'Your session has been successfully migrated to the new journal system!'
+        });
       }
 
       setReport(reportData);
