@@ -25,9 +25,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
-import { generateCrossSessionAnalysis } from '@/ai/flows/cross-session-analysis-flow';
-import type { CrossSessionAnalysisOutput } from '@/ai/flows/cross-session-analysis-flow';
-import type { ProtocolSession } from '@/types';
+import type { CrossSessionAnalysisOutput, ProtocolSession } from '@/types';
 
 type SessionWithId = ProtocolSession & { sessionId: string };
 
@@ -118,7 +116,17 @@ export default function MyProgressPage() {
         focusArea: undefined // Could be inferred from common themes
       };
 
-      const analysisResult = await generateCrossSessionAnalysis(analysisInput);
+      const response = await fetch('/api/cross-session-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(analysisInput)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate analysis');
+      }
+
+      const analysisResult = await response.json();
       setAnalysis(analysisResult);
 
     } catch (error) {

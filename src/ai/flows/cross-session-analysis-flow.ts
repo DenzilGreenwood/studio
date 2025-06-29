@@ -12,80 +12,13 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'zod';
 import { runGenkitFlowWithRetry, formatAIError, logAIFlowExecution } from '@/lib/genkit-utils';
-
-// Input schema for cross-session analysis
-export const CrossSessionAnalysisInputSchema = z.object({
-  sessions: z.array(z.object({
-    date: z.string().describe('Session date'),
-    circumstance: z.string().describe('Challenge or situation addressed'),
-    reframedBelief: z.string().describe('The reframed belief developed'),
-    legacyStatement: z.string().describe('The legacy statement created'),
-    topEmotions: z.string().describe('Primary emotions from the session'),
-    emotionalJourney: z.string().optional().describe('Narrative of emotional progression'),
-    keyBreakthroughs: z.array(z.string()).optional().describe('Major breakthrough moments'),
-    goals: z.array(z.string()).optional().describe('Goals set after the session'),
-    completedGoals: z.number().optional().describe('Number of goals completed'),
-    duration: z.number().optional().describe('Session duration in minutes')
-  })).min(2).describe('Array of session data to analyze'),
-  
-  timeFrame: z.string().describe('Time period being analyzed (e.g., "last 3 months")'),
-  userAge: z.string().optional().describe('User age range for context'),
-  focusArea: z.string().optional().describe('Specific area of focus if any (e.g., "anxiety", "relationships")')
-});
-
-export type CrossSessionAnalysisInput = z.infer<typeof CrossSessionAnalysisInputSchema>;
-
-// Output schema for cross-session insights
-export const CrossSessionAnalysisOutputSchema = z.object({
-  overallGrowthSummary: z.string().describe('High-level summary of the user\'s growth journey'),
-  recurringPatterns: z.object({
-    emotionalPatterns: z.array(z.string()).describe('Recurring emotional themes across sessions'),
-    challengeTypes: z.array(z.string()).describe('Common types of challenges the user faces'),
-    copingStrategies: z.array(z.string()).describe('Effective coping strategies the user has developed'),
-    triggerSituations: z.array(z.string()).describe('Situations that commonly trigger difficulties')
-  }),
-  
-  progressIndicators: z.object({
-    emotionalResilience: z.object({
-      improvement: z.enum(['significant', 'moderate', 'minimal', 'variable']),
-      evidence: z.string().describe('Evidence for this assessment')
-    }),
-    selfAwareness: z.object({
-      improvement: z.enum(['significant', 'moderate', 'minimal', 'variable']),
-      evidence: z.string().describe('Evidence for this assessment')
-    }),
-    goalAchievement: z.object({
-      rate: z.number().min(0).max(100).describe('Percentage of goals completed'),
-      trend: z.enum(['improving', 'stable', 'declining']),
-      analysis: z.string().describe('Analysis of goal completion patterns')
-    })
-  }),
-  
-  beliefEvolution: z.object({
-    coreBeliefsIdentified: z.array(z.string()).describe('Core beliefs that have emerged across sessions'),
-    evolutionStory: z.string().describe('How the user\'s beliefs have evolved over time'),
-    consistentThemes: z.array(z.string()).describe('Consistent themes in their reframed beliefs')
-  }),
-  
-  recommendations: z.object({
-    areasForContinuedGrowth: z.array(z.string()).describe('Areas where continued work would be beneficial'),
-    strengthsToLeverage: z.array(z.string()).describe('Strengths the user can build upon'),
-    strategiesForChallenges: z.array(z.string()).describe('Strategies for persistent challenges'),
-    focusForNextSessions: z.string().describe('Suggested focus for upcoming sessions')
-  }),
-  
-  celebrationsAndMilestones: z.array(z.object({
-    milestone: z.string().describe('What they achieved'),
-    significance: z.string().describe('Why this is meaningful'),
-    evidence: z.string().describe('How this is evidenced in their sessions')
-  })),
-  
-  inspirationalMessage: z.string().describe('An encouraging message about their journey and progress')
-});
-
-export type CrossSessionAnalysisOutput = z.infer<typeof CrossSessionAnalysisOutputSchema>;
+import { 
+  CrossSessionAnalysisInputSchema, 
+  CrossSessionAnalysisOutputSchema,
+  type CrossSessionAnalysisInput,
+  type CrossSessionAnalysisOutput
+} from '@/types';
 
 const crossSessionAnalysisPrompt = ai.definePrompt({
   name: 'crossSessionAnalysisPrompt',
@@ -204,8 +137,33 @@ export async function generateCrossSessionAnalysis(input: CrossSessionAnalysisIn
         goalAchievement: {
           rate: 70,
           trend: 'stable',
-          analysis: "Regular goal-setting and follow-through"
+          analysis: "Regular goal-setting and follow-through",
+          evidence: "Consistent participation in session work"
+        },
+        copingSkills: {
+          improvement: 'moderate',
+          evidence: "Development of cognitive reframing and self-reflection practices"
         }
+      },
+      areasOfGrowth: {
+        strengths: ["Self-awareness", "Commitment to growth", "Resilience"],
+        improvements: ["Emotional regulation", "Self-reflection skills"],
+        opportunities: ["Deepening insight practice", "Expanding coping strategies"]
+      },
+      futureRecommendations: {
+        focusAreas: ["Continued self-reflection", "Building emotional resilience"],
+        strategies: ["Continue cognitive reframing work", "Build support networks"],
+        milestones: ["Develop consistent mindfulness practice", "Strengthen emotional regulation skills"]
+      },
+      sessionQualityInsights: {
+        mostImpactfulSessions: [
+          {
+            date: "Recent sessions",
+            reason: "Strong engagement with self-reflection and growth"
+          }
+        ],
+        patternsThatWork: ["Open self-reflection", "Cognitive reframing exercises"],
+        suggestedImprovements: ["Continue current approach", "Explore deeper emotional work"]
       },
       beliefEvolution: {
         coreBeliefsIdentified: ["I am capable of growth", "I can handle challenges"],

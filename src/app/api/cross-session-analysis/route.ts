@@ -1,7 +1,7 @@
 // src/app/api/cross-session-analysis/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { generateCrossSessionAnalysis } from '@/ai/flows/cross-session-analysis-flow';
-import type { CrossSessionAnalysisInput } from '@/ai/flows/cross-session-analysis-flow';
+import type { CrossSessionAnalysisInput } from '@/types';
 
 export async function POST(request: NextRequest) {
   try {
@@ -49,8 +49,33 @@ export async function POST(request: NextRequest) {
         goalAchievement: {
           rate: 70,
           trend: 'stable',
-          analysis: "Steady progress in setting and working toward meaningful goals"
+          analysis: "Steady progress in setting and working toward meaningful goals",
+          evidence: "Consistent effort in personal development activities"
+        },
+        copingSkills: {
+          improvement: 'moderate',
+          evidence: "Development of cognitive reframing and self-awareness practices"
         }
+      },
+      areasOfGrowth: {
+        strengths: ["Self-awareness", "Commitment to growth", "Resilience"],
+        improvements: ["Emotional regulation", "Self-reflection skills"],
+        opportunities: ["Deepening insight practice", "Expanding coping strategies"]
+      },
+      futureRecommendations: {
+        focusAreas: ["Deepening self-reflection practices", "Building emotional resilience"],
+        strategies: ["Continue cognitive reframing work", "Build support networks"],
+        milestones: ["Develop consistent mindfulness practice", "Strengthen emotional regulation skills"]
+      },
+      sessionQualityInsights: {
+        mostImpactfulSessions: [
+          {
+            date: "Recent sessions",
+            reason: "Strong engagement with self-reflection and growth"
+          }
+        ],
+        patternsThatWork: ["Open self-reflection", "Cognitive reframing exercises"],
+        suggestedImprovements: ["Continue current approach", "Explore deeper emotional work"]
       },
       beliefEvolution: {
         coreBeliefsIdentified: ["I am capable of growth", "I can learn from challenges"],
