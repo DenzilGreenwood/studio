@@ -167,15 +167,23 @@ export default function SessionsPage() {
         });
         setSessions(fetchedSessions);
 
+        console.log("Debug - Fetched sessions:", fetchedSessions.length);
+        console.log("Debug - Sessions data:", fetchedSessions);
+
         const uniqueCircumstances = [...new Set(fetchedSessions.map(s => s.circumstance))];
         setCircumstances(uniqueCircumstances);
-        // If there's only one circumstance, select it by default
-        if (uniqueCircumstances.length > 0) {
+        // Auto-select the first circumstance if only one exists, or show all if multiple
+        if (uniqueCircumstances.length === 1) {
             setSelectedCircumstance(uniqueCircumstances[0]!);
+        } else if (uniqueCircumstances.length > 1) {
+            // Set to empty string to show all sessions by default
+            setSelectedCircumstance('');
         }
 
       } catch (e: any) {
         console.error("Error fetching sessions:", e);
+        console.log("Debug - User ID:", firebaseUser?.uid);
+        console.log("Debug - Auth state:", { firebaseUser: !!firebaseUser, authLoading });
         setError("Failed to load your past sessions. Please try again later.");
       } finally {
         setIsLoading(false);
@@ -244,7 +252,9 @@ export default function SessionsPage() {
     );
   }
   
-  const filteredSessions = selectedCircumstance ? sessions.filter(s => s.circumstance === selectedCircumstance) : [];
+  const filteredSessions = selectedCircumstance 
+    ? sessions.filter(s => s.circumstance === selectedCircumstance) 
+    : sessions; // Show ALL sessions if no specific circumstance is selected
 
   return (
     <div className="bg-secondary/30 min-h-screen py-8">
@@ -327,9 +337,17 @@ export default function SessionsPage() {
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl">Your Journal is Empty</CardTitle>
                         <CardDescription className="text-base mt-2">
-                            You haven't completed any sessions. Start your journey to clarity now.
+                            You haven't completed any sessions yet. Start your journey to clarity now.
                         </CardDescription>
                     </CardHeader>
+                    <CardContent>
+                        <Button asChild size="lg">
+                            <Link href="/protocol">
+                                <PlusCircle className="mr-2 h-5 w-5" />
+                                Start Your First Session
+                            </Link>
+                        </Button>
+                    </CardContent>
                 </Card>
             ) : (
                 <>
@@ -339,11 +357,20 @@ export default function SessionsPage() {
                         <SelectValue placeholder="Select a challenge to review..." />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="">All Challenges ({sessions.length} sessions)</SelectItem>
                         {circumstances.map(c => (
-                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                            <SelectItem key={c} value={c}>
+                              {c} ({sessions.filter(s => s.circumstance === c).length} sessions)
+                            </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    
+                    {/* Debug info */}
+                    <div className="mt-2 text-sm text-muted-foreground">
+                      Showing {filteredSessions.length} of {sessions.length} total sessions
+                      {selectedCircumstance && ` for "${selectedCircumstance}"`}
+                    </div>
                 </div>
                 
                 <div className="space-y-6">

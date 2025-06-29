@@ -69,8 +69,11 @@ export function TTSSettings() {
           </div>
           
           <div className="pt-2 border-t">
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mb-2">
               Uses Google Cloud Text-to-Speech with high-quality neural voices
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Note: Auto-play may be blocked by browser security policies. Click the play button to enable audio.
             </p>
           </div>
         </div>

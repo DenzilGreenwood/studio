@@ -7,8 +7,13 @@ service cloud.firestore {
     function isAdmin() {
       return request.auth != null && 
              request.auth.uid != null &&
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+             (
+               // Hardcoded admin UIDs (fallback admin access)
+               request.auth.uid == "dgVSNzYT7SbsoOiIKWjBP0YJkUw2" ||
+               // Database-based admin check
+               (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
+             );
     }
 
     // Helper function to check if user owns the resource
@@ -34,6 +39,22 @@ service cloud.firestore {
     // Allow admins to read all sessions.
     match /users/{userId}/sessions/{sessionId} {
       allow read, write, delete: if isOwner(userId);
+      allow read: if isAdmin();
+    }
+
+    // REPORTS (New architecture)
+    // Allow users to read their own session reports.
+    // Allow admins to read all reports.
+    match /users/{userId}/reports/{reportId} {
+      allow read, write: if isOwner(userId);
+      allow read: if isAdmin();
+    }
+
+    // JOURNALS (New architecture)
+    // Allow users to manage their own journal entries.
+    // Allow admins to read all journals.
+    match /users/{userId}/journals/{journalId} {
+      allow read, write: if isOwner(userId);
       allow read: if isAdmin();
     }
 

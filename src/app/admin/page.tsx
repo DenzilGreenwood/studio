@@ -165,6 +165,24 @@ export default function AdminPage() {
         </div>
       </header>
 
+      {/* Admin Tools */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Admin Tools</CardTitle>
+          <CardDescription>Migration and maintenance tools for the platform.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4">
+            <Link href="/admin/migration">
+              <Button variant="outline" className="flex items-center gap-2">
+                <BarChart2 className="h-4 w-4" />
+                Session Migration Tool
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+
       <Tabs defaultValue="feedback" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="feedback"><MessageSquare className="mr-2"/>Feedback Analysis</TabsTrigger>
