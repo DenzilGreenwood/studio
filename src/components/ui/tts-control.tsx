@@ -61,7 +61,11 @@ export function TTSControl({
       // Provide more specific error messages
       let errorMessage = 'Unable to play audio. Please try again.';
       if (error instanceof Error) {
-        if (error.message.includes('user interaction')) {
+        if (error.message.includes('interrupted')) {
+          // This should now be handled in the service and not reach here, but just in case
+          console.log('TTS was interrupted by user - this is normal behavior');
+          return; // Don't show error toast for normal interruption
+        } else if (error.message.includes('user interaction')) {
           errorMessage = 'Audio playback requires user interaction. Please click the play button to enable audio.';
         } else if (error.message.includes('not-allowed')) {
           errorMessage = 'Audio playback blocked by browser. Please click the play button to enable audio.';

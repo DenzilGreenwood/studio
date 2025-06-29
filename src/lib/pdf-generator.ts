@@ -66,16 +66,27 @@ export class PDFGenerator {
   }
 
   private addText(text: string, size: number = 10, indent: number = 0): void {
-    if (!text) return;
+    if (!text || typeof text !== 'string') return;
+    
+    // Clean the text to remove any problematic characters
+    const cleanText = text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
     
     this.doc.setFontSize(size);
     this.doc.setFont('helvetica', 'normal');
     
-    const lines = this.doc.splitTextToSize(text, this.contentWidth - indent);
-    
-    for (const line of lines) {
+    try {
+      const lines = this.doc.splitTextToSize(cleanText, this.contentWidth - indent);
+      
+      for (const line of lines) {
+        this.checkPageBreak(size + 2);
+        this.doc.text(line, this.margin + indent, this.currentY);
+        this.currentY += size + 2;
+      }
+    } catch (error) {
+      console.warn('PDFGenerator: Error adding text, skipping:', error, { text: cleanText });
+      // Add a placeholder for problematic text
       this.checkPageBreak(size + 2);
-      this.doc.text(line, this.margin + indent, this.currentY);
+      this.doc.text('[Content could not be displayed]', this.margin + indent, this.currentY);
       this.currentY += size + 2;
     }
   }
@@ -435,64 +446,142 @@ export class PDFGenerator {
   }
 
   public async generateSessionPDF(sessionData: PDFSessionData): Promise<Blob> {
-    // Reset TOC entries for new document
-    this.tocEntries = [];
-    
-    // Add cover page (Page 1)
-    this.addCoverPage(sessionData);
-    
-    // Reserve page 2 for TOC - we'll come back to it
-    this.doc.addPage();
-    const tocPageNumber = this.doc.getNumberOfPages();
-    
-    // Add content starting from Page 3
-    this.doc.addPage();
-    this.currentY = this.margin;
-    
-    this.addSessionHeader(sessionData);
-    this.addSessionSummary(sessionData);
-    this.addJournalSection(sessionData);
-    
-    // Now go back and add the table of contents on page 2
-    this.doc.setPage(tocPageNumber);
-    this.currentY = this.margin;
-    this.addTableOfContents();
-    
-    // Add footer to all pages
-    this.addFooter();
-    
-    // Return PDF blob
-    return this.doc.output('blob');
+    try {
+      console.log('PDFGenerator: generateSessionPDF called with data:', sessionData);
+      
+      // Validate essential data
+      if (!sessionData.sessionId) {
+        throw new Error('Session ID is required for PDF generation');
+      }
+      
+      if (!sessionData.startTime) {
+        throw new Error('Start time is required for PDF generation');
+      }
+      
+      // Reset TOC entries for new document
+      this.tocEntries = [];
+      console.log('PDFGenerator: Starting with cover page...');
+      
+      // Add cover page (Page 1)
+      this.addCoverPage(sessionData);
+      console.log('PDFGenerator: Cover page added');
+      
+      // Reserve page 2 for TOC - we'll come back to it
+      this.doc.addPage();
+      const tocPageNumber = this.doc.getNumberOfPages();
+      console.log('PDFGenerator: TOC page reserved at page', tocPageNumber);
+      
+      // Add content starting from Page 3
+      this.doc.addPage();
+      this.currentY = this.margin;
+      console.log('PDFGenerator: Adding content sections...');
+      
+      this.addSessionHeader(sessionData);
+      console.log('PDFGenerator: Session header added');
+      
+      this.addSessionSummary(sessionData);
+      console.log('PDFGenerator: Session summary added');
+      
+      this.addJournalSection(sessionData);
+      console.log('PDFGenerator: Journal section added');
+      
+      // Now go back and add the table of contents on page 2
+      this.doc.setPage(tocPageNumber);
+      this.currentY = this.margin;
+      this.addTableOfContents();
+      console.log('PDFGenerator: Table of contents added');
+      
+      // Add footer to all pages
+      this.addFooter();
+      console.log('PDFGenerator: Footer added to all pages');
+      
+      // Return PDF blob
+      const blob = this.doc.output('blob');
+      console.log('PDFGenerator: PDF blob created, size:', blob.size);
+      return blob;
+    } catch (error) {
+      console.error('PDFGenerator: Error in generateSessionPDF:', error);
+      throw error;
+    }
   }
 
   public async downloadSessionPDF(sessionData: PDFSessionData, filename?: string): Promise<void> {
-    const blob = await this.generateSessionPDF(sessionData);
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename || `cognitive-insight-session-${sessionData.sessionId}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // Clean up
-    URL.revokeObjectURL(url);
+    try {
+      console.log('PDFGenerator: Starting PDF generation with data:', {
+        sessionId: sessionData.sessionId,
+        hasCircumstance: !!sessionData.circumstance,
+        hasSummary: !!sessionData.summary,
+        hasUserReflection: !!sessionData.userReflection,
+        hasGoals: !!(sessionData.goals && sessionData.goals.length > 0),
+        hasAIReflection: !!sessionData.aiReflection
+      });
+      
+      // Check if we're in a browser environment
+      if (typeof window === 'undefined' || typeof document === 'undefined') {
+        throw new Error('PDF generation requires a browser environment');
+      }
+      
+      const blob = await this.generateSessionPDF(sessionData);
+      console.log('PDFGenerator: PDF blob generated successfully, size:', blob.size);
+      
+      // Validate blob
+      if (!blob || blob.size === 0) {
+        throw new Error('Generated PDF is empty or invalid');
+      }
+      
+      const url = URL.createObjectURL(blob);
+      console.log('PDFGenerator: Object URL created:', url);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || `cognitive-insight-session-${sessionData.sessionId}.pdf`;
+      
+      // Add the link to the document and ensure it's focusable
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      
+      console.log('PDFGenerator: Triggering download for:', link.download);
+      
+      // For better browser compatibility, try different download methods
+      try {
+        link.click();
+      } catch (clickError) {
+        console.warn('PDFGenerator: Click method failed, trying alternative:', clickError);
+        // Fallback: try manual navigation
+        window.open(url, '_blank');
+      }
+      
+      // Clean up after a short delay to ensure download starts
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        URL.revokeObjectURL(url);
+      }, 100);
+      
+      console.log('PDFGenerator: PDF download completed successfully');
+    } catch (error) {
+      console.error('PDFGenerator: Error in downloadSessionPDF:', error);
+      throw error; // Re-throw to let the caller handle it
+    }
   }
 }
 
 // Utility function to prepare session data for PDF
 export function prepareSessionDataForPDF(sessionData: ProtocolSession): PDFSessionData {
+  console.log('prepareSessionDataForPDF: Input session data:', sessionData);
+  
   const convertTimestamp = (timestamp: any): Date => {
     if (timestamp instanceof Date) return timestamp;
     if (timestamp instanceof Timestamp) return timestamp.toDate();
     if (typeof timestamp === 'string' || typeof timestamp === 'number') return new Date(timestamp);
+    console.warn('prepareSessionDataForPDF: Invalid timestamp format, using current date:', timestamp);
     return new Date();
   };
 
-  return {
-    sessionId: sessionData.sessionId,
-    circumstance: sessionData.circumstance,
+  const result = {
+    sessionId: sessionData.sessionId || 'Unknown Session',
+    circumstance: sessionData.circumstance || 'No specific focus set',
     startTime: convertTimestamp(sessionData.startTime),
     endTime: sessionData.endTime ? convertTimestamp(sessionData.endTime) : undefined,
     summary: sessionData.summary,
@@ -500,4 +589,7 @@ export function prepareSessionDataForPDF(sessionData: ProtocolSession): PDFSessi
     goals: sessionData.goals,
     aiReflection: sessionData.aiReflection
   };
+  
+  console.log('prepareSessionDataForPDF: Prepared data:', result);
+  return result;
 }

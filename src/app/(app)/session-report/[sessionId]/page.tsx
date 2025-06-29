@@ -158,8 +158,19 @@ export default function SessionReportPage() {
     setIsGeneratingPdf(true);
 
     try {
+      console.log('Starting PDF generation...', { sessionData });
+      
+      // Test basic jsPDF functionality first
+      console.log('Testing basic jsPDF...');
+      const testDoc = new jsPDF();
+      testDoc.text('Test PDF', 20, 20);
+      const testBlob = testDoc.output('blob');
+      console.log('Basic jsPDF test successful, blob size:', testBlob.size);
+      
       const generator = new PDFGenerator();
       const pdfData = prepareSessionDataForPDF(sessionData);
+      
+      console.log('Prepared PDF data:', pdfData);
       
       // Add loading toast
       toast({ 
@@ -175,10 +186,21 @@ export default function SessionReportPage() {
       });
     } catch (error) {
       console.error('PDF generation error:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        sessionData: sessionData ? {
+          sessionId: sessionData.sessionId,
+          hasCircumstance: !!sessionData.circumstance,
+          hasSummary: !!sessionData.summary,
+          hasMessages: sessionData.chatMessages?.length
+        } : null
+      });
+      
       toast({ 
         variant: "destructive", 
         title: "PDF Generation Failed", 
-        description: "There was an error creating your PDF. Please try again." 
+        description: `Error: ${error instanceof Error ? error.message : 'Unknown error'}. Please check the browser console for details.` 
       });
     } finally {
       setIsGeneratingPdf(false);

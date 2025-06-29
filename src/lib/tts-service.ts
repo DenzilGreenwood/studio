@@ -123,6 +123,22 @@ class TextToSpeechService {
       
       utterance.onerror = (event) => {
         const errorMessage = event.error || 'Unknown speech synthesis error';
+        
+        // Handle "interrupted" as a normal stop event, not an error
+        if (errorMessage === 'interrupted') {
+          console.log('Speech synthesis was interrupted (user stopped playback)');
+          this.isPlaying = false;
+          this.onPlayingStateChange?.(false);
+          this.currentUtterance = null;
+          
+          // Resolve the promise since interruption is expected behavior
+          this.speechPromiseResolve?.();
+          this.speechPromiseResolve = undefined;
+          this.speechPromiseReject = undefined;
+          return;
+        }
+        
+        // Handle actual errors
         console.error('Speech synthesis error:', errorMessage, event);
         this.isPlaying = false;
         this.onPlayingStateChange?.(false);
@@ -274,7 +290,10 @@ class TextToSpeechService {
     this.isPlaying = false;
     this.currentUtterance = null;
     
-    // Clean up promise handlers
+    // Clean up promise handlers - resolve any pending promises when stopping
+    if (this.speechPromiseResolve) {
+      this.speechPromiseResolve();
+    }
     this.speechPromiseResolve = undefined;
     this.speechPromiseReject = undefined;
     
