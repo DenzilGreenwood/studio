@@ -537,7 +537,7 @@ export class PDFGenerator {
     this.addTitle('How to Use This Report', 14);
     
     const instructions = [
-      'This report captures your personal growth journey from this cognitive therapy session.',
+      'This report captures your personal growth journey from this cognitive consulting session.',
       '',
       '📖 Session Summary: Review the key insights and breakthroughs from your session.',
       '',
@@ -706,7 +706,7 @@ export class PDFGenerator {
 export function prepareSessionDataForPDF(sessionData: ProtocolSession): PDFSessionData {
   console.log('prepareSessionDataForPDF: Input session data:', sessionData);
   
-  const convertTimestamp = (timestamp: any): Date => {
+  const convertTimestamp = (timestamp: unknown): Date => {
     if (timestamp instanceof Date) return timestamp;
     if (timestamp instanceof Timestamp) return timestamp.toDate();
     if (typeof timestamp === 'string' || typeof timestamp === 'number') return new Date(timestamp);

@@ -2,7 +2,7 @@
 
 ## Overview
 
-I have successfully completed and enhanced the protocol section of the CognitiveInsight application. The protocol now provides a comprehensive cognitive therapy experience with proper data handling, session management, and reporting capabilities.
+I have successfully completed and enhanced the protocol section of the CognitiveInsight application. The protocol now provides a comprehensive cognitive consulting experience with proper data handling, session management, and reporting capabilities.
 
 ## Key Improvements Made
 
@@ -99,7 +99,7 @@ users/{userId}/sessions/{sessionId}/
 ## User Experience Flow
 
 1. **Start Protocol** → Resume existing or create new session
-2. **6-Phase Conversation** → Guided by AI through cognitive therapy phases
+2. **6-Phase Conversation** → Guided by AI through cognitive consulting phases
 3. **Session Completion** → Automatic summary and sentiment analysis
 4. **Feedback Collection** → Post-session evaluation
 5. **Session Report** → Complete summary and insights
@@ -146,7 +146,7 @@ While the protocol section is now complete and functional, potential future impr
 - 🔔 Reminder system for goal follow-ups
 - 🎯 Advanced goal categorization and tracking
 - 📱 Mobile app optimizations
-- 🤝 Therapist collaboration features
+- 🤝 Professional consultation collaboration features
 - 📈 Long-term progress analytics
 
 ## Conclusion
@@ -159,4 +159,4 @@ The protocol section is now fully functional with:
 - ✅ Professional user experience
 - ✅ Scalable architecture
 
-Users can now complete meaningful cognitive therapy sessions with proper data persistence, insightful reporting, and ongoing support through the journal system.
+Users can now complete meaningful cognitive consulting sessions with proper data persistence, insightful reporting, and ongoing support through the journal system.

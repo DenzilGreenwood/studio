@@ -26,7 +26,7 @@ const emotionalTonePrompt = ai.definePrompt({
   model: 'googleai/gemini-1.5-pro-latest',
   input: { schema: EmotionalToneInputSchema },
   output: { schema: EmotionalToneOutputSchema },
-  prompt: `You are an expert emotional tone analyzer specializing in cognitive therapy sessions.
+  prompt: `You are an expert emotional tone analyzer specializing in cognitive consulting sessions.
 
 Analyze the emotional tone of this user message:
 "{{{userMessage}}}"
@@ -45,7 +45,7 @@ Respond in this exact JSON format:
 }
 
 Use specific, nuanced emotional terms like "cautious optimism", "frustrated determination", "vulnerable openness" for primary emotion.
-Focus on emotions relevant to cognitive therapy: anxiety, depression, hope, clarity, confusion, resistance, acceptance, breakthrough moments, etc.`,
+Focus on emotions relevant to cognitive consulting: anxiety, depression, hope, clarity, confusion, resistance, acceptance, breakthrough moments, etc.`,
 });
 
 const emotionalToneFlow = ai.defineFlow(

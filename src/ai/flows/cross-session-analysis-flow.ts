@@ -25,7 +25,7 @@ const crossSessionAnalysisPrompt = ai.definePrompt({
   model: 'googleai/gemini-1.5-pro-latest',
   input: { schema: CrossSessionAnalysisInputSchema },
   output: { schema: CrossSessionAnalysisOutputSchema },
-  prompt: `You are an expert therapeutic analyst specializing in tracking personal growth patterns across multiple cognitive therapy sessions. Your role is to provide insightful, encouraging analysis of someone's journey over time.
+  prompt: `You are an expert growth analyst specializing in tracking personal development patterns across multiple cognitive consulting sessions. Your role is to provide insightful, encouraging analysis of someone's journey over time.
 
 You're analyzing {{{sessions.length}}} sessions over {{{timeFrame}}}:
 
@@ -113,7 +113,7 @@ export async function generateCrossSessionAnalysis(input: CrossSessionAnalysisIn
       2
     );
   } catch (error) {
-    const formattedError = formatAIError(error, 'Cross-Session Analysis');
+    const _formattedError = formatAIError(error, 'Cross-Session Analysis');
     logAIFlowExecution('generateCrossSessionAnalysis', input, undefined, error instanceof Error ? error : new Error(String(error)));
     
     // Provide a meaningful fallback response
@@ -128,7 +128,7 @@ export async function generateCrossSessionAnalysis(input: CrossSessionAnalysisIn
       progressIndicators: {
         emotionalResilience: {
           improvement: 'moderate',
-          evidence: "Consistent engagement with the therapeutic process"
+          evidence: "Consistent engagement with the consulting process"
         },
         selfAwareness: {
           improvement: 'moderate',
@@ -180,7 +180,7 @@ export async function generateCrossSessionAnalysis(input: CrossSessionAnalysisIn
         {
           milestone: "Consistent engagement with personal growth",
           significance: "Shows commitment to your development",
-          evidence: "Regular participation in therapeutic sessions"
+          evidence: "Regular participation in consulting sessions"
         }
       ],
       inspirationalMessage: "Your commitment to growth and self-reflection is admirable. Each session builds on the last, creating a foundation for lasting positive change."

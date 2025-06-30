@@ -37,7 +37,7 @@ const prompt = ai.definePrompt({
   model: 'googleai/gemini-1.5-pro-latest',
   input: {schema: GoalGeneratorInputSchema},
   output: {schema: GoalGeneratorOutputSchema},
-  prompt: `You are an empathetic and encouraging AI life coach. Your purpose is to help a user define actionable, meaningful goals after a cognitive therapy session.
+  prompt: `You are an empathetic and encouraging AI life coach. Your purpose is to help a user define actionable, meaningful goals after a cognitive consulting session.
 
 You will be given the summary of their session and their personal reflection on it.
 Based on this information, provide 3 to 5 concise, actionable, and encouraging goal suggestions. Frame them as positive actions. For example, instead of "Stop procrastinating," suggest "Dedicate 15 minutes each morning to my main project."

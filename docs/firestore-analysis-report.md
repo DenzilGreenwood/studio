@@ -5,7 +5,7 @@ The CognitiveInsight app's Firestore data structures have been analyzed, debugge
 
 ## Data Model Overview
 
-The app uses a **per-interaction session model** where each session document represents a single therapeutic conversation between the user and AI, not a summary or aggregate. Sessions progress through 6 phases of the Cognitive Edge Protocol and are completed when all phases are finished.
+The app uses a **per-interaction session model** where each session document represents a single consulting conversation between the user and AI, not a summary or aggregate. Sessions progress through 6 phases of the Cognitive Edge Protocol and are completed when all phases are finished.
 
 ## Issues Found & Fixed
 
@@ -58,7 +58,7 @@ interface UserProfile {
 ```
 
 #### `/users/{userId}/sessions/{sessionId}` - Individual Session Documents
-**IMPORTANT**: Each session document represents a **single therapeutic conversation**, not a summary of multiple interactions. Sessions progress through 6 phases of the Cognitive Edge Protocol.
+**IMPORTANT**: Each session document represents a **single consulting conversation**, not a summary of multiple interactions. Sessions progress through 6 phases of the Cognitive Edge Protocol.
 
 ```typescript
 interface ProtocolSession {
@@ -140,7 +140,7 @@ interface ProtocolSession {
 ```
 
 #### `/users/{userId}/sessions/{sessionId}/messages/{messageId}` - Chat Messages
-Each message represents one exchange in the therapeutic conversation.
+Each message represents one exchange in the consulting conversation.
 
 ```typescript
 interface ChatMessage {

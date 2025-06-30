@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       progressIndicators: {
         emotionalResilience: {
           improvement: 'moderate',
-          evidence: "Consistent engagement with the therapeutic process shows developing resilience"
+          evidence: "Consistent engagement with the consulting process shows developing resilience"
         },
         selfAwareness: {
           improvement: 'moderate', 
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       },
       beliefEvolution: {
         coreBeliefsIdentified: ["I am capable of growth", "I can learn from challenges"],
-        evolutionStory: "Your beliefs are evolving toward greater self-acceptance and resilience through continued therapeutic work.",
+        evolutionStory: "Your beliefs are evolving toward greater self-acceptance and resilience through continued consulting work.",
         consistentThemes: ["Personal growth", "Self-awareness", "Resilience building"]
       },
       recommendations: {
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
         {
           milestone: "Consistent commitment to personal growth",
           significance: "Shows dedication to your development journey",
-          evidence: "Regular engagement with therapeutic sessions and self-reflection"
+          evidence: "Regular engagement with consulting sessions and self-reflection"
         }
       ],
       inspirationalMessage: "Your dedication to growth and self-reflection is commendable. Each session builds upon the last, creating a solid foundation for positive change and personal development."

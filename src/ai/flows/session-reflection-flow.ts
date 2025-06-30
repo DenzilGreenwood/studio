@@ -67,7 +67,7 @@ const sessionReflectionPrompt = ai.definePrompt({
   model: 'googleai/gemini-1.5-pro-latest',
   input: { schema: SessionReflectionInputSchema },
   output: { schema: SessionReflectionOutputSchema },
-  prompt: `You are a warm, supportive AI companion helping someone reflect on their cognitive therapy session. Your role is to provide emotional support, celebrate progress, and help them see their growth journey clearly.
+  prompt: `You are a warm, supportive AI companion helping someone reflect on their cognitive consulting session. Your role is to provide emotional support, celebrate progress, and help them see their growth journey clearly.
 
 Session Details:
 - Date: {{{sessionDate}}}
@@ -115,7 +115,7 @@ Your task is to create a supportive, encouraging reflection that helps the user:
 - Hopeful and forward-looking
 
 **Avoid:**
-- Clinical or overly therapeutic language
+- Clinical or overly professional language
 - Minimizing their challenges
 - Generic platitudes
 - Overwhelming them with too much at once

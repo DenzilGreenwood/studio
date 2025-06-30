@@ -42,7 +42,7 @@ const journalAssistancePrompt = ai.definePrompt({
   model: 'googleai/gemini-1.5-pro-latest',
   input: { schema: JournalAssistanceInputSchema },
   output: { schema: JournalAssistanceOutputSchema },
-  prompt: `You are a supportive AI assistant helping someone reflect on their cognitive therapy session through journaling. Your role is to provide gentle guidance, thoughtful prompts, and encouraging insights to help them process their experience.
+  prompt: `You are a supportive AI assistant helping someone reflect on their cognitive consulting session through journaling. Your role is to provide gentle guidance, thoughtful prompts, and encouraging insights to help them process their experience.
 
 Session Report Summary:
 - Challenge addressed: {{{reportData.circumstance}}}
@@ -96,7 +96,7 @@ Your task is to create supportive journal assistance that includes:
 
 **Avoid:**
 - Generic advice or platitudes
-- Clinical or overly therapeutic language
+- Clinical or overly professional language
 - Overwhelming them with too many suggestions
 - Minimizing their challenges
 - Being prescriptive rather than exploratory

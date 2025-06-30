@@ -62,7 +62,7 @@ export async function analyzeEmotionalTone(input: EmotionalToneInput): Promise<E
 - **Structured JSON output** request for better parsing
 - **Handlebars templating** for proper variable substitution
 - **Clear instructions** for consistent AI responses
-- **Therapy-focused** emotion categories and terminology
+- **Consulting-focused** emotion categories and terminology
 
 ## Technical Benefits
 

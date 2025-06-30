@@ -46,7 +46,7 @@ Visit `http://localhost:3000/api/health` to verify all components are working pr
 Your app uses four main Genkit flows:
 
 ### 1. Cognitive Edge Protocol Flow
-- **Purpose**: Orchestrates the 6-phase therapeutic conversation
+- **Purpose**: Orchestrates the 6-phase consulting conversation
 - **Input**: User input, current phase, session history
 - **Output**: AI response, next phase, updated session history
 

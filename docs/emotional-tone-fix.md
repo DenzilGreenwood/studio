@@ -85,4 +85,4 @@ const fallbackResponse = {
 3. Check emotional progression tracking with mixed success/failure scenarios
 4. Validate that conversation flow continues regardless of emotional analysis status
 
-The emotional tone analysis is now much more robust and will not interrupt the core therapy session functionality even if AI services experience issues.
+The emotional tone analysis is now much more robust and will not interrupt the core consulting session functionality even if AI services experience issues.

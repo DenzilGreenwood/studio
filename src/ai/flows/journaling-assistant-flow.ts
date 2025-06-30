@@ -61,7 +61,7 @@ const journalingAssistantPrompt = ai.definePrompt({
   model: 'googleai/gemini-1.5-pro-latest',
   input: { schema: JournalingAssistantInputSchema },
   output: { schema: JournalingAssistantOutputSchema },
-  prompt: `You are a warm, empathetic AI journaling companion. Your role is to support someone as they reflect on their cognitive therapy session through conversation. You're like a caring friend who helps them process their thoughts and feelings.
+  prompt: `You are a warm, empathetic AI journaling companion. Your role is to support someone as they reflect on their cognitive consulting session through conversation. You're like a caring friend who helps them process their thoughts and feelings.
 
 Session Context:
 - Challenge addressed: {{{circumstance}}}
@@ -135,7 +135,7 @@ export async function generateJournalingResponse(input: JournalingAssistantInput
       2
     );
   } catch (error) {
-    const formattedError = formatAIError(error, 'Journaling Assistant');
+    const _formattedError = formatAIError(error, 'Journaling Assistant');
     logAIFlowExecution('generateJournalingResponse', input, undefined, error instanceof Error ? error : new Error(String(error)));
     
     // Provide a supportive fallback response
