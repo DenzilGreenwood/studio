@@ -25,7 +25,7 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfi
 import { auth } from "@/lib/firebase";
 import { createUserProfileDocument } from "@/context/auth-context";
 import { ADMIN_USER_IDS } from "@/hooks/use-is-admin";
-import { canCreateNewUser } from "@/lib/user-limit";
+import { canCreateNewUser, incrementUserCount } from "@/lib/user-limit";
 
 interface AuthFormProps {
   mode: "login" | "signup";
@@ -100,6 +100,14 @@ export function AuthForm({ mode }: AuthFormProps) {
           pseudonym: pseudonymToUse, 
           hasConsentedToDataUse: values.consentAgreed 
         });
+
+        // Increment user count after successful account creation
+        try {
+          await incrementUserCount();
+        } catch (countError) {
+          console.error('Failed to increment user count:', countError);
+          // Don't fail the signup if counter update fails
+        }
 
         toast({ title: "Signup Successful", description: "Redirecting to profile setup..." });
         router.push("/profile");

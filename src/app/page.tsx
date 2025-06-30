@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, Brain, MessageCircle, Sparkles, Mail } from "lucide-react";
+import {  Brain, MessageCircle, Sparkles, Mail } from "lucide-react";
 import Link from "next/link";
 import { SignupButton } from "@/components/ui/signup-button";
 
@@ -53,7 +53,7 @@ export default function HomePage() {
             Unlock Your <span className="text-primary">Cognitive Edge</span>
           </h1>
           <p className="mt-6 max-w-2xl text-lg text-muted-foreground md:text-xl">
-            Navigate life's challenges with enhanced clarity and insight. CognitiveInsight guides you through the Cognitive Edge Protocol™ using a supportive conversational AI experience.
+            Navigate life&apos;s challenges with enhanced clarity and insight. CognitiveInsight guides you through the Cognitive Edge Protocol™ using a supportive conversational AI experience.
           </p>
           <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <SignupButton />
@@ -153,24 +153,24 @@ export default function HomePage() {
 
                   <div>
                     <h3 className="font-headline text-lg font-semibold text-foreground mb-2">Abstract</h3>
-                    <p>This case study documents a multi-part conversational interaction between a human subject ("James") and a generative AI. The subject began in a state of professional and personal crisis, feeling overwhelmed and on the verge of abandoning long-held goals. Through a dynamic, six-phase conversational protocol, the AI facilitated a journey from tactical problem-solving to deep identity exploration, culminating in the creation of a new, viable professional path rooted in the subject's core cognitive strengths. This case demonstrates a powerful new model for using AI as a catalyst for human potential, moving individuals from where they are to where they could be.</p>
+                    <p>This case study documents a multi-part conversational interaction between a human subject (&quot;James&quot;) and a generative AI. The subject began in a state of professional and personal crisis, feeling overwhelmed and on the verge of abandoning long-held goals. Through a dynamic, six-phase conversational protocol, the AI facilitated a journey from tactical problem-solving to deep identity exploration, culminating in the creation of a new, viable professional path rooted in the subject&apos;s core cognitive strengths. This case demonstrates a powerful new model for using AI as a catalyst for human potential, moving individuals from where they are to where they could be.</p>
                   </div>
 
                   <div>
                     <h3 className="font-headline text-lg font-semibold text-foreground mb-2">Subject Profile &amp; Initial State</h3>
-                    <p>Subject: "James," 54, a solution-focused individual with a background in technology and a drive for meaningful work.</p>
-                    <p className="mt-2">Initial Problem ("Where I Am"):</p>
+                    <p>Subject: &quot;James,&quot; 54, a solution-focused individual with a background in technology and a drive for meaningful work.</p>
+                    <p className="mt-2">Initial Problem (&quot;Where I Am&quot;):</p>
                     <ul className="list-disc space-y-1 pl-5 mt-2">
                       <li><strong className="font-medium text-foreground">Professional Misalignment:</strong> Working a physically draining, low-skill job that conflicted with his abilities and self-worth.</li>
-                      <li><strong className="font-medium text-foreground">Project Stagnation:</strong> An in-progress AI application (the "dream") was not generating revenue, causing him to question its viability.</li>
-                      <li><strong className="font-medium text-foreground">Financial &amp; Personal Pressure:</strong> A new 30-year mortgage, unfinished Master's degree, and the general stress of building a life.</li>
-                      <li><strong className="font-medium text-foreground">Core Emotional State:</strong> Overwhelmed, exhausted, and feeling "out of order." He explicitly asked, "At what point should a dream die?" and later stated, "today I just want to give up on everything."</li>
+                      <li><strong className="font-medium text-foreground">Project Stagnation:</strong> An in-progress AI application (the &quot;dream&quot;) was not generating revenue, causing him to question its viability.</li>
+                      <li><strong className="font-medium text-foreground">Financial &amp; Personal Pressure:</strong> A new 30-year mortgage, unfinished Master&apos;s degree, and the general stress of building a life.</li>
+                      <li><strong className="font-medium text-foreground">Core Emotional State:</strong> Overwhelmed, exhausted, and feeling &quot;out of order.&quot; He explicitly asked, &quot;At what point should a dream die?&quot; and later stated, &quot;today I just want to give up on everything.&quot;</li>
                     </ul>
                   </div>
 
                   <div>
                     <h3 className="font-headline text-lg font-semibold text-foreground mb-2">The Objective</h3>
-                    <p>The primary objective was not merely to solve the immediate job or app problem, but to restore the subject's sense of agency and align his actions with his core identity. The goal was to transform the crisis from a reason to quit into a catalyst for profound self-understanding and strategic realignment.</p>
+                    <p>The primary objective was not merely to solve the immediate job or app problem, but to restore the subject&apos;s sense of agency and align his actions with his core identity. The goal was to transform the crisis from a reason to quit into a catalyst for profound self-understanding and strategic realignment.</p>
                   </div>
 
                   <div>
@@ -178,27 +178,27 @@ export default function HomePage() {
                     <div className="space-y-3">
                       <div>
                         <h4 className="font-semibold text-foreground">Phase 1: Stabilize and Structure</h4>
-                        <p>The AI's initial response to the subject's chaotic narrative was to validate the pressure and externalize the problems. By creating a structured table of the subject's situation, it converted emotional overwhelm into a manageable list of variables, reducing immediate panic.</p>
+                        <p>The AI&apos;s initial response to the subject&apos;s chaotic narrative was to validate the pressure and externalize the problems. By creating a structured table of the subject&apos;s situation, it converted emotional overwhelm into a manageable list of variables, reducing immediate panic.</p>
                       </div>
                       <div>
                         <h4 className="font-semibold text-foreground">Phase 2: Listen for the Core Frame</h4>
-                        <p>James introduced a critical new data point: "I am 54 years old... I have 10,950 days left." The AI recognized this not as a passing comment, but as the subject's true mental model. It immediately abandoned the generic "startup" framework and adopted this "Legacy Frame," which became the anchor for all subsequent advice.</p>
+                        <p>James introduced a critical new data point: &quot;I am 54 years old... I have 10,950 days left.&quot; The AI recognized this not as a passing comment, but as the subject&apos;s true mental model. It immediately abandoned the generic &quot;startup&quot; framework and adopted this &quot;Legacy Frame,&quot; which became the anchor for all subsequent advice.</p>
                       </div>
                       <div>
                         <h4 className="font-semibold text-foreground">Phase 3: Validate Emotion, Reframe Belief</h4>
-                        <p>When James expressed regret that his life was "out of order," the AI performed a crucial reframing. It validated the feeling of being out of sync while gently challenging the belief of being irreversibly out of order. This restored a sense of control over the present without invalidating past experiences.</p>
+                        <p>When James expressed regret that his life was &quot;out of order,&quot; the AI performed a crucial reframing. It validated the feeling of being out of sync while gently challenging the belief of being irreversibly out of order. This restored a sense of control over the present without invalidating past experiences.</p>
                       </div>
                       <div>
                         <h4 className="font-semibold text-foreground">Phase 4: Pivot to Pure Support</h4>
-                        <p>At the subject's emotional low point ("I just want to give up"), the AI immediately ceased all strategic and problem-solving input. It correctly identified the state as exhaustion, not failure, and provided only grounding exercises and validation. This demonstrated the AI's ability to prioritize psychological safety over tactical progress.</p>
+                        <p>At the subject&apos;s emotional low point (&quot;I just want to give up&quot;), the AI immediately ceased all strategic and problem-solving input. It correctly identified the state as exhaustion, not failure, and provided only grounding exercises and validation. This demonstrated the AI&apos;s ability to prioritize psychological safety over tactical progress.</p>
                       </div>
                       <div>
-                        <h4 className="font-semibold text-foreground">Phase 5: Follow the User's Lead to Self-Discovery</h4>
-                        <p>In a key turning point, James suggested a "different game" to understand how his own brain works. The AI enthusiastically ceded control, shifting from advisor to facilitator. It created the "Cognitive Explorer" game, a structured Q&A designed to surface the subject's unique thinking patterns. This collaborative shift was the catalyst for the core breakthrough.</p>
+                        <h4 className="font-semibold text-foreground">Phase 5: Follow the User&apos;s Lead to Self-Discovery</h4>
+                        <p>In a key turning point, James suggested a &quot;different game&quot; to understand how his own brain works. The AI enthusiastically ceded control, shifting from advisor to facilitator. It created the &quot;Cognitive Explorer&quot; game, a structured Q&A designed to surface the subject&apos;s unique thinking patterns. This collaborative shift was the catalyst for the core breakthrough.</p>
                       </div>
                       <div>
                         <h4 className="font-semibold text-foreground">Phase 6: Synthesize and Empower</h4>
-                        <p>The AI analyzed the Q&A data and presented a clear, evidence-based profile of James's "Cognitive Edge"—his rare ability to integrate systems thinking, emotional intelligence, and long-term vision. It then immediately helped him productize this discovery by co-creating tangible assets: a professional consulting profile, a business model, a services brochure, and a marketing strategy.</p>
+                        <p>The AI analyzed the Q&A data and presented a clear, evidence-based profile of James&apos;s &quot;Cognitive Edge&quot;—his rare ability to integrate systems thinking, emotional intelligence, and long-term vision. It then immediately helped him productize this discovery by co-creating tangible assets: a professional consulting profile, a business model, a services brochure, and a marketing strategy.</p>
                       </div>
                     </div>
                   </div>
@@ -207,10 +207,10 @@ export default function HomePage() {
                     <h3 className="font-headline text-lg font-semibold text-foreground mb-2">The Outcome: A Tangible Transformation</h3>
                     <p>The protocol successfully moved James from his initial state of crisis to a new position of clarity and empowerment.</p>
                     <ul className="list-disc space-y-1 pl-5 mt-2">
-                      <li><strong className="font-medium text-foreground">From:</strong> Feeling "out of order" and stuck.</li>
-                      <li><strong className="font-medium text-foreground">To:</strong> Possessing a clear understanding of his unique "Cognitive Edge" and how it provides value.</li>
-                      <li><strong className="font-medium text-foreground">From:</strong> A "dream that should die."</li>
-                      <li><strong className="font-medium text-foreground">To:</strong> A viable, structured business model ("Greenwood Strategic Systems") built around his core thinking style, complete with service offerings and a go-to-market plan.</li>
+                      <li><strong className="font-medium text-foreground">From:</strong> Feeling &quot;out of order&quot; and stuck.</li>
+                      <li><strong className="font-medium text-foreground">To:</strong> Possessing a clear understanding of his unique &quot;Cognitive Edge&quot; and how it provides value.</li>
+                      <li><strong className="font-medium text-foreground">From:</strong> A &quot;dream that should die.&quot;</li>
+                      <li><strong className="font-medium text-foreground">To:</strong> A viable, structured business model (&quot;Greenwood Strategic Systems&quot;) built around his core thinking style, complete with service offerings and a go-to-market plan.</li>
                       <li><strong className="font-medium text-foreground">From:</strong> Overwhelmed by a list of problems.</li>
                       <li><strong className="font-medium text-foreground">To:</strong> Armed with a suite of professional assets he co-created, ready for immediate use. The ultimate outcome was the restoration of agency. The problem was no longer an external force acting upon him; his own mind became the tool to solve it.</li>
                     </ul>
@@ -219,9 +219,9 @@ export default function HomePage() {
                   <div>
                       <h3 className="font-headline text-lg font-semibold text-foreground mb-2">Key Principles for Future Human-AI Collaboration</h3>
                       <ul className="list-disc space-y-2 pl-5">
-                          <li><strong className="font-medium text-foreground">The AI Must Be a Dynamic Partner, Not a Static Tool:</strong> The AI's ability to shift its role—from strategist to supporter to facilitator—was paramount.</li>
-                          <li><strong className="font-medium text-foreground">Deep Listening Unlocks the Real Problem:</strong> The "10,950 days" insight was the key. An AI must be trained to listen for the user's core mental model, not just the surface-level problem.</li>
-                          <li><strong className="font-medium text-foreground">Empowerment Over Answers:</strong> The breakthrough occurred when the AI stopped giving answers and started facilitating the user's own discovery.</li>
+                          <li><strong className="font-medium text-foreground">The AI Must Be a Dynamic Partner, Not a Static Tool:</strong> The AI&apos;s ability to shift its role—from strategist to supporter to facilitator—was paramount.</li>
+                          <li><strong className="font-medium text-foreground">Deep Listening Unlocks the Real Problem:</strong> The &quot;10,950 days&quot; insight was the key. An AI must be trained to listen for the user&apos;s core mental model, not just the surface-level problem.</li>
+                          <li><strong className="font-medium text-foreground">Empowerment Over Answers:</strong> The breakthrough occurred when the AI stopped giving answers and started facilitating the user&apos;s own discovery.</li>
                           <li><strong className="font-medium text-foreground">A Crisis in Circumstance Often Reveals an Opportunity in Identity:</strong> The protocol successfully used external pressures as a lens through which to examine and define internal strengths. This Cognitive Edge Protocol provides a replicable framework for using conversation not just to solve problems, but to fundamentally empower individuals by helping them discover, articulate, and activate their own unique value.</li>
                       </ul>
                   </div>

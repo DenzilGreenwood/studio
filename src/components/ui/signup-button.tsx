@@ -26,7 +26,13 @@ export function SignupButton() {
       } catch (error) {
         console.error('Error checking user limit:', error);
         // Default to allowing signup if check fails
-        setLimitStatus({ allowed: true, currentCount: 0, maxUsers: 30, remainingSlots: 30 });
+        setLimitStatus({ 
+          allowed: true, 
+          currentCount: 0, 
+          maxUsers: 30, 
+          remainingSlots: 30,
+          message: 'Registration is open (user limit check unavailable)'
+        });
       } finally {
         setIsLoading(false);
       }

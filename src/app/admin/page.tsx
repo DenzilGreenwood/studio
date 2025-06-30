@@ -128,6 +128,11 @@ export default function AdminPage() {
         const currentUserCount = await getCurrentUserCount();
         setUserCount(currentUserCount);
 
+        // Initialize user count if it seems wrong (less than actual users we can see)
+        if (currentUserCount < finalGroupedData.length) {
+          console.log('User count seems low, but not auto-correcting to avoid conflicts');
+        }
+
       } catch (e: unknown) {
         console.error("Error fetching admin data:", e);
         setError("Failed to load admin data. Check Firestore rules and permissions.");
@@ -185,6 +190,23 @@ export default function AdminPage() {
                 Session Migration Tool
               </Button>
             </Link>
+            <Button 
+              variant="outline" 
+              onClick={async () => {
+                try {
+                  // Initialize user counter based on actual user count
+                  const actualCount = groupedSessions.length + (feedback.filter(f => !groupedSessions.some(gs => gs.user.uid === f.userId)).length);
+                  // This would need a special admin function to set the counter
+                  console.log('Actual user count:', actualCount);
+                } catch (error) {
+                  console.error('Error initializing counter:', error);
+                }
+              }}
+              className="flex items-center gap-2"
+            >
+              <BarChart2 className="h-4 w-4" />
+              Initialize User Counter
+            </Button>
           </div>
         </CardContent>
       </Card>

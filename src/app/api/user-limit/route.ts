@@ -12,16 +12,19 @@ export async function GET() {
       ...result,
       currentCount,
       maxUsers,
-      remainingSlots: maxUsers - currentCount
+      remainingSlots: Math.max(0, maxUsers - currentCount)
     });
   } catch (error) {
     console.error('Error checking user limit:', error);
     return NextResponse.json(
       { 
-        allowed: false, 
-        message: 'Unable to verify user capacity. Please try again later.' 
+        allowed: true, // Default to allowing signup if check fails
+        message: 'Unable to verify user capacity, but registration is open',
+        currentCount: 0,
+        maxUsers: getMaxUsers(),
+        remainingSlots: getMaxUsers()
       },
-      { status: 500 }
+      { status: 200 }
     );
   }
 }

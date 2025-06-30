@@ -85,5 +85,13 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow update: if false;
     }
+
+    // SYSTEM
+    // Allow reading user count for signup validation (no auth required for checking signup limits)
+    // Allow writing to increment user count during signup (requires auth)
+    match /system/userCount {
+      allow read: if true; // Allow anyone to check user count
+      allow update, create: if request.auth != null; // Only authenticated users can update
+    }
   }
 }
