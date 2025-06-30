@@ -1,6 +1,6 @@
 // src/lib/pdf-generator.ts
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+
 import { Timestamp } from 'firebase/firestore';
 import type { ProtocolSession, Goal } from '@/types';
 
@@ -192,22 +192,27 @@ export class PDFGenerator {
     this.doc.text('Table of Contents', this.margin, this.currentY);
     this.currentY += 20;
     
-    // TOC Entries
+    // TOC Entries - Only show sections with content
     this.doc.setFontSize(10);
     this.doc.setFont('helvetica', 'normal');
     
-    this.tocEntries.forEach(entry => {
-      const yPos = this.currentY;
-      
-      // Check for page break within TOC
-      this.checkPageBreak(12);
-      
-      // Section title
-      this.doc.setFont('helvetica', entry.hasContent ? 'normal' : 'italic');
-      this.doc.setTextColor(entry.hasContent ? 0 : 128, entry.hasContent ? 0 : 128, entry.hasContent ? 0 : 128);
-      this.doc.text(entry.title, this.margin, this.currentY);
-      
-      // Page number
+    const entriesWithContent = this.tocEntries.filter(entry => entry.hasContent);
+    
+    if (entriesWithContent.length === 0) {
+      this.doc.text('No content sections available', this.margin, this.currentY);
+      this.currentY += 10;
+    } else {
+      entriesWithContent.forEach(entry => {
+    
+        // Check for page break within TOC
+        this.checkPageBreak(12);
+        
+        // Section title
+        this.doc.setFont('helvetica', 'normal');
+        this.doc.setTextColor(0, 0, 0);
+        this.doc.text(entry.title, this.margin, this.currentY);
+        
+        // Page number
       const pageText = entry.page.toString();
       const pageWidth = this.doc.getTextWidth(pageText);
       this.doc.text(pageText, this.pageWidth - this.margin - pageWidth, this.currentY);
@@ -224,7 +229,8 @@ export class PDFGenerator {
       }
       
       this.currentY += 12;
-    });
+      });
+    }
     
     // Reset text color
     this.doc.setTextColor(0, 0, 0);
@@ -350,15 +356,56 @@ export class PDFGenerator {
     }
     this.currentY += 5;
 
-    // Goals
-    this.addSubtitle('Your Goals');
+    // Goals - Enhanced Action Plan Format
+    this.addSubtitle('🎯 Your Action Plan');
     if (hasGoals) {
-      data.goals!.forEach((goal, index) => {
-        const status = goal.completed ? '✓' : '○';
-        this.addText(`${status} ${goal.text}`, 10, 5);
+      // Add action plan header box
+      this.doc.setFillColor(248, 249, 250); // Light gray background
+      this.doc.setDrawColor(108, 117, 125); // Gray border
+      this.checkPageBreak(15);
+      this.doc.rect(this.margin, this.currentY - 5, this.contentWidth, 12, 'FD');
+      
+      this.doc.setFontSize(9);
+      this.doc.setFont('helvetica', 'bold');
+      this.doc.text('Your commitments for growth and positive change:', this.margin + 5, this.currentY + 3);
+      this.currentY += 15;
+      
+      this.doc.setFont('helvetica', 'normal');
+      data.goals!.forEach((goal, _index) => {
+        this.checkPageBreak(15);
+        
+        // Goal status box
+        const fillColor = goal.completed ? [220, 252, 231] : [254, 249, 195]; // Green if completed, yellow if pending
+        const borderColor = goal.completed ? [34, 197, 94] : [245, 158, 11]; // Green or amber border
+        this.doc.setFillColor(fillColor[0], fillColor[1], fillColor[2]);
+        this.doc.setDrawColor(borderColor[0], borderColor[1], borderColor[2]);
+        this.doc.rect(this.margin, this.currentY - 3, this.contentWidth, 12, 'FD');
+        
+        // Status indicator
+        const statusIcon = goal.completed ? '✅' : '🎯';
+        const statusText = goal.completed ? 'COMPLETED' : 'IN PROGRESS';
+        
+        this.doc.setFontSize(8);
+        this.doc.setFont('helvetica', 'bold');
+        const textColor = goal.completed ? [21, 128, 61] : [146, 64, 14]; // Dark green or amber text
+        this.doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+        this.doc.text(`${statusIcon} ${statusText}`, this.margin + 5, this.currentY + 1);
+        
+        // Goal text
+        this.doc.setFontSize(10);
+        this.doc.setFont('helvetica', 'normal');
+        this.doc.setTextColor(0, 0, 0);
+        const goalLines = this.doc.splitTextToSize(goal.text, this.contentWidth - 20);
+        this.doc.text(goalLines, this.margin + 5, this.currentY + 7);
+        
+        this.currentY += Math.max(12, goalLines.length * 5 + 7);
       });
+      
+      // Reset colors
+      this.doc.setTextColor(0, 0, 0);
+      this.doc.setFont('helvetica', 'normal');
     } else {
-      this.addEmptyPlaceholder('Goals', 'No goals have been set for this session');
+      this.addEmptyPlaceholder('Action Plan', 'No specific goals have been set for this session');
     }
     this.currentY += 5;
 
@@ -445,6 +492,85 @@ export class PDFGenerator {
     }
   }
 
+  private addExecutiveSummary(data: PDFSessionData): void {
+    // Only add executive summary if we have meaningful content
+    const hasContent = !!(data.summary?.insightSummary || data.summary?.actualReframedBelief || data.aiReflection?.conversationalHighlights);
+    
+    if (!hasContent) return;
+    
+    this.addTOCEntry('Executive Summary', true);
+    this.addTitle('Executive Summary', 14);
+    
+    // Quick overview box
+    this.doc.setFillColor(240, 248, 255); // Light blue background
+    this.doc.setDrawColor(100, 149, 237); // Cornflower blue border
+    this.checkPageBreak(40);
+    this.doc.rect(this.margin, this.currentY - 5, this.contentWidth, 35, 'FD');
+    
+    this.doc.setFontSize(10);
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.text('Key Takeaways from This Session:', this.margin + 10, this.currentY + 8);
+    
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFontSize(9);
+    
+    let summaryText = '';
+    if (data.summary?.actualReframedBelief) {
+      summaryText += `• New Belief: ${data.summary.actualReframedBelief.substring(0, 80)}${data.summary.actualReframedBelief.length > 80 ? '...' : ''}\n`;
+    }
+    if (data.summary?.topEmotions) {
+      summaryText += `• Primary Emotions: ${data.summary.topEmotions}\n`;
+    }
+    if (data.goals && data.goals.length > 0) {
+      summaryText += `• Goals Set: ${data.goals.length} action items to work on\n`;
+    }
+    
+    const summaryLines = this.doc.splitTextToSize(summaryText, this.contentWidth - 20);
+    this.doc.text(summaryLines, this.margin + 10, this.currentY + 18);
+    
+    this.currentY += 40;
+    this.addSeparator();
+  }
+
+  private addHowToUseSection(): void {
+    this.addTOCEntry('How to Use This Report', true);
+    this.addTitle('How to Use This Report', 14);
+    
+    const instructions = [
+      'This report captures your personal growth journey from this cognitive therapy session.',
+      '',
+      '📖 Session Summary: Review the key insights and breakthroughs from your session.',
+      '',
+      '🧠 AI Reflection: Your personalized AI-generated insights to deepen your understanding.',
+      '',
+      '✍️ Personal Journal: Your own thoughts and reflections - the most important part!',
+      '',
+      '🎯 Goals & Actions: Concrete steps you\'ve committed to taking forward.',
+      '',
+      '💡 How to get the most value:',
+      '• Review this report within 24-48 hours while the session is fresh',
+      '• Use the reflection prompts to continue your inner work',
+      '• Check your progress on goals before your next session',
+      '• Keep this report handy for future reference and growth tracking'
+    ];
+    
+    this.doc.setFontSize(10);
+    this.doc.setFont('helvetica', 'normal');
+    
+    instructions.forEach(instruction => {
+      if (instruction === '') {
+        this.currentY += 5;
+      } else {
+        this.checkPageBreak(8);
+        const lines = this.doc.splitTextToSize(instruction, this.contentWidth);
+        this.doc.text(lines, this.margin, this.currentY);
+        this.currentY += lines.length * 6;
+      }
+    });
+    
+    this.addSeparator();
+  }
+
   public async generateSessionPDF(sessionData: PDFSessionData): Promise<Blob> {
     try {
       console.log('PDFGenerator: generateSessionPDF called with data:', sessionData);
@@ -476,6 +602,12 @@ export class PDFGenerator {
       this.currentY = this.margin;
       console.log('PDFGenerator: Adding content sections...');
       
+      this.addExecutiveSummary(sessionData);
+      console.log('PDFGenerator: Executive summary added');
+      
+      this.addHowToUseSection();
+      console.log('PDFGenerator: How to use section added');
+      
       this.addSessionHeader(sessionData);
       console.log('PDFGenerator: Session header added');
       
@@ -484,6 +616,9 @@ export class PDFGenerator {
       
       this.addJournalSection(sessionData);
       console.log('PDFGenerator: Journal section added');
+      
+      this.addHowToUseSection();
+      console.log('PDFGenerator: How to use section added');
       
       // Now go back and add the table of contents on page 2
       this.doc.setPage(tocPageNumber);
