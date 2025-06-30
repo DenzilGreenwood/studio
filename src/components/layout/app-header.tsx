@@ -28,7 +28,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import React, { useState, useEffect } from "react";
 import { useIsAdmin } from "@/hooks/use-is-admin";
-import { db, collection, query, where, orderBy, getDocs, Timestamp } from "@/lib/firebase";
+import { db, collection, query, orderBy, getDocs } from "@/lib/firebase";
 import type { ProtocolSession } from "@/types";
 
 export function AppHeader() {
@@ -42,7 +42,7 @@ export function AppHeader() {
   const [checkingSession, setCheckingSession] = useState(false);
 
   // Check for active sessions
-  const checkForActiveSession = async () => {
+  const checkForActiveSession = React.useCallback(async () => {
     if (!firebaseUser) {
       setActiveSession(null);
       return;
@@ -72,18 +72,17 @@ export function AppHeader() {
       } else {
         setActiveSession(null);
       }
-    } catch (error) {
-      console.error("Error checking for active sessions:", error);
+    } catch {
       setActiveSession(null);
     } finally {
       setCheckingSession(false);
     }
-  };
+  }, [firebaseUser]);
 
   // Check for active sessions when user changes
   useEffect(() => {
     checkForActiveSession();
-  }, [firebaseUser]);
+  }, [checkForActiveSession]);
 
   const handleContinueSession = () => {
     router.push('/protocol');
