@@ -25,6 +25,7 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfi
 import { auth } from "@/lib/firebase";
 import { createUserProfileDocument } from "@/context/auth-context";
 import { ADMIN_USER_IDS } from "@/hooks/use-is-admin";
+import { canCreateNewUser } from "@/lib/user-limit";
 
 interface AuthFormProps {
   mode: "login" | "signup";
@@ -42,7 +43,6 @@ const signupSchema = formSchemaBase.extend({
   }),
 });
 
-type LoginFormValues = z.infer<typeof formSchemaBase>;
 type SignupFormValues = z.infer<typeof signupSchema>;
 
 export function AuthForm({ mode }: AuthFormProps) {
@@ -75,6 +75,17 @@ export function AuthForm({ mode }: AuthFormProps) {
         }
 
       } else { // mode === "signup"
+        // Check user limit before creating account
+        const limitCheck = await canCreateNewUser();
+        if (!limitCheck.allowed) {
+          toast({
+            variant: "destructive",
+            title: "Registration Unavailable",
+            description: limitCheck.message || "Registration is currently closed.",
+          });
+          return;
+        }
+
         const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
         
         const pseudonymToUse = values.pseudonym ? values.pseudonym.trim() : "";
@@ -93,7 +104,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         toast({ title: "Signup Successful", description: "Redirecting to profile setup..." });
         router.push("/profile");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const authError = error as AuthError;
       let errorMessage = "An unexpected error occurred. Please try again.";
       if (authError.code) {

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, Brain, MessageCircle, Sparkles, Mail } from "lucide-react";
 import Link from "next/link";
+import { SignupButton } from "@/components/ui/signup-button";
 
 interface FeatureCardProps {
   icon: React.ReactNode;
@@ -55,11 +56,7 @@ export default function HomePage() {
             Navigate life's challenges with enhanced clarity and insight. CognitiveInsight guides you through the Cognitive Edge Protocol™ using a supportive conversational AI experience.
           </p>
           <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-            <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg transition-transform hover:scale-105">
-              <Link href="/signup">
-                Start Your Journey <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
+            <SignupButton />
             <Button variant="outline" size="lg" asChild className="shadow-lg transition-transform hover:scale-105">
               <Link href="#features">Learn More</Link>
             </Button>
@@ -102,11 +99,9 @@ export default function HomePage() {
                         <p className="mt-4 text-lg text-muted-foreground">
                             Join CognitiveInsight today and start transforming your perspective. Our scientifically-backed protocol and supportive AI are here to help you find your path.
                         </p>
-                        <Button asChild size="lg" className="mt-8 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg transition-transform hover:scale-105">
-                            <Link href="/signup">
-                                Sign Up Now <ArrowRight className="ml-2 h-5 w-5" />
-                            </Link>
-                        </Button>
+                        <div className="mt-8">
+                          <SignupButton />
+                        </div>
                     </div>
                 </div>
             </Card>

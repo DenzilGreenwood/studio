@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { getCurrentUserCount, getMaxUsers } from '@/lib/user-limit';
 
 // Extend local types to include necessary data from queries
 type FeedbackWithId = SessionFeedback & { feedbackId: string };
@@ -27,6 +28,8 @@ export default function AdminPage() {
   const { firebaseUser, loading: authLoading } = useAuth();
   const [feedback, setFeedback] = useState<FeedbackWithId[]>([]);
   const [groupedSessions, setGroupedSessions] = useState<GroupedSessionData[]>([]);
+  const [userCount, setUserCount] = useState<number>(0);
+  const [maxUsers] = useState<number>(getMaxUsers());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -121,8 +124,11 @@ export default function AdminPage() {
 
         setGroupedSessions(finalGroupedData);
 
+        // Fetch current user count
+        const currentUserCount = await getCurrentUserCount();
+        setUserCount(currentUserCount);
 
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error("Error fetching admin data:", e);
         setError("Failed to load admin data. Check Firestore rules and permissions.");
       } finally {
@@ -179,6 +185,33 @@ export default function AdminPage() {
                 Session Migration Tool
               </Button>
             </Link>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* User Statistics */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>User Statistics</CardTitle>
+          <CardDescription>Current user registration status and limits.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-primary/5 p-4 rounded-lg">
+              <h3 className="font-semibold text-lg">Total Users</h3>
+              <p className="text-3xl font-bold text-primary">{userCount}</p>
+            </div>
+            <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+              <h3 className="font-semibold text-lg">Users with Sessions</h3>
+              <p className="text-3xl font-bold text-amber-700">{groupedSessions.length}</p>
+            </div>
+            <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+              <h3 className="font-semibold text-lg">Registration Limit</h3>
+              <p className="text-3xl font-bold text-red-700">{maxUsers}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {maxUsers - userCount} slots remaining
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
