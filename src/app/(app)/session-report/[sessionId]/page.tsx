@@ -1,12 +1,12 @@
 // src/app/(app)/session-report/[sessionId]/page.tsx
 "use client";
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams, notFound } from 'next/navigation'; 
 import { useAuth } from '@/context/auth-context';
-import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp, updateDoc, serverTimestamp, writeBatch } from '@/lib/firebase';
+import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp } from '@/lib/firebase';
 import type { ProtocolSession, ChatMessage as FirestoreChatMessage, UserProfile } from '@/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -17,7 +17,7 @@ import { cn, convertProtocolSessionTimestamps } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast'; 
 import jsPDF from 'jspdf';
 import { PDFGenerator, prepareSessionDataForPDF } from '@/lib/pdf-generator';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
 import { useIsAdmin } from '@/hooks/use-is-admin';
 import { EmotionalProgression } from '@/components/protocol/emotional-progression';
@@ -131,9 +131,9 @@ export default function SessionReportPage() {
 
         setSessionData(fullSessionData);
 
-      } catch (e: any) {
-        console.error("Error fetching session report:", e);
-        setError(e.message || "Failed to load session report.");
+      } catch (error: unknown) {
+        console.error("Error fetching session report:", error);
+        setError(error instanceof Error ? error.message : "Failed to load session report.");
       } finally {
         setIsLoading(false);
       }
@@ -303,6 +303,7 @@ export default function SessionReportPage() {
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[525px]">
+                           <DialogTitle className="sr-only">Session Feedback</DialogTitle>
                            {firebaseUser && circumstance && (
                               <PostSessionFeedback
                                 sessionId={sessionId}
@@ -351,14 +352,14 @@ export default function SessionReportPage() {
                     <Card className="mb-3 p-4 bg-muted/30 border-dashed">
                       <p className="text-xs text-foreground/90 mb-1 font-medium flex items-center">
                         <Bot className="h-4 w-4 mr-2 text-accent" />
-                        AI's Question:
+                        AI&apos;s Question:
                       </p>
-                      <p className="text-sm text-muted-foreground italic mb-3">"{summary.reframedBeliefInteraction.aiQuestion}"</p>
+                      <p className="text-sm text-muted-foreground italic mb-3">&ldquo;{summary.reframedBeliefInteraction.aiQuestion}&rdquo;</p>
                       <p className="text-xs text-foreground/90 mb-1 font-medium flex items-center">
                         <User className="h-4 w-4 mr-2 text-primary" />
                         Your Answer:
                       </p>
-                      <p className="text-sm text-muted-foreground italic">"{summary.reframedBeliefInteraction.userResponse}"</p>
+                      <p className="text-sm text-muted-foreground italic">&ldquo;{summary.reframedBeliefInteraction.userResponse}&rdquo;</p>
                     </Card>
                   )}
                   <p className="text-muted-foreground bg-background p-3 rounded-md border"><strong className="text-primary">Final Belief:</strong> {summary.actualReframedBelief}</p>
@@ -373,14 +374,14 @@ export default function SessionReportPage() {
                     <Card className="mb-3 p-4 bg-muted/30 border-dashed">
                       <p className="text-xs text-foreground/90 mb-1 font-medium flex items-center">
                         <Bot className="h-4 w-4 mr-2 text-accent" />
-                        AI's Question:
+                        AI&apos;s Question:
                       </p>
-                      <p className="text-sm text-muted-foreground italic mb-3">"{summary.legacyStatementInteraction.aiQuestion}"</p>
+                      <p className="text-sm text-muted-foreground italic mb-3">&ldquo;{summary.legacyStatementInteraction.aiQuestion}&rdquo;</p>
                       <p className="text-xs text-foreground/90 mb-1 font-medium flex items-center">
                         <User className="h-4 w-4 mr-2 text-primary" />
                         Your Answer:
                       </p>
-                      <p className="text-sm text-muted-foreground italic">"{summary.legacyStatementInteraction.userResponse}"</p>
+                      <p className="text-sm text-muted-foreground italic">&ldquo;{summary.legacyStatementInteraction.userResponse}&rdquo;</p>
                     </Card>
                   )}
                   <p className="text-muted-foreground bg-background p-3 rounded-md border"><strong className="text-primary">Final Statement:</strong> {summary.actualLegacyStatement}</p>
@@ -588,6 +589,7 @@ export default function SessionReportPage() {
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-lg">
+                          <DialogTitle className="sr-only">Session Feedback</DialogTitle>
                           <PostSessionFeedback
                             sessionId={sessionId}
                             userId={firebaseUser?.uid || ''}

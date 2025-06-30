@@ -113,7 +113,18 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function extractRecurringThemes(sessions: any[]): string[] {
+interface SessionData {
+  id: string;
+  circumstance?: string;
+  summary?: {
+    topEmotions?: string;
+    actualReframedBelief?: string;
+  };
+  goals?: Array<{ completed?: boolean }>;
+  startTime: Date;
+}
+
+function extractRecurringThemes(sessions: SessionData[]): string[] {
   const themes = new Map<string, number>();
   
   sessions.forEach(session => {
@@ -121,9 +132,9 @@ function extractRecurringThemes(sessions: any[]): string[] {
       // Simple keyword extraction - could be enhanced with NLP
       const words = session.circumstance.toLowerCase()
         .split(/\s+/)
-        .filter(word => word.length > 4 && !['that', 'this', 'with', 'when', 'where', 'what', 'have', 'been', 'will', 'they', 'their', 'there'].includes(word));
+        .filter((word: string) => word.length > 4 && !['that', 'this', 'with', 'when', 'where', 'what', 'have', 'been', 'will', 'they', 'their', 'there'].includes(word));
       
-      words.forEach(word => {
+      words.forEach((word: string) => {
         themes.set(word, (themes.get(word) || 0) + 1);
       });
     }
@@ -136,7 +147,7 @@ function extractRecurringThemes(sessions: any[]): string[] {
     .map(([theme]) => theme);
 }
 
-function calculateGoalAchievementRate(sessions: any[]): number {
+function calculateGoalAchievementRate(sessions: SessionData[]): number {
   const allGoals = sessions.flatMap(session => session.goals || []);
   if (allGoals.length === 0) return 0;
   
@@ -144,9 +155,9 @@ function calculateGoalAchievementRate(sessions: any[]): number {
   return Math.round((completedGoals.length / allGoals.length) * 100);
 }
 
-function generateGrowthInsights(sessions: any[]): GrowthReportData['insights'] {
-  const recentSessions = sessions.slice(0, 3);
-  const olderSessions = sessions.slice(3);
+function generateGrowthInsights(sessions: SessionData[]): GrowthReportData['insights'] {
+  const _recentSessions = sessions.slice(0, 3);
+  const _olderSessions = sessions.slice(3);
   
   return {
     overallProgress: sessions.length > 3 
