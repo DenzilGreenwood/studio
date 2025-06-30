@@ -1,6 +1,24 @@
 // src/app/(app)/sessions/page.tsx
 "use client";
 
+/**
+ * Sessions Page - Displays user's session history
+ * 
+ * IMPORTANT: This page uses a corrected Firestore query to properly filter deleted sessions.
+ * The query now uses where('isDeleted', '==', false) instead of the problematic 
+ * where('isDeleted', '!=', true) which doesn't work reliably in Firestore.
+ * 
+ * For this to work correctly, all active sessions MUST have isDeleted: false explicitly set.
+ * The fallback mechanism                        <CardDescription>
+                            It&apos;s been a while. Reflecting on past insights can spark new growth.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground mb-4">
+                            Consider revisiting your last session on &ldquo;{latestSession.circumstance}&rdquo; to add your thoughts and set new goals.
+                        </p> cases where the composite index isn't available.
+ */
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { db, collection, query, where, orderBy, getDocs, doc, updateDoc, serverTimestamp, Timestamp } from '@/lib/firebase';
@@ -15,7 +33,6 @@ import { Loader2, BookOpen, PlusCircle, Eye, CheckCircle, Hourglass, Sparkles, P
 import Link from 'next/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { getCompleteSessionDataWithMigration } from '@/lib/session-report-utils';
 
 type SessionWithId = ProtocolSession & { sessionId: string };
 
@@ -86,11 +103,11 @@ const SessionCard = ({ session, onDelete, onQuickReflect }: {
             {session.summary?.actualReframedBelief ? (
                 <div className="space-y-2">
                     <p className="text-sm text-muted-foreground italic">
-                        <strong className="text-primary">Reframed Belief:</strong> "{session.summary.actualReframedBelief}"
+                        <strong className="text-primary">Reframed Belief:</strong> &ldquo;{session.summary.actualReframedBelief}&rdquo;
                     </p>
                     {session.summary?.actualLegacyStatement && (
                         <p className="text-sm text-muted-foreground italic">
-                            <strong className="text-purple-600">Legacy:</strong> "{session.summary.actualLegacyStatement}"
+                            <strong className="text-purple-600">Legacy:</strong> &ldquo;{session.summary.actualLegacyStatement}&rdquo;
                         </p>
                     )}
                     {session.summary?.topEmotions && (
@@ -201,8 +218,7 @@ export default function SessionsPage() {
   const [selectedCircumstance, setSelectedCircumstance] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showCheckIn, setShowCheckIn] = useState(false);
-  const [isMigrating, setIsMigrating] = useState(false);
+  const [_showCheckIn, _setShowCheckIn] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -216,11 +232,13 @@ export default function SessionsPage() {
       setError(null);
       try {
         // First try with the composite query
+        // NOTE: This query requires that all active sessions have isDeleted: false
+        // If sessions are missing the isDeleted field, they won't be returned
         let querySnapshot;
         try {
           const sessionsQuery = query(
             collection(db, `users/${firebaseUser.uid}/sessions`),
-            where('isDeleted', '!=', true), // Exclude deleted sessions
+            where('isDeleted', '==', false), // Corrected: Query for explicitly non-deleted sessions
             orderBy("startTime", "desc")
           );
           querySnapshot = await getDocs(sessionsQuery);
@@ -241,8 +259,8 @@ export default function SessionsPage() {
         
         const fetchedSessions: SessionWithId[] = querySnapshot.docs.map(doc => {
           const data = doc.data() as ProtocolSession;
-          const convertTimestamp = (field: any) => 
-            field instanceof Timestamp ? field.toDate() : (field ? new Date(field) : undefined);
+          const convertTimestamp = (field: unknown) => 
+            field instanceof Timestamp ? field.toDate() : (field ? new Date(field as string | number | Date) : undefined);
             
           return {
             ...data,
@@ -268,8 +286,8 @@ export default function SessionsPage() {
             setSelectedCircumstance('');
         }
 
-      } catch (e: any) {
-        console.error("Error fetching sessions:", e);
+      } catch (error: unknown) {
+        console.error("Error fetching sessions:", error);
         console.log("Debug - User ID:", firebaseUser?.uid);
         console.log("Debug - Auth state:", { firebaseUser: !!firebaseUser, authLoading });
         setError("Failed to load your past sessions. Please try again later.");
@@ -338,47 +356,6 @@ export default function SessionsPage() {
     }
   };
 
-  const testMigration = async () => {
-    if (!firebaseUser || sessions.length === 0) return;
-    
-    setIsMigrating(true);
-    try {
-      const completedSessions = sessions.filter(s => s.completedPhases === 6);
-      console.log("Testing migration for completed sessions:", completedSessions.length);
-      
-      for (const session of completedSessions) {
-        console.log(`Testing migration for session ${session.sessionId}`);
-        try {
-          const result = await getCompleteSessionDataWithMigration(firebaseUser.uid, session.sessionId);
-          console.log(`Migration result for ${session.sessionId}:`, result);
-          
-          if (result.wasMigrated) {
-            toast({
-              title: "Session Migrated",
-              description: `Session from ${toDate(session.startTime).toLocaleDateString()} was successfully migrated!`
-            });
-          }
-        } catch (error) {
-          console.error(`Migration failed for session ${session.sessionId}:`, error);
-        }
-      }
-      
-      toast({
-        title: "Migration Test Complete",
-        description: "Check the console for detailed results"
-      });
-    } catch (error) {
-      console.error("Migration test error:", error);
-      toast({
-        variant: "destructive",
-        title: "Migration Test Failed",
-        description: "Check console for details"
-      });
-    } finally {
-      setIsMigrating(false);
-    }
-  };
-
   const { completedSessions, inProgressSessions } = useMemo(() => {
     const completed = sessions.filter(s => s.completedPhases === 6);
     const inProgress = sessions.filter(s => s.completedPhases < 6);
@@ -432,16 +409,6 @@ export default function SessionsPage() {
                             Trash
                         </Link>
                     </Button>
-                    {sessions.filter(s => s.completedPhases === 6).length > 0 && (
-                        <Button 
-                            onClick={testMigration} 
-                            disabled={isMigrating}
-                            variant="secondary"
-                            size="sm"
-                        >
-                            {isMigrating ? "Testing..." : "Test Migration"}
-                        </Button>
-                    )}
                 </div>
                  <Button asChild size="lg" className="mt-6 w-full sm:w-auto">
                     <Link href="/protocol">
@@ -474,19 +441,19 @@ export default function SessionsPage() {
                 </CardContent>
             </Card>
 
-            {showCheckIn && latestSession && (
+            {_showCheckIn && latestSession && (
                 <Card className="mb-8 bg-accent/20 border-accent/50 shadow-lg">
                     <CardHeader>
                         <CardTitle className="font-headline text-accent-foreground/90 flex items-center gap-2">
                             <Sparkles className="h-6 w-6" /> Time for a Check-in?
                         </CardTitle>
                         <CardDescription>
-                            It's been a while. Reflecting on past insights can spark new growth.
+                            It&apos;s been a while. Reflecting on past insights can spark new growth.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <p className="text-muted-foreground mb-4">
-                            Consider revisiting your last session on "{latestSession.circumstance}" to add your thoughts and set new goals.
+                            Consider revisiting your last session on &ldquo;{latestSession.circumstance}&rdquo; to add your thoughts and set new goals.
                         </p>
                     </CardContent>
                     <CardFooter className="gap-4">
@@ -505,7 +472,7 @@ export default function SessionsPage() {
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl">Your Journal is Empty</CardTitle>
                         <CardDescription className="text-base mt-2">
-                            You haven't completed any sessions yet. Start your journey to clarity now.
+                            You haven&apos;t completed any sessions yet. Start your journey to clarity now.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
