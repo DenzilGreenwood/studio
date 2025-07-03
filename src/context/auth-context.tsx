@@ -25,6 +25,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { UserProfile } from '@/types';
+import { encryptUserProfile, decryptUserProfile } from '@/lib/data-encryption';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -83,16 +84,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         unsubscribeSnapshot = onSnapshot(userRef, 
           (docSnap) => { 
             if (docSnap.exists()) {
-              const profileData = docSnap.data() as UserProfile;
-              const convertTimestamp = (field: any) =>
-                field instanceof Timestamp ? field.toDate() : (field && typeof field.toDate === 'function' ? field.toDate() : field) ;
+              const encryptedProfileData = docSnap.data() as UserProfile;
+              
+              // Decrypt profile data before setting user state
+              decryptUserProfile(encryptedProfileData)
+                .then(profileData => {
+                  const convertTimestamp = (field: any) =>
+                    field instanceof Timestamp ? field.toDate() : (field && typeof field.toDate === 'function' ? field.toDate() : field);
 
-              setUser({
-                ...profileData,
-                createdAt: convertTimestamp(profileData.createdAt),
-                lastSessionAt: profileData.lastSessionAt ? convertTimestamp(profileData.lastSessionAt) : undefined,
-                lastCheckInAt: profileData.lastCheckInAt ? convertTimestamp(profileData.lastCheckInAt) : undefined,
-              });
+                  setUser({
+                    ...profileData,
+                    createdAt: convertTimestamp(profileData.createdAt),
+                    lastSessionAt: profileData.lastSessionAt ? convertTimestamp(profileData.lastSessionAt) : undefined,
+                    lastCheckInAt: profileData.lastCheckInAt ? convertTimestamp(profileData.lastCheckInAt) : undefined,
+                  });
+                })
+                .catch(error => {
+                  console.error('Failed to decrypt user profile:', error);
+                  // Fallback to showing encrypted data indicators
+                  const convertTimestamp = (field: any) =>
+                    field instanceof Timestamp ? field.toDate() : (field && typeof field.toDate === 'function' ? field.toDate() : field);
+
+                  setUser({
+                    ...encryptedProfileData,
+                    displayName: '[Encrypted Profile - Cannot Decrypt]',
+                    pseudonym: '[Encrypted]',
+                    ageRange: '[Encrypted]',
+                    primaryChallenge: '[Encrypted]',
+                    createdAt: convertTimestamp(encryptedProfileData.createdAt),
+                    lastSessionAt: encryptedProfileData.lastSessionAt ? convertTimestamp(encryptedProfileData.lastSessionAt) : undefined,
+                    lastCheckInAt: encryptedProfileData.lastCheckInAt ? convertTimestamp(encryptedProfileData.lastCheckInAt) : undefined,
+                  });
+                });
             } else {
               // Doc doesn't exist (e.g., new user, before createUserProfileDocument completes, or deleted)
               // Fallback to a minimal profile based on Firebase Auth data
@@ -244,18 +267,28 @@ export const createUserProfileDocument = async (
     const pseudonymToStore = additionalData.pseudonym ? additionalData.pseudonym.trim() : "";
     
     try {
-      await setDoc(userRef, {
+      // Prepare user profile data
+      const userProfileData = {
         uid: userAuth.uid,
-        email,
+        email, // Email stays plain for authentication
         displayName: pseudonymToStore || authDisplayName || email?.split('@')[0] || 'Anonymous User',
         createdAt,
         pseudonym: pseudonymToStore,
-        ageRange: additionalData.ageRange || '',
-        primaryChallenge: additionalData.primaryChallenge || '',
         lastSessionAt: null,
         sessionCount: 0,
         lastCheckInAt: null,
-      });
+        // Include encryption metadata if provided
+        ...(additionalData.encryptedPassphrase && {
+          encryptedPassphrase: additionalData.encryptedPassphrase,
+          passphraseSalt: additionalData.passphraseSalt,
+          passphraseIv: additionalData.passphraseIv,
+        }),
+      };
+
+      // Encrypt sensitive profile data before storing
+      const encryptedProfileData = await encryptUserProfile(userProfileData);
+      
+      await setDoc(userRef, encryptedProfileData);
     } catch (error) {
       console.error("Error creating user document: ", error);
       throw error;

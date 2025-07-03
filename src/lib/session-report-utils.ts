@@ -11,6 +11,7 @@ import type {
   Goal
 } from '@/types/session-reports';
 import type { ProtocolSession, ChatMessage } from '@/types';
+import { encryptJournalEntry, decryptJournalEntry } from './data-encryption';
 
 /**
  * Utility functions for the new session report architecture
@@ -174,14 +175,16 @@ export async function createSessionJournal(
       };
     }
 
-    // Save the journal
-    await setDoc(doc(db, `users/${userId}/journals/${sessionId}`), {
+    // Save the journal (encrypt sensitive data before storage)
+    const journalToSave = await encryptJournalEntry({
       ...journal,
       reflectionUpdatedAt: journal.reflectionUpdatedAt instanceof Date ? Timestamp.fromDate(journal.reflectionUpdatedAt) : journal.reflectionUpdatedAt,
       goalsUpdatedAt: journal.goalsUpdatedAt instanceof Date ? Timestamp.fromDate(journal.goalsUpdatedAt) : journal.goalsUpdatedAt,
       createdAt: journal.createdAt instanceof Date ? Timestamp.fromDate(journal.createdAt) : journal.createdAt,
       lastAccessedAt: journal.lastAccessedAt instanceof Date ? Timestamp.fromDate(journal.lastAccessedAt) : journal.lastAccessedAt
     });
+
+    await setDoc(doc(db, `users/${userId}/journals/${sessionId}`), journalToSave);
 
     return journal;
   } catch (error) {
@@ -233,9 +236,9 @@ export async function generateJournalAssistance(
 
     const assistance = await response.json();
 
-    // Update journal with AI assistance
+    // Update journal with AI assistance (encrypt before saving)
     const journalDoc = doc(db, `users/${userId}/journals/${sessionId}`);
-    await updateDoc(journalDoc, {
+    const updateData = {
       aiJournalSupport: {
         ...assistance,
         generatedAt: Timestamp.fromDate(new Date()),
@@ -244,7 +247,10 @@ export async function generateJournalAssistance(
           reportVersion: report.reportVersion
         }
       }
-    });
+    };
+    
+    const encryptedUpdate = await encryptJournalEntry(updateData);
+    await updateDoc(journalDoc, encryptedUpdate);
 
     return assistance;
   } catch (error) {
@@ -262,9 +268,16 @@ export async function getCompleteSessionData(userId: string, sessionId: string) 
       getDoc(doc(db, `users/${userId}/sessions/${sessionId}`))
     ]);
 
+    // Decrypt journal data if it exists
+    let journal: SessionJournal | null = null;
+    if (journalDoc.exists()) {
+      const encryptedJournal = journalDoc.data() as SessionJournal;
+      journal = await decryptJournalEntry(encryptedJournal);
+    }
+
     return {
       report: reportDoc.exists() ? reportDoc.data() as SessionReport : null,
-      journal: journalDoc.exists() ? journalDoc.data() as SessionJournal : null,
+      journal,
       session: sessionDoc.exists() ? sessionDoc.data() as ProtocolSessionInteraction : null
     };
   } catch (error) {

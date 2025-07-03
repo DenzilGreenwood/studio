@@ -33,6 +33,7 @@ import { Loader2, BookOpen, PlusCircle, Eye, CheckCircle, Hourglass, Sparkles, P
 import Link from 'next/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { encryptData } from '@/lib/encryption';
 
 type SessionWithId = ProtocolSession & { sessionId: string };
 
@@ -331,20 +332,36 @@ export default function SessionsPage() {
     if (!firebaseUser) return;
 
     try {
-      // Store quick reflection in the session document
+      // Get user's passphrase from session storage for encryption
+      const passphrase = sessionStorage.getItem('userPassphrase');
+      if (!passphrase) {
+        toast({
+          variant: 'destructive',
+          title: 'Encryption Error',
+          description: 'Cannot encrypt reflection - passphrase not available. Please refresh and try again.'
+        });
+        return;
+      }
+
+      // Encrypt the reflection text
+      const encryptedReflection = await encryptData(reflection, passphrase);
+
+      // Store encrypted quick reflection in the session document
       const sessionRef = doc(db, `users/${firebaseUser.uid}/sessions/${sessionId}`);
       const currentDate = new Date().toISOString();
       
       await updateDoc(sessionRef, {
         [`quickReflections.${currentDate}`]: {
-          text: reflection,
+          text_encrypted: encryptedReflection.encryptedData,
+          text_salt: encryptedReflection.salt,
+          text_iv: encryptedReflection.iv,
           createdAt: serverTimestamp()
         }
       });
 
       toast({
         title: 'Reflection saved',
-        description: 'Your quick reflection has been added to this session.'
+        description: 'Your quick reflection has been encrypted and saved to this session.'
       });
     } catch (error) {
       console.error('Error saving quick reflection:', error);

@@ -9,8 +9,6 @@ export interface UserProfile {
   email: string | null;
   displayName: string | null;
   pseudonym?: string;
-  ageRange?: string;
-  primaryChallenge?: string;
   createdAt: Timestamp | Date;
   lastSessionAt?: Timestamp | Date;
   lastCheckInAt?: Timestamp | Date;
@@ -60,7 +58,6 @@ export interface ProtocolSession {
   sessionId: string;
   userId: string;
   circumstance: string;
-  ageRange?: string;
   startTime: Timestamp | Date;
   endTime?: Timestamp | Date;
   completedPhases: number;

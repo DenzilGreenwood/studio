@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { db, addDoc, collection, serverTimestamp, doc, updateDoc, type Timestamp } from '@/lib/firebase';
 import type { SessionFeedback } from '@/types';
 import { Loader2, MessageSquare, Send, ArrowLeft } from 'lucide-react';
+import { encryptFeedback } from '@/lib/data-encryption';
 
 interface PostSessionFeedbackProps {
   sessionId: string;
@@ -54,7 +55,10 @@ export function PostSessionFeedback({ sessionId, userId, circumstance, onFeedbac
         timestamp: serverTimestamp() as any,
       };
 
-      const feedbackRef = await addDoc(collection(db, 'feedback'), feedbackData);
+      // Encrypt feedback before storing
+      const encryptedFeedback = await encryptFeedback(feedbackData);
+
+      const feedbackRef = await addDoc(collection(db, 'feedback'), encryptedFeedback);
       
       const sessionDocRef = doc(db, `users/${userId}/sessions/${sessionId}`);
       await updateDoc(sessionDocRef, {

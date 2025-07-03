@@ -89,10 +89,38 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   const copyRecoveryKey = async () => {
     try {
-      await navigator.clipboard.writeText(recoveryKeyDialog.recoveryKey);
-      toast({ title: "Recovery Key Copied", description: "Save this key securely!" });
-    } catch {
-      toast({ variant: "destructive", title: "Failed to copy", description: "Please copy the key manually." });
+      // Try modern clipboard API first
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(recoveryKeyDialog.recoveryKey);
+        toast({ title: "Recovery Key Copied", description: "Save this key securely!" });
+        return;
+      }
+      
+      // Fallback for older browsers or non-HTTPS
+      const textArea = document.createElement('textarea');
+      textArea.value = recoveryKeyDialog.recoveryKey;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      if (successful) {
+        toast({ title: "Recovery Key Copied", description: "Save this key securely!" });
+      } else {
+        throw new Error('Copy command failed');
+      }
+    } catch (error) {
+      console.error('Copy failed:', error);
+      toast({ 
+        variant: "destructive", 
+        title: "Failed to copy", 
+        description: "Please select and copy the key manually (Ctrl+C or Cmd+C)." 
+      });
     }
   };
 
@@ -191,6 +219,9 @@ export function AuthForm({ mode }: AuthFormProps) {
           await updateProfile(userCredential.user, { displayName: pseudonymToUse });
         }
         
+        // Store passphrase in session for immediate use (needed for encryption)
+        sessionStorage.setItem('userPassphrase', signupValues.passphrase);
+
         await createUserProfileDocument(userCredential.user, { 
           pseudonym: pseudonymToUse, 
           encryptedPassphrase: encryptedPassphraseData.encryptedPassphrase,
@@ -204,9 +235,6 @@ export function AuthForm({ mode }: AuthFormProps) {
           passphraseSalt: encryptedPassphraseData.salt,
           passphraseIv: encryptedPassphraseData.iv,
         });
-
-        // Store passphrase in session for immediate use
-        sessionStorage.setItem('userPassphrase', signupValues.passphrase);
 
         // Increment user count after successful account creation
         try {
@@ -499,7 +527,20 @@ export function AuthForm({ mode }: AuthFormProps) {
           </DialogHeader>
           <div className="space-y-4">
             <div className="p-4 bg-muted rounded-lg">
-              <code className="text-sm font-mono break-all">{recoveryKeyDialog.recoveryKey}</code>
+              <code 
+                className="text-sm font-mono break-all select-all cursor-text"
+                id="recovery-key-text"
+                onClick={(e) => {
+                  // Select all text when clicked
+                  const range = document.createRange();
+                  range.selectNodeContents(e.currentTarget);
+                  const selection = window.getSelection();
+                  selection?.removeAllRanges();
+                  selection?.addRange(range);
+                }}
+              >
+                {recoveryKeyDialog.recoveryKey}
+              </code>
             </div>
             <div className="flex gap-2">
               <Button onClick={copyRecoveryKey} className="flex-1">
@@ -507,12 +548,35 @@ export function AuthForm({ mode }: AuthFormProps) {
                 Copy Key
               </Button>
               <Button 
+                variant="outline"
+                onClick={() => {
+                  // Select all text for manual copying
+                  const element = document.getElementById('recovery-key-text');
+                  if (element) {
+                    const range = document.createRange();
+                    range.selectNodeContents(element);
+                    const selection = window.getSelection();
+                    selection?.removeAllRanges();
+                    selection?.addRange(range);
+                    toast({ 
+                      title: "Text Selected", 
+                      description: "Press Ctrl+C (or Cmd+C) to copy the key" 
+                    });
+                  }
+                }}
+                className="flex-1"
+              >
+                Select All
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button 
                 variant="outline" 
                 onClick={() => {
                   setRecoveryKeyDialog({ isOpen: false, recoveryKey: "" });
                   router.push("/profile");
                 }}
-                className="flex-1"
+                className="w-full"
               >
                 I&apos;ve Saved It
               </Button>

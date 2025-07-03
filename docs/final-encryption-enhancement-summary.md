@@ -60,6 +60,28 @@
 - **Risk mitigation strategies**
 - **Success metrics and operational considerations**
 
+### 7. ✅ Fixed Signup Encryption Flow Issue
+
+**Resolved "User passphrase not available" error during signup:**
+
+- **Root Cause**: During signup, `createUserProfileDocument` was called before the user passphrase was stored in `sessionStorage`, causing encryption to fail
+- **Solution**: Reordered operations in `auth-form.tsx` to store the passphrase in session storage BEFORE attempting to encrypt and create the user profile document
+- **Removed Deprecated Fields**: Cleaned up `ageRange` and `primaryChallenge` fields from:
+  - `UserProfile` interface in `types/index.ts`
+  - `ProtocolSession` interface 
+  - Session-related types in `session-reports.ts`
+  - Profile creation logic in `auth-context.tsx`
+  - Protocol page session initialization logic
+- **Updated Session Flow**: Modified protocol page to allow users to describe their challenge during Phase 1 instead of requiring pre-selected profile fields
+- **Build Verification**: Confirmed successful Next.js build with no compilation errors
+
+**Files Updated:**
+- `src/components/auth/auth-form.tsx` - Fixed operation order
+- `src/context/auth-context.tsx` - Removed deprecated fields
+- `src/types/index.ts` - Updated interfaces
+- `src/types/session-reports.ts` - Cleaned up types
+- `src/app/(app)/protocol/page.tsx` - Updated session initialization
+
 ## Key Messages Successfully Implemented
 
 ### For Users:

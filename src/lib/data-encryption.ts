@@ -238,7 +238,8 @@ export async function encryptJournalEntry(journalData: any): Promise<any> {
   const passphrase = getCurrentPassphrase();
   const encrypted: any = { ...journalData };
   
-  const fieldsToEncrypt = ['content', 'title', 'tags'];
+  // Fields to encrypt in journal entries
+  const fieldsToEncrypt = ['userReflection'];
   
   for (const field of fieldsToEncrypt) {
     if (journalData[field]) {
@@ -251,6 +252,42 @@ export async function encryptJournalEntry(journalData: any): Promise<any> {
       encrypted[`${field}_iv`] = encryptedField.iv;
       delete encrypted[field];
     }
+  }
+
+  // Encrypt goals if they exist
+  if (journalData.goals && Array.isArray(journalData.goals)) {
+    const encryptedGoals = await encryptData(
+      JSON.stringify(journalData.goals), 
+      passphrase
+    );
+    encrypted.goals_encrypted = encryptedGoals.encryptedData;
+    encrypted.goals_salt = encryptedGoals.salt;
+    encrypted.goals_iv = encryptedGoals.iv;
+    delete encrypted.goals;
+  }
+
+  // Encrypt quick reflections if they exist
+  if (journalData.quickReflections && Array.isArray(journalData.quickReflections)) {
+    const encryptedReflections = await encryptData(
+      JSON.stringify(journalData.quickReflections), 
+      passphrase
+    );
+    encrypted.quickReflections_encrypted = encryptedReflections.encryptedData;
+    encrypted.quickReflections_salt = encryptedReflections.salt;
+    encrypted.quickReflections_iv = encryptedReflections.iv;
+    delete encrypted.quickReflections;
+  }
+
+  // Encrypt AI journal support content if it exists
+  if (journalData.aiJournalSupport) {
+    const encryptedSupport = await encryptData(
+      JSON.stringify(journalData.aiJournalSupport), 
+      passphrase
+    );
+    encrypted.aiJournalSupport_encrypted = encryptedSupport.encryptedData;
+    encrypted.aiJournalSupport_salt = encryptedSupport.salt;
+    encrypted.aiJournalSupport_iv = encryptedSupport.iv;
+    delete encrypted.aiJournalSupport;
   }
   
   return encrypted;
@@ -265,26 +302,83 @@ export async function decryptJournalEntry(encryptedJournalData: any): Promise<an
   const passphrase = getCurrentPassphrase();
   const decrypted: any = { ...encryptedJournalData };
   
-  const fieldsToDecrypt = ['content', 'title', 'tags'];
-  
-  for (const field of fieldsToDecrypt) {
-    if (encryptedJournalData[`${field}_encrypted`]) {
-      try {
-        const decryptedValue = await decryptData(
-          encryptedJournalData[`${field}_encrypted`],
-          passphrase,
-          encryptedJournalData[`${field}_salt`],
-          encryptedJournalData[`${field}_iv`]
-        );
-        decrypted[field] = JSON.parse(decryptedValue);
-        
-        delete decrypted[`${field}_encrypted`];
-        delete decrypted[`${field}_salt`];
-        delete decrypted[`${field}_iv`];
-      } catch (error) {
-        console.error(`Failed to decrypt journal ${field}:`, error);
-        decrypted[field] = '[Encrypted Data - Cannot Decrypt]';
-      }
+  // Decrypt userReflection
+  if (encryptedJournalData.userReflection_encrypted) {
+    try {
+      const decryptedValue = await decryptData(
+        encryptedJournalData.userReflection_encrypted,
+        passphrase,
+        encryptedJournalData.userReflection_salt,
+        encryptedJournalData.userReflection_iv
+      );
+      decrypted.userReflection = JSON.parse(decryptedValue);
+      
+      delete decrypted.userReflection_encrypted;
+      delete decrypted.userReflection_salt;
+      delete decrypted.userReflection_iv;
+    } catch (error) {
+      console.error('Failed to decrypt journal userReflection:', error);
+      decrypted.userReflection = '[Encrypted Data - Cannot Decrypt]';
+    }
+  }
+
+  // Decrypt goals
+  if (encryptedJournalData.goals_encrypted) {
+    try {
+      const decryptedValue = await decryptData(
+        encryptedJournalData.goals_encrypted,
+        passphrase,
+        encryptedJournalData.goals_salt,
+        encryptedJournalData.goals_iv
+      );
+      decrypted.goals = JSON.parse(decryptedValue);
+      
+      delete decrypted.goals_encrypted;
+      delete decrypted.goals_salt;
+      delete decrypted.goals_iv;
+    } catch (error) {
+      console.error('Failed to decrypt journal goals:', error);
+      decrypted.goals = [];
+    }
+  }
+
+  // Decrypt quick reflections
+  if (encryptedJournalData.quickReflections_encrypted) {
+    try {
+      const decryptedValue = await decryptData(
+        encryptedJournalData.quickReflections_encrypted,
+        passphrase,
+        encryptedJournalData.quickReflections_salt,
+        encryptedJournalData.quickReflections_iv
+      );
+      decrypted.quickReflections = JSON.parse(decryptedValue);
+      
+      delete decrypted.quickReflections_encrypted;
+      delete decrypted.quickReflections_salt;
+      delete decrypted.quickReflections_iv;
+    } catch (error) {
+      console.error('Failed to decrypt journal quick reflections:', error);
+      decrypted.quickReflections = [];
+    }
+  }
+
+  // Decrypt AI journal support
+  if (encryptedJournalData.aiJournalSupport_encrypted) {
+    try {
+      const decryptedValue = await decryptData(
+        encryptedJournalData.aiJournalSupport_encrypted,
+        passphrase,
+        encryptedJournalData.aiJournalSupport_salt,
+        encryptedJournalData.aiJournalSupport_iv
+      );
+      decrypted.aiJournalSupport = JSON.parse(decryptedValue);
+      
+      delete decrypted.aiJournalSupport_encrypted;
+      delete decrypted.aiJournalSupport_salt;
+      delete decrypted.aiJournalSupport_iv;
+    } catch (error) {
+      console.error('Failed to decrypt journal AI support:', error);
+      decrypted.aiJournalSupport = null;
     }
   }
   

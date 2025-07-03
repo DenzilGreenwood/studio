@@ -31,6 +31,7 @@ import { PostSessionFeedback } from '@/components/feedback/post-session-feedback
 import { ClaritySummary } from '@/components/protocol/clarity-summary';
 import { EmotionalProgression } from '@/components/protocol/emotional-progression';
 import { Button } from '@/components/ui/button';
+import { encryptChatMessage, decryptChatMessage, encryptSessionData, decryptSessionData } from '@/lib/data-encryption';
 
 // Type imports from the central types file
 import type { FieldValue } from 'firebase/firestore';
@@ -257,15 +258,8 @@ export default function ProtocolPage() {
   const initializeSession = useCallback(async () => {
     if (!firebaseUser || !user) return;
     
-    if (!user.primaryChallenge || !user.ageRange) {
-      toast({
-        title: "Profile Incomplete",
-        description: "Please select a primary challenge and age range in your profile before starting a session.",
-        variant: "destructive",
-      });
-      router.push('/profile');
-      return;
-    }
+    // Since we removed profile requirements, we can proceed directly to session creation
+    // The user can describe their challenge during the first phase
 
     // Check if there's already an active session
     try {
@@ -283,7 +277,10 @@ export default function ProtocolPage() {
       });
       
       if (activeSessionDoc) {
-        const sessionData = activeSessionDoc.data() as ProtocolSession;
+        const encryptedSessionData = activeSessionDoc.data() as ProtocolSession;
+        
+        // Decrypt session data before resuming
+        const sessionData = await decryptSessionData(encryptedSessionData);
         
         // Resume existing session
         setCurrentSessionId(activeSessionDoc.id);
@@ -337,15 +334,31 @@ export default function ProtocolPage() {
           orderBy("timestamp", "asc")
         );
         const messagesSnap = await getDocs(messagesQuery);
-        const existingMessages: UIMessage[] = messagesSnap.docs.map(docSnap => {
+        const existingMessages: UIMessage[] = [];
+        
+        // Decrypt each message before adding to UI
+        for (const docSnap of messagesSnap.docs) {
           const data = docSnap.data() as FirestoreChatMessage;
-          return {
-            id: docSnap.id,
-            sender: data.sender,
-            text: data.text,
-            timestamp: (data.timestamp as Timestamp)?.toDate() || new Date(),
-          };
-        });
+          try {
+            // Decrypt the message data
+            const decryptedMessage = await decryptChatMessage(data);
+            existingMessages.push({
+              id: docSnap.id,
+              sender: decryptedMessage.sender,
+              text: decryptedMessage.text,
+              timestamp: (decryptedMessage.timestamp as Timestamp)?.toDate() || new Date(),
+            });
+          } catch (error) {
+            console.error('Failed to decrypt message:', error);
+            // Fallback to showing encrypted data indicator
+            existingMessages.push({
+              id: docSnap.id,
+              sender: data.sender,
+              text: '[Encrypted Message - Cannot Decrypt]',
+              timestamp: (data.timestamp as Timestamp)?.toDate() || new Date(),
+            });
+          }
+        }
         
         setMessages(existingMessages);
         
@@ -386,7 +399,8 @@ export default function ProtocolPage() {
     setIsProtocolComplete(false); 
     setShowFeedbackForm(false); 
     
-    const circumstance = user.primaryChallenge;
+    // Users will describe their challenge during Phase 1, so we use a generic placeholder
+    const circumstance = "Session in progress - challenge to be described";
     setCurrentCircumstance(circumstance);
 
     const newSessionRef = doc(collection(db, `users/${firebaseUser.uid}/sessions`));
@@ -397,7 +411,6 @@ export default function ProtocolPage() {
       sessionId: newSessionId,
       userId: firebaseUser.uid,
       circumstance: circumstance,
-      ageRange: user.ageRange,
       startTime: serverTimestamp() as unknown as Date,
       completedPhases: 0,
       summary: {
@@ -408,9 +421,12 @@ export default function ProtocolPage() {
         generatedAt: serverTimestamp() as unknown as Date,
       }
     };
-    await setDoc(newSessionRef, initialSessionData);
     
-    const firstMessageText = `Welcome to CognitiveInsight! Let's begin with Phase 1: ${PHASE_NAMES[0]}. Please describe the challenge or situation you're facing: "${circumstance}". Take your time to share what's on your mind.`;
+    // Encrypt session data before storing
+    const encryptedSessionData = await encryptSessionData(initialSessionData);
+    await setDoc(newSessionRef, encryptedSessionData);
+    
+    const firstMessageText = `Welcome to CognitiveInsight! Let's begin with Phase 1: ${PHASE_NAMES[0]}. Please describe the challenge or situation you're currently facing. Take your time to share what's on your mind and what brought you here today.`;
     const firstUIMessage: UIMessage = {
       id: crypto.randomUUID(),
       sender: 'ai',
@@ -420,12 +436,15 @@ export default function ProtocolPage() {
     setMessages([firstUIMessage]);
     setLastAiQuestion(firstMessageText);
 
-    await addDoc(collection(db, `users/${firebaseUser.uid}/sessions/${newSessionId}/messages`), {
+    // Encrypt AI message before storing
+    const encryptedAiMessage = await encryptChatMessage({
       sender: 'ai',
       text: firstMessageText,
       timestamp: serverTimestamp(),
       phaseName: PHASE_NAMES[0],
     });
+
+    await addDoc(collection(db, `users/${firebaseUser.uid}/sessions/${newSessionId}/messages`), encryptedAiMessage);
     
     setCurrentPhase(1);
     setCurrentPhaseName(PHASE_NAMES[0]);
@@ -459,10 +478,23 @@ export default function ProtocolPage() {
           orderBy("timestamp", "asc")
         );
         const messagesSnap = await getDocs(messagesQuery);
-        const userMessagesText = messagesSnap.docs
-          .filter(docSnap => (docSnap.data() as FirestoreChatMessage).sender === 'user')
-          .map(docSnap => (docSnap.data() as FirestoreChatMessage).text)
-          .join('\n\n');
+        
+        // Decrypt user messages for sentiment analysis
+        const userMessagesTexts: string[] = [];
+        for (const docSnap of messagesSnap.docs) {
+          const data = docSnap.data() as FirestoreChatMessage;
+          if (data.sender === 'user') {
+            try {
+              const decryptedMessage = await decryptChatMessage(data);
+              userMessagesTexts.push(decryptedMessage.text);
+            } catch (error) {
+              console.error('Failed to decrypt user message for sentiment analysis:', error);
+              // Skip encrypted messages that can't be decrypted
+            }
+          }
+        }
+        
+        const userMessagesText = userMessagesTexts.join('\n\n');
         
         if (userMessagesText.trim()) {
           const sentimentInput: SentimentAnalysisInput = { userMessages: userMessagesText };
@@ -529,12 +561,15 @@ export default function ProtocolPage() {
     };
     setMessages(prev => [...prev, newUserUIMessage]);
     
-    await addDoc(collection(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}/messages`), {
+    // Encrypt user message before storing
+    const encryptedUserMessage = await encryptChatMessage({
       sender: 'user',
       text: currentUserInputText,
       timestamp: serverTimestamp(),
       phaseName: prevPhaseName,
     });
+
+    await addDoc(collection(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}/messages`), encryptedUserMessage);
 
     // Analyze emotional tone of user input
     try {
@@ -663,12 +698,15 @@ export default function ProtocolPage() {
       };
       setMessages(prev => [...prev, aiResponseUIMessage]);
       
-      await addDoc(collection(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}/messages`), {
+      // Encrypt AI response before storing
+      const encryptedAiResponse = await encryptChatMessage({
         sender: 'ai',
         text: output.response,
         timestamp: serverTimestamp(),
         phaseName: output.nextPhase,
       });
+
+      await addDoc(collection(db, `users/${firebaseUser.uid}/sessions/${currentSessionId}/messages`), encryptedAiResponse);
       
       setSessionHistoryForAI(output.sessionHistory);
       setLastAiQuestion(output.response);
@@ -769,10 +807,23 @@ export default function ProtocolPage() {
               orderBy("timestamp", "asc")
             );
             const messagesSnap = await getDocs(messagesQuery);
-            const userMessagesText = messagesSnap.docs
-              .filter(docSnap => (docSnap.data() as FirestoreChatMessage).sender === 'user')
-              .map(docSnap => (docSnap.data() as FirestoreChatMessage).text)
-              .join('\n\n');
+            
+            // Decrypt user messages for sentiment analysis
+            const userMessagesTexts: string[] = [];
+            for (const docSnap of messagesSnap.docs) {
+              const data = docSnap.data() as FirestoreChatMessage;
+              if (data.sender === 'user') {
+                try {
+                  const decryptedMessage = await decryptChatMessage(data);
+                  userMessagesTexts.push(decryptedMessage.text);
+                } catch (error) {
+                  console.error('Failed to decrypt user message for sentiment analysis:', error);
+                  // Skip encrypted messages that can't be decrypted
+                }
+              }
+            }
+            
+            const userMessagesText = userMessagesTexts.join('\n\n');
             
             if (userMessagesText.trim()) {
               const sentimentInput: SentimentAnalysisInput = { userMessages: userMessagesText };

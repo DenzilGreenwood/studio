@@ -1,5 +1,6 @@
 // src/types/session-reports.ts
 import type { Timestamp } from 'firebase/firestore';
+import type { ProtocolSession } from './index';
 
 /**
  * New data structures for improved session architecture
@@ -17,7 +18,6 @@ export interface SessionReport {
   startTime: Timestamp | Date;             // When session started
   endTime: Timestamp | Date;               // When session completed
   duration: number;                         // Session length in minutes
-  ageRange?: string;                       // User's age range (for context)
   
   // Core Session Insights (Clean, report-focused data)
   insights: {
@@ -124,7 +124,6 @@ export interface ProtocolSessionInteraction {
   sessionId: string;                       // Unique identifier
   userId: string;                          // Owner UID
   circumstance: string;                    // Initial challenge
-  ageRange?: string;                      // User's age range
   
   // Progress Tracking
   currentPhase: number;                    // Current phase (1-6)
@@ -199,7 +198,7 @@ export interface JournalAssistanceInput {
 
 // Migration utilities
 export interface SessionMigrationData {
-  originalSession: any;                   // Original ProtocolSession
+  originalSession: ProtocolSession;       // Original ProtocolSession
   targetReport: Partial<SessionReport>;
   targetJournal: Partial<SessionJournal>;
   targetSession: Partial<ProtocolSessionInteraction>;
