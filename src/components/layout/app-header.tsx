@@ -2,8 +2,9 @@
 "use client";
 
 import Link from "next/link";
-import { Brain, UserCircle, LogOut, ChevronDown, Trash2, Loader2, BookOpen, Shield, Play, TrendingUp } from "lucide-react";
+import { Brain, UserCircle, LogOut, ChevronDown, Trash2, Loader2, BookOpen, Play, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EncryptionNotice } from "@/components/encryption/encryption-notice";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +28,6 @@ import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import React, { useState, useEffect } from "react";
-import { useIsAdmin } from "@/hooks/use-is-admin";
 import { db, collection, query, orderBy, getDocs } from "@/lib/firebase";
 import type { ProtocolSession } from "@/types";
 
@@ -35,7 +35,6 @@ export function AppHeader() {
   const { user, firebaseUser, loading, logout, deleteUserAccountAndData } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const isAdmin = useIsAdmin();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [activeSession, setActiveSession] = useState<ProtocolSession | null>(null);
@@ -137,7 +136,9 @@ export function AppHeader() {
         {loading ? (
           <div className="h-8 w-20 animate-pulse rounded-md bg-muted"></div>
         ) : user ? (
-          <DropdownMenu>
+          <div className="flex items-center gap-3">
+            <EncryptionNotice variant="compact" />
+            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2">
                 <Avatar className="h-8 w-8">
@@ -185,15 +186,6 @@ export function AppHeader() {
                 <TrendingUp className="mr-2 h-4 w-4" />
                 <span>My Progress</span>
               </DropdownMenuItem>
-              {isAdmin && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => router.push('/admin')}>
-                    <Shield className="mr-2 h-4 w-4" />
-                    <span>Admin Dashboard</span>
-                  </DropdownMenuItem>
-                </>
-              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => setIsDeleteDialogOpen(true)}
@@ -208,6 +200,7 @@ export function AppHeader() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         ) : (
           <Button asChild>
             <Link href="/login">Login</Link>

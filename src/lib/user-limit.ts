@@ -13,30 +13,41 @@ export async function getCurrentUserCount(): Promise<number> {
       return counterDoc.data().count || 0;
     } else {
       // Initialize counter if it doesn't exist
-      await setDoc(counterRef, { count: 0 });
-      return 0;
+      try {
+        await setDoc(counterRef, { count: 0 });
+        return 0;
+      } catch (initError) {
+        console.error('Error initializing user count:', initError);
+        // Return 0 if we can't initialize, allowing signup to proceed
+        return 0;
+      }
     }
   } catch (error) {
     console.error('Error getting user count:', error);
-    throw new Error('Failed to check user count');
+    // Return 0 instead of throwing to allow signup flow to continue
+    console.warn('Defaulting to user count of 0 due to access error');
+    return 0;
   }
 }
 
 export async function incrementUserCount(): Promise<void> {
   try {
     const counterRef = doc(db, 'system', 'userCount');
-    await updateDoc(counterRef, {
-      count: increment(1)
-    });
-  } catch (error) {
-    // If document doesn't exist, create it
-    try {
-      const counterRef = doc(db, 'system', 'userCount');
+    
+    // First try to update if the document exists
+    const counterDoc = await getDoc(counterRef);
+    if (counterDoc.exists()) {
+      await updateDoc(counterRef, {
+        count: increment(1)
+      });
+    } else {
+      // If document doesn't exist, create it with count 1
       await setDoc(counterRef, { count: 1 });
-    } catch (setError) {
-      console.error('Error incrementing user count:', error, setError);
-      throw new Error('Failed to increment user count');
     }
+  } catch (error) {
+    console.error('Error incrementing user count:', error);
+    // Don't throw error - let signup proceed even if count increment fails
+    console.warn('User count increment failed, but allowing signup to proceed');
   }
 }
 
@@ -52,10 +63,13 @@ export async function canCreateNewUser(): Promise<{ allowed: boolean; message?: 
     }
     
     return { allowed: true };
-  } catch {
-    return {
-      allowed: false,
-      message: 'Unable to verify user capacity. Please try again later.'
+  } catch (error) {
+    console.error('Error checking user limit:', error);
+    // Default to allowing registration if check fails to avoid blocking users
+    console.warn('User limit check failed, defaulting to allow registration');
+    return { 
+      allowed: true, 
+      message: 'Unable to verify user capacity, but registration is open' 
     };
   }
 }

@@ -1,35 +1,9 @@
 // src/app/api/clean-pdf/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from 'firebase-admin';
-import { getApps, initializeApp, cert } from 'firebase-admin/app';
 import { CleanReportService } from '@/lib/clean-report-service';
 
-// Initialize Firebase Admin if not already done
-if (!getApps().length) {
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-  
-  if (!projectId || !clientEmail || !privateKey) {
-    console.warn('Firebase Admin not initialized: Missing environment variables');
-    // Don't throw an error during build, just warn
-  } else {
-    try {
-      const serviceAccount = {
-        projectId,
-        clientEmail,
-        privateKey,
-      };
-      
-      initializeApp({
-        credential: cert(serviceAccount),
-        projectId,
-      });
-    } catch (error) {
-      console.error('Failed to initialize Firebase Admin:', error);
-    }
-  }
-}
+
 
 export async function POST(request: NextRequest) {
   try {

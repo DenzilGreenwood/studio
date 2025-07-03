@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface CleanSessionReportProps {
   sessionId: string;
-  userId?: string; // For admin view
+  userId?: string;
 }
 
 export function CleanSessionReportComponent({ sessionId, userId }: CleanSessionReportProps) {

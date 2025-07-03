@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Brain, User, Loader2, AlertTriangle, FileText, Lightbulb, Milestone, Bot, MessageSquare, Edit3, CheckCircle, Download, Shield, BookOpen } from 'lucide-react';
+import { Brain, User, Loader2, AlertTriangle, FileText, Lightbulb, Milestone, Bot, MessageSquare, Edit3, CheckCircle, Download, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { cn, convertProtocolSessionTimestamps } from '@/lib/utils';
@@ -19,7 +19,6 @@ import jsPDF from 'jspdf';
 import { PDFGenerator, prepareSessionDataForPDF } from '@/lib/pdf-generator';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
-import { useIsAdmin } from '@/hooks/use-is-admin';
 import { EmotionalProgression } from '@/components/protocol/emotional-progression';
 
 interface DisplayMessage extends FirestoreChatMessage {
@@ -37,7 +36,6 @@ export default function SessionReportPage() {
   const searchParams = useSearchParams();
   const { firebaseUser, user: authProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const isAdmin = useIsAdmin();
 
   const sessionId = params?.sessionId as string;
   const userIdFromQuery = searchParams?.get('userId');
@@ -93,7 +91,7 @@ export default function SessionReportPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const targetUserId = isAdmin && userIdFromQuery ? userIdFromQuery : firebaseUser.uid;
+        const targetUserId = firebaseUser.uid;
         const sessionDocRef = doc(db, `users/${targetUserId}/sessions/${sessionId}`);
         const sessionSnap = await getDoc(sessionDocRef);
 
@@ -106,14 +104,7 @@ export default function SessionReportPage() {
         
         const processedSessionData = convertProtocolSessionTimestamps(fetchedSessionData);
         
-        let sessionForUser: UserProfile | null = null;
-        if (isAdmin && userIdFromQuery) {
-            const userDocRef = doc(db, `users/${userIdFromQuery}`);
-            const userSnap = await getDoc(userDocRef);
-            if (userSnap.exists()) sessionForUser = userSnap.data() as UserProfile;
-        } else {
-            sessionForUser = authProfile;
-        }
+        const sessionForUser = authProfile;
 
         const messagesQuery = query(collection(db, `users/${targetUserId}/sessions/${sessionId}/messages`), orderBy("timestamp", "asc"));
         const messagesSnap = await getDocs(messagesQuery);
@@ -140,7 +131,7 @@ export default function SessionReportPage() {
     };
 
     fetchSessionData();
-  }, [sessionId, firebaseUser, authProfile, authLoading, router, isAdmin, userIdFromQuery]);
+  }, [sessionId, firebaseUser, authProfile, authLoading, router, userIdFromQuery]);
 
   const getInitials = (name?: string | null) => {
         if (!name) return "?";
@@ -267,19 +258,6 @@ export default function SessionReportPage() {
   return (
     <div className="bg-secondary/30 min-h-screen py-8">
       <div className="container mx-auto p-4 md:p-6 max-w-3xl">
-        {isAdmin && userIdFromQuery && (
-          <Card className="mb-6 bg-accent/20 border-accent">
-              <CardHeader className="p-4">
-                  <CardTitle className="flex items-center gap-2 text-accent-foreground/80">
-                      <Shield size={20} /> Admin View
-                  </CardTitle>
-                  <CardDescription>
-                      You are viewing the report for user: <span className="font-medium text-foreground">{userToDisplay?.displayName || userToDisplay?.email} ({userToDisplay?.uid})</span>
-                  </CardDescription>
-              </CardHeader>
-          </Card>
-        )}
-
         <Card id="sessionReportContent" className="shadow-xl bg-card">
           <CardHeader className="bg-primary/5 rounded-t-lg p-6 border-b">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -297,7 +275,7 @@ export default function SessionReportPage() {
                     {!feedbackId ? (
                       <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
                         <DialogTrigger asChild>
-                           <Button variant="default" disabled={isAdmin && !!userIdFromQuery}>
+                           <Button variant="default">
                                 <Edit3 className="mr-2 h-4 w-4" />
                                 Leave a Review
                             </Button>

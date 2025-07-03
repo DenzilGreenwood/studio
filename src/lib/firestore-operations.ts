@@ -1,4 +1,15 @@
 // src/lib/firestore-operations.ts
+// 
+// ENCRYPTION INTEGRATION STATUS:
+// - User profiles: Encryption will be integrated when passphrase is available
+// - Session data: Encryption will be integrated when passphrase is available  
+// - Chat messages: Encryption will be integrated when passphrase is available
+// - Journal entries: Encryption will be integrated when passphrase is available
+// - Feedback: Encryption will be integrated when passphrase is available
+//
+// Next step: Integrate encryption/decryption helpers from data-encryption.ts
+// into all storage/retrieval operations below.
+//
 import { 
   db, 
   doc, 
@@ -22,7 +33,7 @@ import {
   validateFirestorePaths,
   checkDataConsistency
 } from './firestore-validators';
-import type { UserProfile, ProtocolSession, SessionFeedback, ChatMessage, Goal } from '@/types';
+import type { UserProfile, ProtocolSession, SessionFeedback, ChatMessage } from '@/types';
 
 // Safe user operations
 export const userOperations = {

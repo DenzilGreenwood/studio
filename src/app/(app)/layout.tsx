@@ -2,10 +2,11 @@
 "use client"; 
 
 import { AppHeader } from "@/components/layout/app-header";
+import { EncryptionBanner } from "@/components/encryption/encryption-status";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { BrainCog, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 
 export default function AppLayout({
@@ -40,6 +41,7 @@ export default function AppLayout({
   return (
     <div className="flex min-h-screen flex-col">
       <AppHeader />
+      <EncryptionBanner />
       <main className="flex-1">{children}</main>
       <footer className="py-6 text-center text-sm text-muted-foreground border-t">
          &copy; 2024 CognitiveInsight. All rights reserved.

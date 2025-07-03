@@ -6,7 +6,6 @@ import {
   type User as FirebaseUser, 
   onAuthStateChanged, 
   signOut as firebaseSignOut,
-  updateProfile as firebaseUpdateProfile, // Keep for auth-form
   deleteUser as firebaseDeleteUser
 } from 'firebase/auth';
 import { 
@@ -26,7 +25,6 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { UserProfile } from '@/types';
-import { ADMIN_USER_IDS } from '@/hooks/use-is-admin';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -244,7 +242,6 @@ export const createUserProfileDocument = async (
     const { email, displayName: authDisplayName } = userAuth; // displayName from Firebase Auth user
     const createdAt = serverTimestamp();
     const pseudonymToStore = additionalData.pseudonym ? additionalData.pseudonym.trim() : "";
-    const isUserAdmin = ADMIN_USER_IDS.includes(userAuth.uid);
     
     try {
       await setDoc(userRef, {
@@ -255,11 +252,9 @@ export const createUserProfileDocument = async (
         pseudonym: pseudonymToStore,
         ageRange: additionalData.ageRange || '',
         primaryChallenge: additionalData.primaryChallenge || '',
-        hasConsentedToDataUse: additionalData.hasConsentedToDataUse || false,
         lastSessionAt: null,
         sessionCount: 0,
         lastCheckInAt: null,
-        isAdmin: isUserAdmin,
       });
     } catch (error) {
       console.error("Error creating user document: ", error);

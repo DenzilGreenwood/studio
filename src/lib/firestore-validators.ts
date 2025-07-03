@@ -26,8 +26,10 @@ export const UserProfileSchema = z.object({
   lastCheckInAt: DateOrTimestampSchema.optional(),
   fcmToken: z.string().optional(),
   sessionCount: z.number().optional(),
-  hasConsentedToDataUse: z.boolean().optional(),
-  isAdmin: z.boolean().optional(),
+  // Encryption fields
+  encryptedPassphrase: z.string().optional(),
+  passphraseSalt: z.string().optional(),
+  passphraseIv: z.string().optional(),
 });
 
 // ChatMessage validation schema

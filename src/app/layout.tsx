@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/context/auth-context';
+import { EncryptionProvider } from '@/lib/encryption-context';
 import { Alegreya, Belleza } from 'next/font/google';
 
 const alegreya = Alegreya({
@@ -33,8 +34,10 @@ export default function RootLayout({
     <html lang="en" className={`${alegreya.variable} ${belleza.variable}`}>
       <body className="font-body antialiased">
         <AuthProvider>
-          {children}
-          <Toaster />
+          <EncryptionProvider>
+            {children}
+            <Toaster />
+          </EncryptionProvider>
         </AuthProvider>
       </body>
     </html>

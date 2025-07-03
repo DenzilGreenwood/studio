@@ -16,8 +16,10 @@ export interface UserProfile {
   lastCheckInAt?: Timestamp | Date;
   fcmToken?: string;
   sessionCount?: number;
-  hasConsentedToDataUse?: boolean;
-  isAdmin?: boolean;
+  // Encryption fields
+  encryptedPassphrase?: string;
+  passphraseSalt?: string;
+  passphraseIv?: string;
 }
 
 export interface ChatMessage {
@@ -58,7 +60,7 @@ export interface ProtocolSession {
   sessionId: string;
   userId: string;
   circumstance: string;
-  ageRange?: string; // Added from profile for admin view
+  ageRange?: string;
   startTime: Timestamp | Date;
   endTime?: Timestamp | Date;
   completedPhases: number;
