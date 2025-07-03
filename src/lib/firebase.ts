@@ -1,6 +1,6 @@
 // src/lib/firebase.ts
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth, type Auth, connectAuthEmulator } from 'firebase/auth'; // Added connectAuthEmulator
+import { getAuth, type Auth } from 'firebase/auth'; // Added connectAuthEmulator
 import { 
   getFirestore, 
   type Firestore,
@@ -21,7 +21,6 @@ import {
   writeBatch,
   limit,
   onSnapshot,
-  connectFirestoreEmulator,
   enableNetwork,
   disableNetwork
 } from 'firebase/firestore';
@@ -38,8 +37,7 @@ const firebaseConfig = {
 };
 
 let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
+
 
 // let storage: FirebaseStorage;
 
@@ -49,8 +47,8 @@ if (getApps().length === 0) {
   app = getApps()[0]!;
 }
 
-auth = getAuth(app);
-db = getFirestore(app);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
 
 // Connect to emulators in development

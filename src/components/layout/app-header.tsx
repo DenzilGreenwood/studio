@@ -39,7 +39,7 @@ export function AppHeader() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [activeSession, setActiveSession] = useState<ProtocolSession | null>(null);
-  const [checkingSession, setCheckingSession] = useState(false);
+  const [_checkingSession, setCheckingSession] = useState(false);
 
   // Check for active sessions
   const checkForActiveSession = React.useCallback(async () => {
@@ -93,7 +93,7 @@ export function AppHeader() {
       await logout();
       toast({ title: "Logged Out", description: "You have been successfully logged out." });
       router.push("/");
-    } catch (error) {
+    } catch {
       toast({ variant: "destructive", title: "Logout Failed", description: "Could not log out. Please try again." });
     }
   };
@@ -105,12 +105,12 @@ export function AppHeader() {
       toast({ title: "Account Deleted", description: "Your account and all associated data have been successfully deleted." });
       setIsDeleteDialogOpen(false); // Close dialog
       router.push("/"); // Redirect to homepage
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error deleting account:", error);
       toast({
         variant: "destructive",
         title: "Account Deletion Failed",
-        description: error.message || "Could not delete your account. Please try again or contact support.",
+        description: error instanceof Error ? error.message : "Could not delete your account. Please try again or contact support.",
         duration: 10000, // Longer duration for important errors
       });
     } finally {

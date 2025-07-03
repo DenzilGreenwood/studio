@@ -27,7 +27,7 @@ export class CleanReportGenerator {
       sessionId: session.sessionId,
       userId: session.userId,
       
-      sessionDate: session.startTime instanceof Date ? session.startTime : new Date(session.startTime),
+      sessionDate: this.convertToDate(session.startTime),
       duration: this.calculateDuration(session),
       circumstance: session.circumstance,
       
@@ -81,8 +81,18 @@ export class CleanReportGenerator {
     const userMessages = messages.filter(msg => msg.sender === 'user');
     const averageLength = userMessages.reduce((sum, msg) => sum + msg.text.length, 0) / userMessages.length;
     
+    // Ensure engagementLevel is typed correctly
+    let engagementLevel: 'high' | 'medium' | 'low';
+    if (averageLength > 100) {
+      engagementLevel = 'high';
+    } else if (averageLength > 50) {
+      engagementLevel = 'medium';
+    } else {
+      engagementLevel = 'low';
+    }
+    
     return {
-      engagementLevel: averageLength > 100 ? 'high' : averageLength > 50 ? 'medium' : 'low' as const,
+      engagementLevel,
       breakthroughPhase: this.findBreakthroughPhase(messages),
       emotionalShift: this.assessEmotionalShift(session) as 'significant' | 'moderate' | 'mild',
       clarityGained: Math.min(10, Math.round(session.completedPhases * 1.5 + 2))
@@ -117,6 +127,13 @@ export class CleanReportGenerator {
   /**
    * Helper methods for data extraction and cleaning
    */
+
+  private static convertToDate(timestamp: Date | Timestamp | string | number): Date {
+    if (timestamp instanceof Date) return timestamp;
+    if (timestamp instanceof Timestamp) return timestamp.toDate();
+    if (typeof timestamp === 'string' || typeof timestamp === 'number') return new Date(timestamp);
+    return new Date(); // fallback
+  }
   
   private static cleanText(text: string, maxLength: number = 200): string {
     if (!text) return '';
@@ -217,7 +234,7 @@ export class CleanReportGenerator {
     return steps.slice(0, 5);
   }
   
-  private static identifyPracticeAreas(session: ProtocolSession, messages: ChatMessage[]): string[] {
+  private static identifyPracticeAreas(session: ProtocolSession, _messages: ChatMessage[]): string[] {
     const areas = new Set<string>();
     const circumstance = session.circumstance.toLowerCase();
     
@@ -370,8 +387,8 @@ export class CleanReportGenerator {
   private static calculateDuration(session: ProtocolSession): number {
     if (!session.endTime || !session.startTime) return 0;
     
-    const start = session.startTime instanceof Date ? session.startTime : new Date(session.startTime);
-    const end = session.endTime instanceof Date ? session.endTime : new Date(session.endTime);
+    const start = this.convertToDate(session.startTime);
+    const end = this.convertToDate(session.endTime);
     
     return Math.round((end.getTime() - start.getTime()) / (1000 * 60));
   }
