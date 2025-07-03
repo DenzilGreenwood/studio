@@ -1,5 +1,4 @@
 // src/ai/flows/session-reflection-flow.ts
-'use server';
 
 /**
  * @fileOverview AI flow for generating conversational session highlights and reflection support
@@ -131,7 +130,7 @@ export const sessionReflectionFlow = ai.defineFlow(
     inputSchema: SessionReflectionInputSchema,
     outputSchema: SessionReflectionOutputSchema,
   },
-  async input => {
+  async (input: SessionReflectionInput) => {
     try {
       const { output } = await sessionReflectionPrompt(input);
       if (!output) {

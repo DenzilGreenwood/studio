@@ -1,5 +1,3 @@
-'use server';
-
 /**
  * @fileOverview Generates actionable goals based on a user's session summary and reflection.
  *
@@ -60,7 +58,7 @@ export const goalGeneratorFlow = ai.defineFlow(
     inputSchema: GoalGeneratorInputSchema,
     outputSchema: GoalGeneratorOutputSchema,
   },
-  async input => {
+  async (input: GoalGeneratorInput) => {
     try {
       const {output} = await prompt(input);
       if (!output) {

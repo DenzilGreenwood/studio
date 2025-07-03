@@ -5,9 +5,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter, notFound } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { db, doc, getDoc, updateDoc, writeBatch, serverTimestamp, Timestamp, collection, query, where, orderBy, getDocs } from '@/lib/firebase';
-import { generateSessionReflection } from '@/ai/flows/session-reflection-flow';
 import type { ProtocolSession, Goal } from '@/types';
-import type { SessionReflectionInput, SessionReflectionOutput } from '@/ai/flows/session-reflection-flow';
+import type { SessionReflectionOutput } from '@/ai/flows/session-reflection-flow';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,10 +16,30 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Heart, Target, Lightbulb, MessageSquare, Plus, Trash2, ArrowLeft, Sparkles, BookOpen, Save } from 'lucide-react';
+import { Loader2, Heart, Target, Lightbulb, MessageSquare, Plus, Trash2, ArrowLeft, Sparkles, BookOpen, Save, Download, PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, convertProtocolSessionTimestamps } from '@/lib/utils';
 import Link from 'next/link';
+import { PDFGenerator, prepareSessionDataForPDF } from '@/lib/pdf-generator';
+
+// Define the input type locally to avoid importing server-side code
+interface SessionReflectionInput {
+  sessionSummary: string;
+  actualReframedBelief: string;
+  actualLegacyStatement: string;
+  topEmotions: string;
+  userReflection?: string;
+  circumstance: string;
+  sessionDate: string;
+  previousSessions?: Array<{
+    date: string;
+    circumstance: string;
+    reframedBelief?: string;
+    legacyStatement?: string;
+    goals?: string[];
+    completed?: boolean;
+  }>;
+}
 
 interface JournalSessionData {
   sessionId: string;
@@ -89,31 +108,26 @@ export default function JournalPage() {
       const sessionSnap = await getDoc(sessionDocRef);
 
       if (!sessionSnap.exists()) {
-        notFound();
+        setError("Session not found. It may have been deleted or doesn't exist.");
         return;
       }
 
       const fetchedSessionData = sessionSnap.data() as ProtocolSession;
       
+      // Check if session is deleted
+      if (fetchedSessionData.isDeleted) {
+        setError("This session has been moved to trash. Please restore it from the trash to access the journal.");
+        return;
+      }
+      
+      // Check if session is completed (required for journal access)
+      if (fetchedSessionData.completedPhases < 6) {
+        setError("Journal access is only available for completed sessions. Please complete the session first.");
+        return;
+      }
+      
       // Convert timestamps
-      const convertTimestampFields = (data: ProtocolSession): JournalSessionData => {
-        const convert = (field: any) => field instanceof Timestamp ? field.toDate() : (field ? new Date(field) : undefined);
-        return {
-          ...data,
-          startTime: convert(data.startTime)!,
-          endTime: convert(data.endTime),
-          feedbackSubmittedAt: data.feedbackSubmittedAt ? convert(data.feedbackSubmittedAt) : undefined,
-          summary: data.summary ? { ...data.summary, generatedAt: convert(data.summary.generatedAt)! } : undefined,
-          userReflectionUpdatedAt: data.userReflectionUpdatedAt ? convert(data.userReflectionUpdatedAt) : undefined,
-          goals: data.goals?.map(g => ({ ...g, createdAt: convert(g.createdAt)! })) || [],
-          aiReflection: data.aiReflection ? {
-            ...data.aiReflection,
-            generatedAt: convert(data.aiReflection.generatedAt)
-          } : undefined,
-        };
-      };
-
-      const processedSessionData = convertTimestampFields(fetchedSessionData);
+      const processedSessionData = convertProtocolSessionTimestamps(fetchedSessionData) as JournalSessionData;
       setSessionData(processedSessionData);
       setReflectionText(processedSessionData.userReflection || '');
       setUserGoals(processedSessionData.goals || []);
@@ -165,7 +179,20 @@ export default function JournalPage() {
         previousSessions: previousSessions.length > 0 ? previousSessions : undefined
       };
 
-      const aiReflection = await generateSessionReflection(reflectionInput);
+      // Call the API to generate the AI reflection
+      const response = await fetch('/api/session-reflection', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reflectionInput),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate AI reflection');
+      }
+
+      const aiReflection: SessionReflectionOutput = await response.json();
 
       // Save the AI reflection to the session
       const sessionDocRef = doc(db, `users/${firebaseUser.uid}/sessions/${sessionId}`);
@@ -203,6 +230,7 @@ export default function JournalPage() {
     if (!newGoalText.trim()) return;
     
     const newGoal: Goal = {
+      id: crypto.randomUUID(),
       text: newGoalText.trim(),
       completed: false,
       createdAt: new Date()
@@ -256,6 +284,52 @@ export default function JournalPage() {
     }
   };
 
+  // PDF Download handler
+  const handleDownloadPdf = async () => {
+    if (!sessionData) {
+      toast({ 
+        variant: "destructive", 
+        title: "Error", 
+        description: "Session data not available for PDF generation." 
+      });
+      return;
+    }
+
+    try {
+      const generator = new PDFGenerator();
+      
+      // Convert JournalSessionData to ProtocolSession format for PDF
+      const pdfSessionData = {
+        ...sessionData,
+        startTime: sessionData.startTime instanceof Date ? sessionData.startTime : new Date(sessionData.startTime),
+        endTime: sessionData.endTime instanceof Date ? sessionData.endTime : (sessionData.endTime ? new Date(sessionData.endTime) : undefined),
+        goals: userGoals.length > 0 ? userGoals : sessionData.goals
+      };
+      
+      const pdfData = prepareSessionDataForPDF(pdfSessionData as any);
+      
+      // Add loading toast
+      toast({ 
+        title: "Generating PDF", 
+        description: "Creating your comprehensive session report with journal..." 
+      });
+      
+      await generator.downloadSessionPDF(pdfData);
+      
+      toast({ 
+        title: "PDF Downloaded", 
+        description: "Your complete session report with journal insights has been downloaded." 
+      });
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast({ 
+        variant: "destructive", 
+        title: "PDF Generation Failed", 
+        description: "There was an error creating your PDF. Please try again." 
+      });
+    }
+  };
+
   if (isLoading || authLoading) {
     return (
       <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center text-primary">
@@ -270,13 +344,56 @@ export default function JournalPage() {
       <div className="container mx-auto p-4 md:p-8 max-w-3xl text-center">
         <Card className="border-destructive">
           <CardHeader>
-            <CardTitle className="text-destructive">Error Loading Journal</CardTitle>
+            <CardTitle className="text-destructive flex items-center justify-center gap-2">
+              <BookOpen className="h-6 w-6" />
+              Error Loading Journal
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">{error || 'Session not found'}</p>
-            <Button asChild>
-              <Link href="/sessions">Go Back to Sessions</Link>
-            </Button>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">{error || 'Session not found'}</p>
+            
+            {error?.includes('completed sessions') && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Tip:</strong> Complete your session first to unlock the journal feature with AI insights and goal tracking.
+                </p>
+              </div>
+            )}
+            
+            {error?.includes('trash') && (
+              <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                <p className="text-sm text-orange-800">
+                  <strong>Tip:</strong> You can restore this session from the trash page.
+                </p>
+              </div>
+            )}
+            
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button asChild>
+                <Link href="/sessions">
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  View All Sessions
+                </Link>
+              </Button>
+              
+              {error?.includes('trash') && (
+                <Button asChild variant="outline">
+                  <Link href="/trash">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Go to Trash
+                  </Link>
+                </Button>
+              )}
+              
+              {error?.includes('completed') && (
+                <Button asChild variant="outline">
+                  <Link href="/protocol">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Continue Session
+                  </Link>
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -290,21 +407,31 @@ export default function JournalPage() {
     <div className="bg-secondary/30 min-h-screen py-8">
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="outline" asChild>
-            <Link href={`/session-report/${sessionId}`}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Report
-            </Link>
-          </Button>
-          <div>
-            <h1 className="font-headline text-3xl font-bold text-primary flex items-center gap-2">
-              <BookOpen className="h-8 w-8" />
-              Journal & Reflection
-            </h1>
-            <p className="text-muted-foreground">
-              Session from {sessionData.startTime.toLocaleDateString()} • {sessionData.circumstance}
-            </p>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" asChild>
+              <Link href={`/session-report/${sessionId}`}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Report
+              </Link>
+            </Button>
+            <div>
+              <h1 className="font-headline text-3xl font-bold text-primary flex items-center gap-2">
+                <BookOpen className="h-8 w-8" />
+                Journal & Reflection
+              </h1>
+              <p className="text-muted-foreground">
+                Session from {sessionData.startTime.toLocaleDateString()} • {sessionData.circumstance}
+              </p>
+            </div>
+          </div>
+          
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            <Button onClick={handleDownloadPdf} variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              Download PDF
+            </Button>
           </div>
         </div>
 
@@ -535,6 +662,17 @@ export default function JournalPage() {
                   Save Journal
                 </>
               )}
+            </Button>
+
+            {/* Download PDF Button */}
+            <Button 
+              onClick={handleDownloadPdf} 
+              className="w-full" 
+              size="lg"
+              variant="outline"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download Session Report as PDF
             </Button>
           </div>
         </div>

@@ -1,23 +1,26 @@
 // src/app/(app)/session-report/[sessionId]/page.tsx
 "use client";
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams, notFound } from 'next/navigation'; 
 import { useAuth } from '@/context/auth-context';
-import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp, updateDoc, serverTimestamp, writeBatch } from '@/lib/firebase';
+import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp } from '@/lib/firebase';
 import type { ProtocolSession, ChatMessage as FirestoreChatMessage, UserProfile } from '@/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Brain, User, Loader2, AlertTriangle, FileText, Lightbulb, Milestone, Bot, MessageSquare, Edit3, CheckCircle, Download, Shield, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
+import { cn, convertProtocolSessionTimestamps } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast'; 
 import jsPDF from 'jspdf';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { PDFGenerator, prepareSessionDataForPDF } from '@/lib/pdf-generator';
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
 import { useIsAdmin } from '@/hooks/use-is-admin';
+import { EmotionalProgression } from '@/components/protocol/emotional-progression';
 
 interface DisplayMessage extends FirestoreChatMessage {
   id: string; 
@@ -44,10 +47,12 @@ export default function SessionReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [isNewCompletion, setIsNewCompletion] = useState(false);
 
 
   useEffect(() => {
     const reviewSubmitted = searchParams?.get('review_submitted') === 'true';
+    const newCompletion = searchParams?.get('newCompletion') === 'true';
     const newCircumstance = searchParams?.get('circumstance');
     const newUrl = `/session-report/${sessionId}${newCircumstance ? `?circumstance=${encodeURIComponent(newCircumstance)}` : ''}`;
 
@@ -56,6 +61,17 @@ export default function SessionReportPage() {
         title: "Review Submitted",
         description: "Thank you for your feedback!",
         variant: "default", 
+      });
+      router.replace(newUrl, { scroll: false });
+    }
+
+    if (newCompletion) {
+      setIsNewCompletion(true);
+      toast({
+        title: "Welcome to Your Report! 🎉",
+        description: "Take your time to review your insights. You can provide feedback when you're ready.",
+        variant: "default",
+        duration: 8000,
       });
       router.replace(newUrl, { scroll: false });
     }
@@ -88,20 +104,7 @@ export default function SessionReportPage() {
 
         const fetchedSessionData = sessionSnap.data() as ProtocolSession;
         
-        const convertTimestampFields = (data: ProtocolSession): ProtocolSession => {
-          const convert = (field: any) => field instanceof Timestamp ? field.toDate() : (field ? new Date(field) : undefined);
-          return {
-            ...data,
-            startTime: convert(data.startTime)!, 
-            endTime: convert(data.endTime),
-            feedbackSubmittedAt: data.feedbackSubmittedAt ? convert(data.feedbackSubmittedAt) : undefined,
-            summary: data.summary ? { ...data.summary, generatedAt: convert(data.summary.generatedAt)! } : undefined,
-            userReflectionUpdatedAt: data.userReflectionUpdatedAt ? convert(data.userReflectionUpdatedAt) : undefined,
-            goals: data.goals?.map(g => ({ ...g, createdAt: convert(g.createdAt)! })) || [],
-          };
-        };
-
-        const processedSessionData = convertTimestampFields(fetchedSessionData);
+        const processedSessionData = convertProtocolSessionTimestamps(fetchedSessionData);
         
         let sessionForUser: UserProfile | null = null;
         if (isAdmin && userIdFromQuery) {
@@ -128,9 +131,9 @@ export default function SessionReportPage() {
 
         setSessionData(fullSessionData);
 
-      } catch (e: any) {
-        console.error("Error fetching session report:", e);
-        setError(e.message || "Failed to load session report.");
+      } catch (error: unknown) {
+        console.error("Error fetching session report:", error);
+        setError(error instanceof Error ? error.message : "Failed to load session report.");
       } finally {
         setIsLoading(false);
       }
@@ -157,8 +160,66 @@ export default function SessionReportPage() {
     };
   
   const handleDownloadPdf = async () => {
-    toast({title: "PDF Download", description: "PDF generation logic needs to be updated to include new journal section."});
-  }
+    if (!sessionData) {
+      toast({ 
+        variant: "destructive", 
+        title: "Error", 
+        description: "Session data not available for PDF generation." 
+      });
+      return;
+    }
+
+    setIsGeneratingPdf(true);
+
+    try {
+      console.log('Starting PDF generation...', { sessionData });
+      
+      // Test basic jsPDF functionality first
+      console.log('Testing basic jsPDF...');
+      const testDoc = new jsPDF();
+      testDoc.text('Test PDF', 20, 20);
+      const testBlob = testDoc.output('blob');
+      console.log('Basic jsPDF test successful, blob size:', testBlob.size);
+      
+      const generator = new PDFGenerator();
+      const pdfData = prepareSessionDataForPDF(sessionData);
+      
+      console.log('Prepared PDF data:', pdfData);
+      
+      // Add loading toast
+      toast({ 
+        title: "Generating PDF", 
+        description: "Creating your comprehensive session report with cover page and table of contents..." 
+      });
+      
+      await generator.downloadSessionPDF(pdfData);
+      
+      toast({ 
+        title: "PDF Downloaded", 
+        description: "Your complete session report with all sections and placeholders has been downloaded." 
+      });
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        sessionData: sessionData ? {
+          sessionId: sessionData.sessionId,
+          hasCircumstance: !!sessionData.circumstance,
+          hasSummary: !!sessionData.summary,
+          hasMessages: sessionData.chatMessages?.length
+        } : null
+      });
+      
+      toast({ 
+        variant: "destructive", 
+        title: "PDF Generation Failed", 
+        description: `Error: ${error instanceof Error ? error.message : 'Unknown error'}. Please check the browser console for details.` 
+      });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
     if (isLoading || authLoading) {
         return (
@@ -242,6 +303,7 @@ export default function SessionReportPage() {
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[525px]">
+                           <DialogTitle className="sr-only">Session Feedback</DialogTitle>
                            {firebaseUser && circumstance && (
                               <PostSessionFeedback
                                 sessionId={sessionId}
@@ -290,14 +352,14 @@ export default function SessionReportPage() {
                     <Card className="mb-3 p-4 bg-muted/30 border-dashed">
                       <p className="text-xs text-foreground/90 mb-1 font-medium flex items-center">
                         <Bot className="h-4 w-4 mr-2 text-accent" />
-                        AI's Question:
+                        AI&apos;s Question:
                       </p>
-                      <p className="text-sm text-muted-foreground italic mb-3">"{summary.reframedBeliefInteraction.aiQuestion}"</p>
+                      <p className="text-sm text-muted-foreground italic mb-3">&ldquo;{summary.reframedBeliefInteraction.aiQuestion}&rdquo;</p>
                       <p className="text-xs text-foreground/90 mb-1 font-medium flex items-center">
                         <User className="h-4 w-4 mr-2 text-primary" />
                         Your Answer:
                       </p>
-                      <p className="text-sm text-muted-foreground italic">"{summary.reframedBeliefInteraction.userResponse}"</p>
+                      <p className="text-sm text-muted-foreground italic">&ldquo;{summary.reframedBeliefInteraction.userResponse}&rdquo;</p>
                     </Card>
                   )}
                   <p className="text-muted-foreground bg-background p-3 rounded-md border"><strong className="text-primary">Final Belief:</strong> {summary.actualReframedBelief}</p>
@@ -312,14 +374,14 @@ export default function SessionReportPage() {
                     <Card className="mb-3 p-4 bg-muted/30 border-dashed">
                       <p className="text-xs text-foreground/90 mb-1 font-medium flex items-center">
                         <Bot className="h-4 w-4 mr-2 text-accent" />
-                        AI's Question:
+                        AI&apos;s Question:
                       </p>
-                      <p className="text-sm text-muted-foreground italic mb-3">"{summary.legacyStatementInteraction.aiQuestion}"</p>
+                      <p className="text-sm text-muted-foreground italic mb-3">&ldquo;{summary.legacyStatementInteraction.aiQuestion}&rdquo;</p>
                       <p className="text-xs text-foreground/90 mb-1 font-medium flex items-center">
                         <User className="h-4 w-4 mr-2 text-primary" />
                         Your Answer:
                       </p>
-                      <p className="text-sm text-muted-foreground italic">"{summary.legacyStatementInteraction.userResponse}"</p>
+                      <p className="text-sm text-muted-foreground italic">&ldquo;{summary.legacyStatementInteraction.userResponse}&rdquo;</p>
                     </Card>
                   )}
                   <p className="text-muted-foreground bg-background p-3 rounded-md border"><strong className="text-primary">Final Statement:</strong> {summary.actualLegacyStatement}</p>
@@ -351,9 +413,35 @@ export default function SessionReportPage() {
               <p className="text-muted-foreground text-center py-4">No summary information available for this session.</p>
             )}
 
-            {/* Reflection and Implementation Plan Sections */}
-            {/* Removed duplicate/unused Reflection & Implementation Plan card to resolve errors and avoid confusion. */}
-
+            {/* Emotional Progression and Key Statements */}
+            {(sessionData.emotionalProgression && sessionData.emotionalProgression.length > 0) || sessionData.keyStatements ? (
+              <section className="pt-6 border-t">
+                <EmotionalProgression 
+                  emotionalProgression={sessionData.emotionalProgression?.map(ep => ({
+                    ...ep,
+                    timestamp: ep.timestamp instanceof Timestamp ? ep.timestamp.toDate() : ep.timestamp
+                  }))}
+                  keyStatements={sessionData.keyStatements ? {
+                    reframedBelief: sessionData.keyStatements.reframedBelief ? {
+                      ...sessionData.keyStatements.reframedBelief,
+                      timestamp: sessionData.keyStatements.reframedBelief.timestamp instanceof Timestamp 
+                        ? sessionData.keyStatements.reframedBelief.timestamp.toDate() 
+                        : sessionData.keyStatements.reframedBelief.timestamp
+                    } : undefined,
+                    legacyStatement: sessionData.keyStatements.legacyStatement ? {
+                      ...sessionData.keyStatements.legacyStatement,
+                      timestamp: sessionData.keyStatements.legacyStatement.timestamp instanceof Timestamp 
+                        ? sessionData.keyStatements.legacyStatement.timestamp.toDate() 
+                        : sessionData.keyStatements.legacyStatement.timestamp
+                    } : undefined,
+                    insights: sessionData.keyStatements.insights?.map(insight => ({
+                      ...insight,
+                      timestamp: insight.timestamp instanceof Timestamp ? insight.timestamp.toDate() : insight.timestamp
+                    }))
+                  } : undefined}
+                />
+              </section>
+            ) : null}
 
             <section className="pt-6 border-t">
                 <Card className="bg-secondary/30 border-secondary shadow-inner">
@@ -366,7 +454,7 @@ export default function SessionReportPage() {
                                     <CardDescription>Reflect on your session with AI insights and set meaningful goals.</CardDescription>
                                 </div>
                             </div>
-                            <Link href={`/journal/${sessionId}`}>
+                            <Link href={`/journal-v2/${sessionId}`}>
                                 <Button className="flex items-center gap-2">
                                     <BookOpen className="h-4 w-4" />
                                     Open Journal
@@ -385,7 +473,7 @@ export default function SessionReportPage() {
                                     <li>• Personalized emotional support</li>
                                 </ul>
                             </div>
-                            <Link href={`/journal/${sessionId}`}>
+                            <Link href={`/journal-v2/${sessionId}`}>
                                 <Button size="lg" className="mt-4">
                                     <BookOpen className="mr-2 h-5 w-5" />
                                     Go to Session Journal
@@ -450,6 +538,71 @@ export default function SessionReportPage() {
                 </div>
               </ScrollArea>
             </section>
+
+            {/* Feedback Section */}
+            {!sessionData.feedbackId && (
+              <section className="pt-6 border-t">
+                <Card className={cn(
+                  "border-accent/20",
+                  isNewCompletion 
+                    ? "bg-gradient-to-r from-accent/10 to-primary/10 shadow-lg border-accent/40" 
+                    : "bg-gradient-to-r from-accent/5 to-primary/5"
+                )}>
+                  <CardHeader>
+                    <CardTitle className="font-headline text-xl text-primary flex items-center">
+                      <MessageSquare className="mr-3 h-6 w-6" />
+                      Share Your Experience
+                      {isNewCompletion && (
+                        <Badge className="ml-3 bg-accent text-accent-foreground animate-pulse">
+                          New!
+                        </Badge>
+                      )}
+                    </CardTitle>
+                    <CardDescription>
+                      {isNewCompletion 
+                        ? "🎉 Congratulations on completing your session! Your feedback helps us improve the experience for everyone."
+                        : "Help us improve by sharing your thoughts about this session. Your feedback is valuable and anonymous."
+                      }
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                      <div className="text-sm text-muted-foreground">
+                        <p>• How helpful was this session?</p>
+                        <p>• Any suggestions for improvement?</p>
+                        <p>• Want insights delivered later?</p>
+                        {isNewCompletion && (
+                          <p className="text-accent font-medium mt-2">✨ Your input shapes future sessions</p>
+                        )}
+                      </div>
+                      <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button 
+                            size="lg" 
+                            className={cn(
+                              "min-w-[180px]",
+                              isNewCompletion && "bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg"
+                            )}
+                          >
+                            <MessageSquare className="mr-2 h-5 w-5" />
+                            {isNewCompletion ? "Complete Your Journey" : "Provide Feedback"}
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-lg">
+                          <DialogTitle className="sr-only">Session Feedback</DialogTitle>
+                          <PostSessionFeedback
+                            sessionId={sessionId}
+                            userId={firebaseUser?.uid || ''}
+                            circumstance={sessionData.circumstance}
+                            onFeedbackSubmitted={handleFeedbackSubmitted}
+                          />
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </CardContent>
+                </Card>
+              </section>
+            )}
           </CardContent>
         </Card>
         <footer className="py-6 mt-4 text-center text-sm text-muted-foreground border-t">

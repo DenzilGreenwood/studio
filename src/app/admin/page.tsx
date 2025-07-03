@@ -108,8 +108,14 @@ export default function AdminPage() {
 
         // Optional: Sort users by who has the most recent session
         finalGroupedData.sort((a, b) => {
-            const aLatestTime = a.sessions[0]?.startTime ? new Date(a.sessions[0].startTime).getTime() : 0;
-            const bLatestTime = b.sessions[0]?.startTime ? new Date(b.sessions[0].startTime).getTime() : 0;
+            const aLatestTime = a.sessions[0]?.startTime ? 
+                (a.sessions[0].startTime instanceof Date 
+                    ? a.sessions[0].startTime.getTime() 
+                    : a.sessions[0].startTime.toDate().getTime()) : 0;
+            const bLatestTime = b.sessions[0]?.startTime ? 
+                (b.sessions[0].startTime instanceof Date 
+                    ? b.sessions[0].startTime.getTime() 
+                    : b.sessions[0].startTime.toDate().getTime()) : 0;
             return bLatestTime - aLatestTime;
         });
 
@@ -158,6 +164,24 @@ export default function AdminPage() {
           </div>
         </div>
       </header>
+
+      {/* Admin Tools */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Admin Tools</CardTitle>
+          <CardDescription>Migration and maintenance tools for the platform.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4">
+            <Link href="/admin/migration">
+              <Button variant="outline" className="flex items-center gap-2">
+                <BarChart2 className="h-4 w-4" />
+                Session Migration Tool
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="feedback" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
@@ -250,7 +274,11 @@ export default function AdminPage() {
                             <TableBody>
                               {sessions.map(session => (
                                 <TableRow key={session.sessionId}>
-                                  <TableCell>{new Date(session.startTime).toLocaleString()}</TableCell>
+                                  <TableCell>
+                                    {session.startTime instanceof Date 
+                                      ? session.startTime.toLocaleString()
+                                      : session.startTime.toDate().toLocaleString()}
+                                  </TableCell>
                                   <TableCell>{session.ageRange || 'N/A'}</TableCell>
                                   <TableCell>{session.circumstance}</TableCell>
                                   <TableCell className="max-w-xs truncate">{session.summary?.actualReframedBelief || "N/A"}</TableCell>

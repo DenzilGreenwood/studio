@@ -39,17 +39,29 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 async function deleteCollection(collectionPath: string) {
-  const collectionRef = collection(db, collectionPath);
-  const q = query(collectionRef); 
-  const snapshot = await getDocs(q);
-  if (snapshot.empty) {
-    return;
+  try {
+    console.log(`Deleting collection: ${collectionPath}`);
+    const collectionRef = collection(db, collectionPath);
+    const q = query(collectionRef); 
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) {
+      console.log(`Collection ${collectionPath} is empty, nothing to delete`);
+      return;
+    }
+    
+    console.log(`Deleting ${snapshot.docs.length} documents from ${collectionPath}`);
+    const batch = writeBatch(db);
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+    console.log(`Successfully deleted collection: ${collectionPath}`);
+  } catch (error) {
+    console.error(`Error deleting collection ${collectionPath}:`, error);
+    // Don't throw the error - just log it and continue with other deletions
+    // This prevents one failed collection from stopping the entire deletion process
   }
-  const batch = writeBatch(db);
-  snapshot.docs.forEach((doc) => {
-    batch.delete(doc.ref);
-  });
-  await batch.commit();
 }
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -135,10 +147,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const userId = firebaseUser.uid;
 
     try {
-      // New simplified path to sessions
+      console.log('Starting account deletion for user:', userId);
+
+      // Delete sessions and their subcollections
       const sessionsPath = `users/${userId}/sessions`;
       const sessionsQuery = query(collection(db, sessionsPath));
       const sessionsSnapshot = await getDocs(sessionsQuery);
+
+      console.log(`Found ${sessionsSnapshot.docs.length} sessions to delete`);
 
       for (const sessionDoc of sessionsSnapshot.docs) {
         const sessionId = sessionDoc.id;
@@ -148,26 +164,55 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Delete all sessions in one go
       await deleteCollection(sessionsPath);
       
+      // Delete reports collection (new architecture)
+      console.log('Deleting reports collection...');
+      await deleteCollection(`users/${userId}/reports`);
+      
+      // Delete journals collection (new architecture)
+      console.log('Deleting journals collection...');
+      await deleteCollection(`users/${userId}/journals`);
+      
       // Delete all feedback from the top-level collection in a batch
+      console.log('Deleting user feedback...');
       const feedbackBatch = writeBatch(db);
       const feedbackQuery = query(collection(db, 'feedback'), where('userId', '==', userId));
       const feedbackSnapshot = await getDocs(feedbackQuery);
       feedbackSnapshot.forEach(doc => feedbackBatch.delete(doc.ref));
-      await feedbackBatch.commit();
+      if (feedbackSnapshot.docs.length > 0) {
+        await feedbackBatch.commit();
+      }
 
       // Delete the user document itself
+      console.log('Deleting user document...');
       await deleteDoc(doc(db, "users", userId));
       
       // Finally, delete the Firebase Auth user
+      console.log('Deleting Firebase Auth user...');
       await firebaseDeleteUser(firebaseUser);
+
+      console.log('Account deletion completed successfully');
 
     } catch (error) {
       console.error("Error deleting user account and data: ", error);
       setLoading(false); 
+      
       if ((error as any).code === 'auth/requires-recent-login') {
         throw new Error("This operation is sensitive and requires recent authentication. Please log out and log back in, then try again.");
       }
-      throw new Error("Failed to delete account and data. Please try again.");
+      
+      // Provide more specific error information
+      let errorMessage = "Failed to delete account and data. Please try again.";
+      if (error instanceof Error) {
+        if (error.message.includes('permission-denied')) {
+          errorMessage = "Permission denied. You may not have the necessary permissions to delete this data.";
+        } else if (error.message.includes('not-found')) {
+          errorMessage = "Some data was already deleted. Continuing with account deletion.";
+        } else if (error.message.includes('network')) {
+          errorMessage = "Network error. Please check your connection and try again.";
+        }
+      }
+      
+      throw new Error(errorMessage);
     }
     // setLoading(false) will be handled by onAuthStateChanged after user signs out
   };

@@ -1,5 +1,4 @@
 // cognitive-edge-protocol.ts
-'use server';
 
 /**
  * @fileOverview Implements the Cognitive Edge Protocol as a conversational AI experience.
@@ -53,32 +52,40 @@ const prompt = ai.definePrompt({
       **Protocol Phase Instructions:**
 
       1.  **Stabilize & Structure:**
-          *   Help the user articulate their challenge. Focus on understanding the core problem.
+          *   Help the user articulate their challenge clearly. Focus on understanding the core problem and establishing a comfortable space for exploration.
+          *   Ask follow-up questions to ensure you understand the situation fully before moving to the next phase.
 
       2.  **Listen for Core Frame:**
-          *   Identify the underlying beliefs shaping the user's perspective.
+          *   Identify the underlying beliefs, assumptions, and thought patterns shaping the user's perspective.
+          *   Listen carefully for the mental models or frames they're using to interpret their situation.
 
       3.  **Validate Emotion / Reframe:**
-          *   Your goal is to guide the user to **state a new, empowering belief**. Ask a direct question like: "Given what we've discussed, what's a new, more empowering way to see this situation?"
-          *   **Crucial:** If the user's response is not a clear, declarative statement of belief, or if they seem to be struggling, you must help.
-          *   If this is attempt number {{{attemptCount}}} (and {{{attemptCount}}} is 2 or more), you **MUST** propose a concrete example. Do not ask the same question again. Analyze their previous messages and offer a suggestion. For example: "It sounds like you're feeling 'overlooked'. How does this sound as a reframed belief: 'My unique skills are a valuable asset, and I will now focus on environments that recognize them.' You can use this or adapt it."
+          *   **Critical Phase**: Your goal is to guide the user to **state a new, empowering belief**.
+          *   Ask a direct question like: "Given what we've discussed, what's a new, more empowering way to see this situation?" or "How might you reframe this challenge in a more positive light?"
+          *   **Important**: If the user's response is not a clear, declarative statement of belief, or if they seem to be struggling, you must help them.
+          *   If this is attempt number {{{attemptCount}}} (and {{{attemptCount}}} is 2 or more), you **MUST** propose a concrete example. Do not ask the same question again. Analyze their previous messages and offer a suggestion. For example: "It sounds like you're feeling 'overlooked'. How does this sound as a reframed belief: 'My unique skills are a valuable asset, and I will now focus on environments that recognize them.' You can use this or adapt it as you see fit."
           *   Once a satisfactory reframe is achieved, move to the next phase.
 
       4.  **Provide Grounded Support:**
-          *   Offer practical advice or strategies relevant to the user's reframed challenge.
+          *   Offer practical advice, strategies, or resources relevant to the user's reframed challenge.
+          *   Focus on actionable steps that align with their new perspective.
 
       5.  **Reflective Pattern Discovery:**
-          *   Guide the user to recognize recurring patterns in their challenges.
+          *   Guide the user to recognize recurring patterns in their challenges and behaviors.
+          *   Help them understand how their new reframe might apply to other areas of their life.
 
       6.  **Empower & Legacy Statement:**
-          * Your goal is to help the user to create a **Legacy Statement**. Ask a direct question like: "Based on your growth, what is the legacy you want to build from this point forward?"
-          * **Crucial:** If the user's response is not a clear statement about their legacy, you must help.
-          * If this is attempt number {{{attemptCount}}} (and {{{attemptCount}}} is 2 or more), you **MUST** propose a concrete example based on their reframed belief and session history. Do not just repeat the question. For instance: "Considering your new belief about your value, a legacy statement could be: 'I will build a career that not only uses my skills but also inspires others to find their own value.' How does that resonate with you?"
-          * **IMPORTANT:** After the user provides a satisfactory legacy statement (a clear, meaningful statement about their future intentions), you MUST set \`nextPhase\` to \`Complete\` and provide a final, encouraging remark in your \`response\`. Do not ask follow-up questions once a good legacy statement is provided.
+          * **Critical Phase**: Your goal is to help the user create a **Legacy Statement** - a meaningful declaration about how they want to move forward.
+          * Ask a direct question like: "Based on your growth in this session, what legacy do you want to build from this point forward?" or "How do you want this insight to shape your future actions?"
+          * **Important**: If the user's response is not a clear, forward-looking statement about their intentions, you must help them.
+          * If this is attempt number {{{attemptCount}}} (and {{{attemptCount}}} is 2 or more), you **MUST** propose a concrete example based on their reframed belief and session history. Do not just repeat the question. For instance: "Considering your new belief about your value, a legacy statement could be: 'I will build a career that not only uses my skills but also inspires others to find their own value.' How does that resonate with you? Feel free to adapt it."
+          * **IMPORTANT**: After the user provides a satisfactory legacy statement (a clear, meaningful statement about their future intentions), you MUST set \`nextPhase\` to \`Complete\` and provide a final, encouraging remark in your \`response\`. Do not ask follow-up questions once a good legacy statement is provided.
 
       **Important Notes:**
       * When in phase 6 "Empower & Legacy Statement", once the user gives a meaningful legacy statement, immediately set nextPhase to "Complete"
       * A satisfactory legacy statement is one that clearly expresses the user's intentions for their future based on their growth in the session
+      * Always be encouraging and supportive while helping users articulate their thoughts
+      * Pay attention to the attempt count and provide more guidance when users seem stuck
 
       **Your Output:**
       *   \`response\`: Your conversational reply to the user.
@@ -92,7 +99,7 @@ export const cognitiveEdgeProtocolFlow = ai.defineFlow(
     inputSchema: CognitiveEdgeProtocolInputSchema,
     outputSchema: CognitiveEdgeProtocolOutputSchema,
   },
-  async input => {
+  async (input: CognitiveEdgeProtocolInput) => {
     try {
       const {output} = await prompt(input);
       if (!output) {

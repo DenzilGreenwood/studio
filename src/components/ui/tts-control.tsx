@@ -33,11 +33,10 @@ export function TTSControl({
     // Set up the playing state callback
     ttsService.setPlayingStateChangeCallback(setIsPlaying);
     
-    // Auto-play if requested and settings allow it
-    if (autoPlay && text.trim() && isLoaded && settings.enabled && settings.autoPlay) {
-      handlePlay();
-    }
-
+    // Note: Auto-play is disabled due to browser security policies
+    // Auto-play would require user interaction first
+    // Users need to manually click the play button
+    
     return () => {
       // Clean up when component unmounts
       ttsService.stop();
@@ -51,14 +50,38 @@ export function TTSControl({
     setHasError(false);
 
     try {
+      // Enable audio on user click (satisfies browser audio policy)
+      ttsService.enableAudio();
+      
       await ttsService.playText(text);
     } catch (error) {
       console.error('TTS Error:', error);
       setHasError(true);
+      
+      // Provide more specific error messages
+      let errorMessage = 'Unable to play audio. Please try again.';
+      if (error instanceof Error) {
+        if (error.message.includes('interrupted')) {
+          // This should now be handled in the service and not reach here, but just in case
+          console.log('TTS was interrupted by user - this is normal behavior');
+          return; // Don't show error toast for normal interruption
+        } else if (error.message.includes('user interaction')) {
+          errorMessage = 'Audio playback requires user interaction. Please click the play button to enable audio.';
+        } else if (error.message.includes('not-allowed')) {
+          errorMessage = 'Audio playback blocked by browser. Please click the play button to enable audio.';
+        } else if (error.message.includes('internet connection')) {
+          errorMessage = 'Please check your internet connection and try again.';
+        } else if (error.message.includes('not supported')) {
+          errorMessage = 'Text-to-speech is not supported in this browser.';
+        } else if (error.message.includes('unavailable')) {
+          errorMessage = 'Text-to-speech is temporarily unavailable.';
+        }
+      }
+      
       toast({
         variant: 'destructive',
         title: 'Speech Error',
-        description: 'Unable to play audio. Please check your connection.',
+        description: errorMessage,
       });
     } finally {
       setIsLoading(false);

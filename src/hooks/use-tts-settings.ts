@@ -13,7 +13,7 @@ interface TTSSettings {
 
 const DEFAULT_SETTINGS: TTSSettings = {
   enabled: true,
-  autoPlay: true, // Enable auto-play by default since we're using browser Speech API
+  autoPlay: false, // Disabled by default due to browser audio policies requiring user interaction
   voice: 'en-US-Chirp3-HD-Achird',
   speed: 1.0,
   pitch: 1.0,

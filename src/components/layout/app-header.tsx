@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { Brain, UserCircle, LogOut, ChevronDown, Trash2, Loader2, BookOpen, Shield } from "lucide-react";
+import { Brain, UserCircle, LogOut, ChevronDown, Trash2, Loader2, BookOpen, Shield, Play, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,16 +26,68 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useIsAdmin } from "@/hooks/use-is-admin";
+import { db, collection, query, where, orderBy, getDocs, Timestamp } from "@/lib/firebase";
+import type { ProtocolSession } from "@/types";
 
 export function AppHeader() {
-  const { user, loading, logout, deleteUserAccountAndData } = useAuth();
+  const { user, firebaseUser, loading, logout, deleteUserAccountAndData } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const isAdmin = useIsAdmin();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [activeSession, setActiveSession] = useState<ProtocolSession | null>(null);
+  const [checkingSession, setCheckingSession] = useState(false);
+
+  // Check for active sessions
+  const checkForActiveSession = async () => {
+    if (!firebaseUser) {
+      setActiveSession(null);
+      return;
+    }
+
+    setCheckingSession(true);
+    try {
+      // Get all sessions and filter in memory to avoid index requirements
+      const allSessionsQuery = query(
+        collection(db, `users/${firebaseUser.uid}/sessions`),
+        orderBy("startTime", "desc")
+      );
+      const allSessionsSnap = await getDocs(allSessionsQuery);
+      
+      // Find the first active session (completedPhases < 6)
+      const activeSessionDoc = allSessionsSnap.docs.find(doc => {
+        const data = doc.data();
+        return (data.completedPhases || 0) < 6;
+      });
+      
+      if (activeSessionDoc) {
+        const sessionData = activeSessionDoc.data() as ProtocolSession;
+        setActiveSession({
+          ...sessionData,
+          sessionId: activeSessionDoc.id
+        });
+      } else {
+        setActiveSession(null);
+      }
+    } catch (error) {
+      console.error("Error checking for active sessions:", error);
+      setActiveSession(null);
+    } finally {
+      setCheckingSession(false);
+    }
+  };
+
+  // Check for active sessions when user changes
+  useEffect(() => {
+    checkForActiveSession();
+  }, [firebaseUser]);
+
+  const handleContinueSession = () => {
+    router.push('/protocol');
+  };
 
   const handleLogout = async () => {
     try {
@@ -102,13 +154,37 @@ export function AppHeader() {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              
+              {/* Continue Session Button */}
+              {activeSession && (
+                <>
+                  <DropdownMenuItem 
+                    onClick={handleContinueSession}
+                    className="bg-primary/5 text-primary focus:bg-primary/10 focus:text-primary py-3"
+                  >
+                    <Play className="mr-2 h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <div className="flex flex-col items-start min-w-0 flex-1">
+                      <span className="font-medium">Continue Session</span>
+                      <span className="text-xs text-muted-foreground truncate w-full">
+                        {activeSession.circumstance}
+                      </span>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              
               <DropdownMenuItem onClick={() => router.push('/profile')}>
                 <UserCircle className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => router.push('/sessions')}>
                 <BookOpen className="mr-2 h-4 w-4" />
-                <span>My Journal</span>
+                <span>Session History</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/my-progress')}>
+                <TrendingUp className="mr-2 h-4 w-4" />
+                <span>My Progress</span>
               </DropdownMenuItem>
               {isAdmin && (
                 <>

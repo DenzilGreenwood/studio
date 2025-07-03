@@ -6,20 +6,6 @@
       "queryScope": "COLLECTION_GROUP",
       "fields": [
         {
-          "fieldPath": "userId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "startTime",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "sessions",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
           "fieldPath": "completedPhases",
           "order": "ASCENDING"
         },
@@ -30,35 +16,29 @@
       ]
     },
     {
-      "collectionGroup": "messages",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "timestamp",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "feedback",
+      "collectionGroup": "sessions",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "timestamp",
+          "fieldPath": "isDeleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startTime",
           "order": "DESCENDING"
         }
       ]
     },
     {
-      "collectionGroup": "feedback",
+      "collectionGroup": "sessions",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "userId",
+          "fieldPath": "isDeleted",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "timestamp",
+          "fieldPath": "deletedAt",
           "order": "DESCENDING"
         }
       ]
