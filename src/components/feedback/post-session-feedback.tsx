@@ -9,10 +9,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { db, addDoc, collection, serverTimestamp, doc, updateDoc, type Timestamp } from '@/lib/firebase';
+import { db, addDoc, collection, serverTimestamp, doc, updateDoc } from '@/lib/firebase';
 import type { SessionFeedback } from '@/types';
-import { Loader2, MessageSquare, Send, ArrowLeft } from 'lucide-react';
-import { encryptFeedback } from '@/lib/data-encryption';
+import { Loader2, MessageSquare, Send, ArrowLeft, AlertCircle } from 'lucide-react';
+import { encryptFeedback, getPassphraseSafely } from '@/lib/data-encryption';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface PostSessionFeedbackProps {
   sessionId: string;
@@ -31,6 +32,9 @@ export function PostSessionFeedback({ sessionId, userId, circumstance, onFeedbac
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const { toast } = useToast();
+
+  // Check if passphrase is available for encryption
+  const hasPassphrase = getPassphraseSafely() !== null;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -52,10 +56,10 @@ export function PostSessionFeedback({ sessionId, userId, circumstance, onFeedbac
         helpfulRating,
         improvementSuggestion: improvementSuggestion.trim() === '' ? undefined : improvementSuggestion.trim(),
         email: email.trim() === '' ? undefined : email.trim(),
-        timestamp: serverTimestamp() as any,
+        timestamp: serverTimestamp() as unknown as Date,
       };
 
-      // Encrypt feedback before storing
+      // Encrypt feedback before storing (gracefully handles missing passphrase)
       const encryptedFeedback = await encryptFeedback(feedbackData);
 
       const feedbackRef = await addDoc(collection(db, 'feedback'), encryptedFeedback);
@@ -120,6 +124,16 @@ export function PostSessionFeedback({ sessionId, userId, circumstance, onFeedbac
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {/* Show encryption status warning if passphrase is not available */}
+        {!hasPassphrase && (
+          <Alert className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Note:</strong> Your session passphrase is not available, so this feedback will be stored unencrypted. Your feedback is still anonymous unless you provide your email.
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <Label htmlFor="helpfulRating" className="font-semibold text-foreground">How helpful was this session? *</Label>

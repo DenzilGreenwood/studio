@@ -42,6 +42,11 @@ function getCurrentPassphrase(): string {
   return passphrase;
 }
 
+// Helper to safely get passphrase with fallback
+export function getPassphraseSafely(): string | null {
+  return sessionStorage.getItem('userPassphrase');
+}
+
 /**
  * Encrypt user profile data (except email which stays plain for auth)
  */
@@ -302,21 +307,33 @@ export async function decryptJournalEntry(encryptedJournalData: unknown): Promis
 export async function encryptFeedback(feedbackData: unknown): Promise<unknown> {
   if (!feedbackData) return feedbackData;
   
-  const passphrase = getCurrentPassphrase();
+  const passphrase = getPassphraseSafely();
+  if (!passphrase) {
+    // If no passphrase is available, return the data unencrypted
+    // This allows feedback to be submitted even if the user's session expired
+    console.warn('No passphrase available for feedback encryption, storing as plaintext');
+    return feedbackData;
+  }
+  
   const encrypted: Record<string, unknown> = { ...feedbackData as Record<string, unknown> };
   
   const fieldsToEncrypt = [
-    'content', 'rating', 'suggestions', 'additionalComments'
+    'content', 'rating', 'suggestions', 'additionalComments', 'improvementSuggestion'
   ];
   
   for (const field of fieldsToEncrypt) {
     if ((feedbackData as Record<string, unknown>)[field]) {
-      const encryptedField = await encryptData(
-        (feedbackData as Record<string, unknown>)[field], 
-        passphrase
-      );
-      encrypted[`${field}_encrypted`] = encryptedField;
-      delete encrypted[field];
+      try {
+        const encryptedField = await encryptData(
+          (feedbackData as Record<string, unknown>)[field], 
+          passphrase
+        );
+        encrypted[`${field}_encrypted`] = encryptedField;
+        delete encrypted[field];
+      } catch (error) {
+        console.error(`Failed to encrypt feedback field ${field}:`, error);
+        // Keep the original field if encryption fails
+      }
     }
   }
   
@@ -358,11 +375,16 @@ export async function decryptFeedback(encryptedFeedbackData: unknown): Promise<u
 /**
  * Get encryption status for UI display
  */
-export function getEncryptionStatus(): { isEncrypted: boolean; hasPassphrase: boolean } {
+export function getEncryptionStatus(): { isEncrypted: boolean; hasPassphrase: boolean; message: string } {
   const passphrase = sessionStorage.getItem('userPassphrase');
+  const hasPassphrase = !!passphrase;
+  
   return {
     isEncrypted: true, // Always encrypted in this system
-    hasPassphrase: !!passphrase
+    hasPassphrase,
+    message: hasPassphrase 
+      ? "Your data is protected with end-to-end encryption using your personal passphrase. Only you can decrypt and read your information."
+      : "Your data is encrypted in our database. Enter your passphrase to decrypt and access your information on this device."
   };
 }
 

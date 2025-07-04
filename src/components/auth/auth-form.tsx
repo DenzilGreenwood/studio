@@ -28,6 +28,7 @@ import {
   validatePassphrase
 } from "@/lib/cryptoUtils";
 import { storeEncryptedPassphrase, recoverPassphrase } from "@/services/recoveryService";
+import { useEncryption } from "@/lib/encryption-context";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -42,7 +43,7 @@ const baseSchema = z.object({
 });
 
 const loginSchema = baseSchema.extend({
-  passphrase: z.string().min(8, { message: "Passphrase must be at least 8 characters." }),
+  passphrase: z.string().min(8, { message: "Passphrase must be at least 8 characters." }).optional(),
   recoveryKey: z.string().optional(),
 });
 
@@ -61,6 +62,7 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 export function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { setPassphrase } = useEncryption();
   const [showPassphrase, setShowPassphrase] = useState(false);
   const [showConfirmPassphrase, setShowConfirmPassphrase] = useState(false);
   const [recoveryKeyDialog, setRecoveryKeyDialog] = useState<{ isOpen: boolean; recoveryKey: string; }>({ isOpen: false, recoveryKey: "" });
@@ -132,11 +134,17 @@ export function AuthForm({ mode }: AuthFormProps) {
         throw new Error("No recovery data found for this account or invalid recovery key.");
       }
 
+      // Use encryption context to set the recovered passphrase
+      setPassphrase(decryptedPassphrase);
       setRecoveredPassphrase(decryptedPassphrase);
+      
       toast({ 
         title: "Recovery Successful", 
-        description: "Your passphrase has been recovered. Please save it securely.",
+        description: "Your passphrase has been recovered and set. Redirecting...",
       });
+      
+      // Navigate to protocol page after successful recovery
+      router.push("/protocol");
     } catch (error) {
       toast({ 
         variant: "destructive", 
@@ -152,8 +160,29 @@ export function AuthForm({ mode }: AuthFormProps) {
       if (mode === "login") {
         const loginValues = values as LoginFormValues;
         
-        if (isRecoveryMode && loginValues.recoveryKey) {
+        if (isRecoveryMode) {
+          // Validate recovery mode requirements
+          if (!loginValues.recoveryKey || loginValues.recoveryKey.trim() === '') {
+            toast({
+              variant: "destructive",
+              title: "Recovery Key Required",
+              description: "Please enter your recovery key."
+            });
+            return;
+          }
+          
+          // Handle recovery mode - this function will handle authentication
           await handleRecoveryKeySubmit(loginValues.recoveryKey, loginValues.email);
+          return;
+        }
+
+        // Regular login flow - validate required fields
+        if (!loginValues.passphrase) {
+          toast({
+            variant: "destructive",
+            title: "Passphrase Required",
+            description: "Please enter your passphrase to login."
+          });
           return;
         }
 
@@ -170,8 +199,8 @@ export function AuthForm({ mode }: AuthFormProps) {
 
         await signInWithEmailAndPassword(auth, loginValues.email, loginValues.password);
         
-        // Store passphrase in session for data decryption
-        sessionStorage.setItem('userPassphrase', loginValues.passphrase);
+        // Use encryption context to set passphrase (triggers profile refresh)
+        setPassphrase(loginValues.passphrase);
         
         toast({ title: "Login Successful", description: "Redirecting..." });
         router.push("/protocol");
@@ -211,8 +240,8 @@ export function AuthForm({ mode }: AuthFormProps) {
           await updateProfile(userCredential.user, { displayName: pseudonymToUse });
         }
         
-        // Store passphrase in session for immediate use (needed for encryption)
-        sessionStorage.setItem('userPassphrase', signupValues.passphrase);
+        // Use encryption context to set passphrase (needed for encryption and triggers profile refresh)
+        setPassphrase(signupValues.passphrase);
 
         await createUserProfileDocument(userCredential.user, { 
           pseudonym: pseudonymToUse

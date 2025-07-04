@@ -36,7 +36,9 @@ export const EncryptionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setUserPassphrase(passphrase);
     sessionStorage.setItem('userPassphrase', passphrase);
     // Refresh user profile to decrypt data now that passphrase is available
-    refreshUserProfile();
+    refreshUserProfile().catch(error => {
+      console.error('Failed to refresh user profile after setting passphrase:', error);
+    });
   };
 
   const clearPassphrase = () => {

@@ -15,15 +15,18 @@ interface EncryptionStatusProps {
 export function EncryptionStatus({ showDetails = false, className = "" }: EncryptionStatusProps) {
   const { isPassphraseSet } = useEncryption();
   const status = getEncryptionStatus();
+  
+  // Use the encryption context as the primary source, but also check sessionStorage as fallback
+  const isEncryptionActive = isPassphraseSet || status.hasPassphrase;
 
   if (!showDetails) {
     // Compact version for headers/navigation
     return (
       <Badge 
-        variant={status.isEncrypted ? "default" : "destructive"} 
+        variant={isEncryptionActive ? "default" : "destructive"} 
         className={`flex items-center gap-1 ${className}`}
       >
-        {status.isEncrypted ? (
+        {isEncryptionActive ? (
           <>
             <Lock className="h-3 w-3" />
             Encrypted
@@ -31,7 +34,7 @@ export function EncryptionStatus({ showDetails = false, className = "" }: Encryp
         ) : (
           <>
             <AlertTriangle className="h-3 w-3" />
-            Not Encrypted
+            Access Locked
           </>
         )}
       </Badge>
@@ -41,14 +44,14 @@ export function EncryptionStatus({ showDetails = false, className = "" }: Encryp
   // Detailed version for main content areas
   return (
     <Alert className={className}>
-      {status.isEncrypted ? (
+      {isEncryptionActive ? (
         <Shield className="h-4 w-4" />
       ) : (
         <AlertTriangle className="h-4 w-4" />
       )}
       <AlertDescription>
         <strong>Your Privacy is Protected:</strong> {status.message}
-        {status.isEncrypted && (
+        {isEncryptionActive && (
           <div className="mt-3 space-y-3">
             <div>
               <p className="font-medium text-sm text-green-800 mb-2">🔒 What&apos;s encrypted (only you can read):</p>
@@ -74,10 +77,10 @@ export function EncryptionStatus({ showDetails = false, className = "" }: Encryp
             </div>
           </div>
         )}
-        {!status.isEncrypted && (
+        {!isEncryptionActive && (
           <div className="mt-3 bg-amber-50 p-3 rounded-md">
             <p className="text-sm text-amber-800">
-              <strong>⚠️ Your data cannot be encrypted right now.</strong> Please log in with your passphrase to protect your privacy.
+              <strong>🔒 Your data IS encrypted in our database.</strong> However, you need to enter your passphrase to decrypt and view it on this device.
             </p>
           </div>
         )}
@@ -114,11 +117,10 @@ export function EncryptionBanner() {
         <AlertTriangle className="h-5 w-5 text-amber-400 mr-3 mt-0.5 flex-shrink-0" />
         <div>
           <p className="text-sm text-amber-800">
-            <strong>⚠️ Privacy Protection Unavailable</strong>
+            <strong>🔒 Data Encrypted - Access Locked</strong>
           </p>
           <p className="text-xs text-amber-700 mt-1">
-            Please log in with your passphrase to enable end-to-end encryption. 
-            Without your passphrase, we cannot protect your data privacy.
+            Your data is safely encrypted in our database. Please enter your passphrase to decrypt and access your private information on this device.
           </p>
         </div>
       </div>

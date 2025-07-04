@@ -134,8 +134,8 @@ export default function SessionReportPage() {
   }, [sessionId, firebaseUser, authProfile, authLoading, router, userIdFromQuery]);
 
   const getInitials = (name?: string | null) => {
-        if (!name) return "?";
-        const nameParts = name.split(' ').filter(Boolean);
+        if (!name || name.trim() === '') return "?";
+        const nameParts = name.trim().split(' ').filter(Boolean);
         if (nameParts.length === 0) return "?";
         if (nameParts.length === 1 && nameParts[0]) return nameParts[0][0]!.toUpperCase();
         if (nameParts.length > 1 && nameParts[0] && nameParts[nameParts.length-1]) {
@@ -493,7 +493,7 @@ export default function SessionReportPage() {
                               : 'bg-card text-card-foreground border border-border rounded-bl-none'
                           )}
                         >
-                          {msg.text.split('\n').map((line, index, arr) => (
+                          {(msg.text || '').split('\n').map((line, index, arr) => (
                               <React.Fragment key={index}>
                                   {line}
                                   {index < arr.length - 1 && <br />}
@@ -507,7 +507,7 @@ export default function SessionReportPage() {
                        {msg.sender === 'user' && firebaseUser && (
                         <Avatar className="h-8 w-8 self-start">
                            <AvatarFallback className="bg-primary text-primary-foreground">
-                            {getInitials(userToDisplay?.displayName || userToDisplay?.email)}
+                            {getInitials(userToDisplay?.displayName || userToDisplay?.email || '')}
                            </AvatarFallback>
                         </Avatar>
                       )}
