@@ -68,6 +68,14 @@ service cloud.firestore {
       allow read: if true; // Allow anyone to check user count for signup validation
       allow write, create, update: if true; // Allow server-side operations during signup
     }
+
+    // RECOVERY
+    // Allow users to manage their own recovery data (encrypted passphrase backup).
+    // This is used for the passphrase recovery system.
+    match /recovery/{userId} {
+      allow read, create, update: if isOwner(userId);
+      allow delete: if isOwner(userId); // Allow users to delete their recovery data
+    }
   }
 }
 

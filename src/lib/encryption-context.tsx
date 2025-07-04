@@ -15,7 +15,7 @@ const EncryptionContext = createContext<EncryptionContextType | undefined>(undef
 
 export const EncryptionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [userPassphrase, setUserPassphrase] = useState<string | null>(null);
-  const { firebaseUser } = useAuth();
+  const { firebaseUser, refreshUserProfile } = useAuth();
 
   useEffect(() => {
     // Load passphrase from session storage on mount
@@ -35,6 +35,8 @@ export const EncryptionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const setPassphrase = (passphrase: string) => {
     setUserPassphrase(passphrase);
     sessionStorage.setItem('userPassphrase', passphrase);
+    // Refresh user profile to decrypt data now that passphrase is available
+    refreshUserProfile();
   };
 
   const clearPassphrase = () => {

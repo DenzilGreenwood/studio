@@ -25,13 +25,9 @@ import { auth } from "@/lib/firebase";
 import { createUserProfileDocument } from "@/context/auth-context";
 import { canCreateNewUser, incrementUserCount } from "@/lib/user-limit";
 import { 
-  generateRecoveryKey, 
-  encryptPassphraseWithRecoveryKey, 
-  decryptPassphraseWithRecoveryKey,
-  validatePassphrase,
-  storeEncryptionMetadata,
-  getEncryptionMetadata
-} from "@/lib/encryption";
+  validatePassphrase
+} from "@/lib/cryptoUtils";
+import { storeEncryptedPassphrase, recoverPassphrase } from "@/services/recoveryService";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -126,17 +122,15 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   const handleRecoveryKeySubmit = async (recoveryKey: string, email: string) => {
     try {
-      const metadata = getEncryptionMetadata(email);
-      if (!metadata) {
-        throw new Error("No recovery data found for this email.");
+      // First, we need to get the user ID from the email
+      // This is a simplified approach - in a real app, you'd need to handle this differently
+      const userCredential = await signInWithEmailAndPassword(auth, email, form.getValues('password'));
+      
+      const decryptedPassphrase = await recoverPassphrase(userCredential.user.uid, recoveryKey);
+      
+      if (!decryptedPassphrase) {
+        throw new Error("No recovery data found for this account or invalid recovery key.");
       }
-
-      const decryptedPassphrase = await decryptPassphraseWithRecoveryKey(
-        metadata.encryptedPassphrase,
-        recoveryKey,
-        metadata.passphraseSalt,
-        metadata.passphraseIv
-      );
 
       setRecoveredPassphrase(decryptedPassphrase);
       toast({ 
@@ -207,11 +201,9 @@ export function AuthForm({ mode }: AuthFormProps) {
           return;
         }
 
-        // Generate recovery key and encrypt passphrase
-        const recoveryKey = generateRecoveryKey();
-        const encryptedPassphraseData = await encryptPassphraseWithRecoveryKey(signupValues.passphrase, recoveryKey);
-
+        // Store encrypted passphrase and get recovery key
         const userCredential = await createUserWithEmailAndPassword(auth, signupValues.email, signupValues.password);
+        const recoveryKey = await storeEncryptedPassphrase(userCredential.user.uid, signupValues.passphrase);
         
         const pseudonymToUse = signupValues.pseudonym ? signupValues.pseudonym.trim() : "";
 
@@ -223,17 +215,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         sessionStorage.setItem('userPassphrase', signupValues.passphrase);
 
         await createUserProfileDocument(userCredential.user, { 
-          pseudonym: pseudonymToUse, 
-          encryptedPassphrase: encryptedPassphraseData.encryptedPassphrase,
-          passphraseSalt: encryptedPassphraseData.salt,
-          passphraseIv: encryptedPassphraseData.iv,
-        });
-
-        // Store encryption metadata locally for recovery (using email as key)
-        storeEncryptionMetadata(signupValues.email, {
-          encryptedPassphrase: encryptedPassphraseData.encryptedPassphrase,
-          passphraseSalt: encryptedPassphraseData.salt,
-          passphraseIv: encryptedPassphraseData.iv,
+          pseudonym: pseudonymToUse
         });
 
         // Increment user count after successful account creation

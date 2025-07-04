@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Send, User, Brain, Loader2 } from 'lucide-react';
+import { Send, Brain, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/auth-context';
 import { TTSControl } from '@/components/ui/tts-control';
@@ -100,7 +100,7 @@ export function ChatInterface({ messages, onSendMessage, isLoadingResponse, curr
 
       const updateTextareaHeight = () => {
         textarea.style.height = 'auto'; // Temporarily shrink to get correct scrollHeight
-        let newScrollHeight = textarea.scrollHeight;
+        const newScrollHeight = textarea.scrollHeight;
         
         if (newScrollHeight > maxHeight) {
           textarea.style.height = `${maxHeight}px`;

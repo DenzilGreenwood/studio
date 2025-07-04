@@ -33,7 +33,7 @@ import { Loader2, BookOpen, PlusCircle, Eye, CheckCircle, Hourglass, Sparkles, P
 import Link from 'next/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { encryptData } from '@/lib/encryption';
+import { encryptData } from '@/lib/cryptoUtils';
 
 type SessionWithId = ProtocolSession & { sessionId: string };
 
@@ -352,9 +352,7 @@ export default function SessionsPage() {
       
       await updateDoc(sessionRef, {
         [`quickReflections.${currentDate}`]: {
-          text_encrypted: encryptedReflection.encryptedData,
-          text_salt: encryptedReflection.salt,
-          text_iv: encryptedReflection.iv,
+          text_encrypted: encryptedReflection,
           createdAt: serverTimestamp()
         }
       });

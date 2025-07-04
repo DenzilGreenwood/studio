@@ -32,7 +32,8 @@ interface AuthContextType {
   firebaseUser: FirebaseUser | null;
   loading: boolean;
   logout: () => Promise<void>;
-  deleteUserAccountAndData: () => Promise<void>; 
+  deleteUserAccountAndData: () => Promise<void>;
+  refreshUserProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -86,36 +87,53 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (docSnap.exists()) {
               const encryptedProfileData = docSnap.data() as UserProfile;
               
-              // Decrypt profile data before setting user state
-              decryptUserProfile(encryptedProfileData)
-                .then(profileData => {
-                  const convertTimestamp = (field: any) =>
-                    field instanceof Timestamp ? field.toDate() : (field && typeof field.toDate === 'function' ? field.toDate() : field);
+              // Check if passphrase is available before attempting decryption
+              const passphrase = sessionStorage.getItem('userPassphrase');
+              
+              if (passphrase) {
+                // Decrypt profile data if passphrase is available
+                decryptUserProfile(encryptedProfileData)
+                  .then(profileData => {
+                    const convertTimestamp = (field: unknown) =>
+                      field instanceof Timestamp ? field.toDate() : (field && typeof (field as {toDate?: () => Date}).toDate === 'function' ? (field as {toDate: () => Date}).toDate() : field);
 
-                  setUser({
-                    ...profileData,
-                    createdAt: convertTimestamp(profileData.createdAt),
-                    lastSessionAt: profileData.lastSessionAt ? convertTimestamp(profileData.lastSessionAt) : undefined,
-                    lastCheckInAt: profileData.lastCheckInAt ? convertTimestamp(profileData.lastCheckInAt) : undefined,
-                  });
-                })
-                .catch(error => {
-                  console.error('Failed to decrypt user profile:', error);
-                  // Fallback to showing encrypted data indicators
-                  const convertTimestamp = (field: any) =>
-                    field instanceof Timestamp ? field.toDate() : (field && typeof field.toDate === 'function' ? field.toDate() : field);
+                    setUser({
+                      ...(profileData as UserProfile),
+                      createdAt: convertTimestamp((profileData as UserProfile).createdAt) as Date,
+                      lastSessionAt: (profileData as UserProfile).lastSessionAt ? convertTimestamp((profileData as UserProfile).lastSessionAt) as Date : undefined,
+                      lastCheckInAt: (profileData as UserProfile).lastCheckInAt ? convertTimestamp((profileData as UserProfile).lastCheckInAt) as Date : undefined,
+                    });
+                  })
+                  .catch(error => {
+                    console.error('Failed to decrypt user profile:', error);
+                    // Fallback to showing encrypted data indicators
+                    const convertTimestamp = (field: unknown) =>
+                      field instanceof Timestamp ? field.toDate() : (field && typeof (field as {toDate?: () => Date}).toDate === 'function' ? (field as {toDate: () => Date}).toDate() : field);
 
-                  setUser({
-                    ...encryptedProfileData,
-                    displayName: '[Encrypted Profile - Cannot Decrypt]',
-                    pseudonym: '[Encrypted]',
-                    ageRange: '[Encrypted]',
-                    primaryChallenge: '[Encrypted]',
-                    createdAt: convertTimestamp(encryptedProfileData.createdAt),
-                    lastSessionAt: encryptedProfileData.lastSessionAt ? convertTimestamp(encryptedProfileData.lastSessionAt) : undefined,
-                    lastCheckInAt: encryptedProfileData.lastCheckInAt ? convertTimestamp(encryptedProfileData.lastCheckInAt) : undefined,
-                  });
+                    setUser({
+                      ...encryptedProfileData,
+                      displayName: '[Encrypted Profile - Cannot Decrypt]',
+                      createdAt: convertTimestamp(encryptedProfileData.createdAt) as Date,
+                      lastSessionAt: encryptedProfileData.lastSessionAt ? convertTimestamp(encryptedProfileData.lastSessionAt) as Date : undefined,
+                      lastCheckInAt: encryptedProfileData.lastCheckInAt ? convertTimestamp(encryptedProfileData.lastCheckInAt) as Date : undefined,
+                    });
+                  })
+                  .finally(() => setLoading(false));
+              } else {
+                // No passphrase available - show encrypted profile temporarily
+                console.log('No passphrase available, showing encrypted profile temporarily');
+                const convertTimestamp = (field: unknown) =>
+                  field instanceof Timestamp ? field.toDate() : (field && typeof (field as {toDate?: () => Date}).toDate === 'function' ? (field as {toDate: () => Date}).toDate() : field);
+
+                setUser({
+                  ...encryptedProfileData,
+                  displayName: '[Encrypted Profile - Please Enter Passphrase]',
+                  createdAt: convertTimestamp(encryptedProfileData.createdAt) as Date,
+                  lastSessionAt: encryptedProfileData.lastSessionAt ? convertTimestamp(encryptedProfileData.lastSessionAt) as Date : undefined,
+                  lastCheckInAt: encryptedProfileData.lastCheckInAt ? convertTimestamp(encryptedProfileData.lastCheckInAt) as Date : undefined,
                 });
+                setLoading(false);
+              }
             } else {
               // Doc doesn't exist (e.g., new user, before createUserProfileDocument completes, or deleted)
               // Fallback to a minimal profile based on Firebase Auth data
@@ -217,7 +235,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.error("Error deleting user account and data: ", error);
       setLoading(false); 
       
-      if ((error as any).code === 'auth/requires-recent-login') {
+      if ((error as {code?: string}).code === 'auth/requires-recent-login') {
         throw new Error("This operation is sensitive and requires recent authentication. Please log out and log back in, then try again.");
       }
       
@@ -238,8 +256,37 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // setLoading(false) will be handled by onAuthStateChanged after user signs out
   };
 
+  const refreshUserProfile = async () => {
+    if (!firebaseUser) return;
+    
+    const passphrase = sessionStorage.getItem('userPassphrase');
+    if (!passphrase) return;
+    
+    try {
+      const userRef = doc(db, "users", firebaseUser.uid);
+      const docSnap = await getDoc(userRef);
+      
+      if (docSnap.exists()) {
+        const encryptedProfileData = docSnap.data() as UserProfile;
+        const profileData = await decryptUserProfile(encryptedProfileData);
+        
+        const convertTimestamp = (field: unknown) =>
+          field instanceof Timestamp ? field.toDate() : (field && typeof (field as {toDate?: () => Date}).toDate === 'function' ? (field as {toDate: () => Date}).toDate() : field);
+        
+        setUser({
+          ...(profileData as UserProfile),
+          createdAt: convertTimestamp((profileData as UserProfile).createdAt) as Date,
+          lastSessionAt: (profileData as UserProfile).lastSessionAt ? convertTimestamp((profileData as UserProfile).lastSessionAt) as Date : undefined,
+          lastCheckInAt: (profileData as UserProfile).lastCheckInAt ? convertTimestamp((profileData as UserProfile).lastCheckInAt) as Date : undefined,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to refresh user profile:', error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, firebaseUser, loading, logout, deleteUserAccountAndData }}>
+    <AuthContext.Provider value={{ user, firebaseUser, loading, logout, deleteUserAccountAndData, refreshUserProfile }}>
       {children}
     </AuthContext.Provider>
   );

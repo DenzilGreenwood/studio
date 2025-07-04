@@ -1,7 +1,7 @@
 // src/lib/data-encryption.ts
 "use client";
 
-import { encryptData, decryptData } from './encryption';
+import { encryptData, decryptData } from './cryptoUtils';
 
 /**
  * Comprehensive data encryption for all user content
@@ -18,19 +18,19 @@ export type EncryptableUserData = {
   
   // Session Data
   circumstance?: string;
-  sessions?: any[];
+  sessions?: unknown[];
   
   // Chat Messages
-  messages?: any[];
+  messages?: unknown[];
   
   // Journal Entries
-  journals?: any[];
+  journals?: unknown[];
   
   // Session Reports
-  reports?: any[];
+  reports?: unknown[];
   
   // Feedback (except userId for system tracking)
-  feedbackContent?: any;
+  feedbackContent?: unknown;
 };
 
 // Helper to get current user passphrase from session
@@ -45,11 +45,11 @@ function getCurrentPassphrase(): string {
 /**
  * Encrypt user profile data (except email which stays plain for auth)
  */
-export async function encryptUserProfile(profileData: any): Promise<any> {
+export async function encryptUserProfile(profileData: unknown): Promise<unknown> {
   if (!profileData) return profileData;
   
   const passphrase = getCurrentPassphrase();
-  const encrypted: any = { ...profileData };
+  const encrypted: Record<string, unknown> = { ...profileData as Record<string, unknown> };
   
   // Fields to encrypt (email stays plain for Firebase Auth)
   const fieldsToEncrypt = [
@@ -57,14 +57,12 @@ export async function encryptUserProfile(profileData: any): Promise<any> {
   ];
   
   for (const field of fieldsToEncrypt) {
-    if (profileData[field]) {
+    if ((profileData as Record<string, unknown>)[field]) {
       const encryptedField = await encryptData(
-        JSON.stringify(profileData[field]), 
+        (profileData as Record<string, unknown>)[field], 
         passphrase
       );
-      encrypted[`${field}_encrypted`] = encryptedField.encryptedData;
-      encrypted[`${field}_salt`] = encryptedField.salt;
-      encrypted[`${field}_iv`] = encryptedField.iv;
+      encrypted[`${field}_encrypted`] = encryptedField;
       delete encrypted[field]; // Remove plain text
     }
   }
@@ -75,33 +73,29 @@ export async function encryptUserProfile(profileData: any): Promise<any> {
 /**
  * Decrypt user profile data
  */
-export async function decryptUserProfile(encryptedProfileData: any): Promise<any> {
+export async function decryptUserProfile(encryptedProfileData: unknown): Promise<unknown> {
   if (!encryptedProfileData) return encryptedProfileData;
   
   const passphrase = getCurrentPassphrase();
-  const decrypted: any = { ...encryptedProfileData };
+  const decrypted: Record<string, unknown> = { ...encryptedProfileData as Record<string, unknown> };
   
   const fieldsToDecrypt = [
     'displayName', 'pseudonym', 'ageRange', 'primaryChallenge'
   ];
   
   for (const field of fieldsToDecrypt) {
-    if (encryptedProfileData[`${field}_encrypted`]) {
+    if ((encryptedProfileData as Record<string, unknown>)[`${field}_encrypted`]) {
       try {
         const decryptedValue = await decryptData(
-          encryptedProfileData[`${field}_encrypted`],
-          passphrase,
-          encryptedProfileData[`${field}_salt`],
-          encryptedProfileData[`${field}_iv`]
+          (encryptedProfileData as Record<string, unknown>)[`${field}_encrypted`] as string,
+          passphrase
         );
-        decrypted[field] = JSON.parse(decryptedValue);
+        decrypted[field] = decryptedValue;
         
         // Clean up encrypted fields
         delete decrypted[`${field}_encrypted`];
-        delete decrypted[`${field}_salt`];
-        delete decrypted[`${field}_iv`];
       } catch (error) {
-        console.error(`Failed to decrypt ${field}:`, error);
+        console.error(`Failed to decrypt profile ${field}:`, error);
         decrypted[field] = '[Encrypted Data - Cannot Decrypt]';
       }
     }
@@ -111,28 +105,25 @@ export async function decryptUserProfile(encryptedProfileData: any): Promise<any
 }
 
 /**
- * Encrypt session data including circumstance and summary
+ * Encrypt session data
  */
-export async function encryptSessionData(sessionData: any): Promise<any> {
+export async function encryptSessionData(sessionData: unknown): Promise<unknown> {
   if (!sessionData) return sessionData;
   
   const passphrase = getCurrentPassphrase();
-  const encrypted: any = { ...sessionData };
+  const encrypted: Record<string, unknown> = { ...sessionData as Record<string, unknown> };
   
-  // Fields to encrypt
   const fieldsToEncrypt = [
     'circumstance', 'ageRange', 'summary', 'userReflection'
   ];
   
   for (const field of fieldsToEncrypt) {
-    if (sessionData[field]) {
+    if ((sessionData as Record<string, unknown>)[field]) {
       const encryptedField = await encryptData(
-        JSON.stringify(sessionData[field]), 
+        (sessionData as Record<string, unknown>)[field], 
         passphrase
       );
-      encrypted[`${field}_encrypted`] = encryptedField.encryptedData;
-      encrypted[`${field}_salt`] = encryptedField.salt;
-      encrypted[`${field}_iv`] = encryptedField.iv;
+      encrypted[`${field}_encrypted`] = encryptedField;
       delete encrypted[field];
     }
   }
@@ -143,30 +134,26 @@ export async function encryptSessionData(sessionData: any): Promise<any> {
 /**
  * Decrypt session data
  */
-export async function decryptSessionData(encryptedSessionData: any): Promise<any> {
+export async function decryptSessionData(encryptedSessionData: unknown): Promise<unknown> {
   if (!encryptedSessionData) return encryptedSessionData;
   
   const passphrase = getCurrentPassphrase();
-  const decrypted: any = { ...encryptedSessionData };
+  const decrypted: Record<string, unknown> = { ...encryptedSessionData as Record<string, unknown> };
   
   const fieldsToDecrypt = [
     'circumstance', 'ageRange', 'summary', 'userReflection'
   ];
   
   for (const field of fieldsToDecrypt) {
-    if (encryptedSessionData[`${field}_encrypted`]) {
+    if ((encryptedSessionData as Record<string, unknown>)[`${field}_encrypted`]) {
       try {
         const decryptedValue = await decryptData(
-          encryptedSessionData[`${field}_encrypted`],
-          passphrase,
-          encryptedSessionData[`${field}_salt`],
-          encryptedSessionData[`${field}_iv`]
+          (encryptedSessionData as Record<string, unknown>)[`${field}_encrypted`] as string,
+          passphrase
         );
-        decrypted[field] = JSON.parse(decryptedValue);
+        decrypted[field] = decryptedValue;
         
         delete decrypted[`${field}_encrypted`];
-        delete decrypted[`${field}_salt`];
-        delete decrypted[`${field}_iv`];
       } catch (error) {
         console.error(`Failed to decrypt session ${field}:`, error);
         decrypted[field] = '[Encrypted Data - Cannot Decrypt]';
@@ -180,18 +167,19 @@ export async function decryptSessionData(encryptedSessionData: any): Promise<any
 /**
  * Encrypt chat messages
  */
-export async function encryptChatMessage(messageData: any): Promise<any> {
+export async function encryptChatMessage(messageData: unknown): Promise<unknown> {
   if (!messageData) return messageData;
   
   const passphrase = getCurrentPassphrase();
-  const encrypted: any = { ...messageData };
+  const encrypted: Record<string, unknown> = { ...messageData as Record<string, unknown> };
   
   // Encrypt the message text
-  if (messageData.text) {
-    const encryptedField = await encryptData(messageData.text, passphrase);
-    encrypted.text_encrypted = encryptedField.encryptedData;
-    encrypted.text_salt = encryptedField.salt;
-    encrypted.text_iv = encryptedField.iv;
+  if ((messageData as Record<string, unknown>).text) {
+    const encryptedField = await encryptData(
+      (messageData as Record<string, unknown>).text, 
+      passphrase
+    );
+    encrypted.text_encrypted = encryptedField;
     delete encrypted.text;
   }
   
@@ -201,28 +189,23 @@ export async function encryptChatMessage(messageData: any): Promise<any> {
 /**
  * Decrypt chat messages
  */
-export async function decryptChatMessage(encryptedMessageData: any): Promise<any> {
+export async function decryptChatMessage(encryptedMessageData: unknown): Promise<unknown> {
   if (!encryptedMessageData) return encryptedMessageData;
   
   const passphrase = getCurrentPassphrase();
-  const decrypted: any = { ...encryptedMessageData };
+  const decrypted: Record<string, unknown> = { ...encryptedMessageData as Record<string, unknown> };
   
-  if (encryptedMessageData.text_encrypted) {
+  if ((encryptedMessageData as Record<string, unknown>).text_encrypted) {
     try {
-      const decryptedText = await decryptData(
-        encryptedMessageData.text_encrypted,
-        passphrase,
-        encryptedMessageData.text_salt,
-        encryptedMessageData.text_iv
+      const decryptedValue = await decryptData(
+        (encryptedMessageData as Record<string, unknown>).text_encrypted as string,
+        passphrase
       );
-      decrypted.text = decryptedText;
-      
+      decrypted.text = decryptedValue;
       delete decrypted.text_encrypted;
-      delete decrypted.text_salt;
-      delete decrypted.text_iv;
     } catch (error) {
       console.error('Failed to decrypt message text:', error);
-      decrypted.text = '[Encrypted Message - Cannot Decrypt]';
+      decrypted.text = '[Encrypted Data - Cannot Decrypt]';
     }
   }
   
@@ -232,62 +215,35 @@ export async function decryptChatMessage(encryptedMessageData: any): Promise<any
 /**
  * Encrypt journal entries
  */
-export async function encryptJournalEntry(journalData: any): Promise<any> {
+export async function encryptJournalEntry(journalData: unknown): Promise<unknown> {
   if (!journalData) return journalData;
   
   const passphrase = getCurrentPassphrase();
-  const encrypted: any = { ...journalData };
+  const encrypted: Record<string, unknown> = { ...journalData as Record<string, unknown> };
   
-  // Fields to encrypt in journal entries
-  const fieldsToEncrypt = ['userReflection'];
+  const fieldsToEncrypt = [
+    'content', 'title', 'summary', 'insights', 'tags'
+  ];
   
   for (const field of fieldsToEncrypt) {
-    if (journalData[field]) {
+    if ((journalData as Record<string, unknown>)[field]) {
       const encryptedField = await encryptData(
-        JSON.stringify(journalData[field]), 
+        (journalData as Record<string, unknown>)[field], 
         passphrase
       );
-      encrypted[`${field}_encrypted`] = encryptedField.encryptedData;
-      encrypted[`${field}_salt`] = encryptedField.salt;
-      encrypted[`${field}_iv`] = encryptedField.iv;
+      encrypted[`${field}_encrypted`] = encryptedField;
       delete encrypted[field];
     }
   }
-
-  // Encrypt goals if they exist
-  if (journalData.goals && Array.isArray(journalData.goals)) {
+  
+  // Encrypt goals array if present
+  if ((journalData as Record<string, unknown>).goals) {
     const encryptedGoals = await encryptData(
-      JSON.stringify(journalData.goals), 
+      (journalData as Record<string, unknown>).goals, 
       passphrase
     );
-    encrypted.goals_encrypted = encryptedGoals.encryptedData;
-    encrypted.goals_salt = encryptedGoals.salt;
-    encrypted.goals_iv = encryptedGoals.iv;
+    encrypted.goals_encrypted = encryptedGoals;
     delete encrypted.goals;
-  }
-
-  // Encrypt quick reflections if they exist
-  if (journalData.quickReflections && Array.isArray(journalData.quickReflections)) {
-    const encryptedReflections = await encryptData(
-      JSON.stringify(journalData.quickReflections), 
-      passphrase
-    );
-    encrypted.quickReflections_encrypted = encryptedReflections.encryptedData;
-    encrypted.quickReflections_salt = encryptedReflections.salt;
-    encrypted.quickReflections_iv = encryptedReflections.iv;
-    delete encrypted.quickReflections;
-  }
-
-  // Encrypt AI journal support content if it exists
-  if (journalData.aiJournalSupport) {
-    const encryptedSupport = await encryptData(
-      JSON.stringify(journalData.aiJournalSupport), 
-      passphrase
-    );
-    encrypted.aiJournalSupport_encrypted = encryptedSupport.encryptedData;
-    encrypted.aiJournalSupport_salt = encryptedSupport.salt;
-    encrypted.aiJournalSupport_iv = encryptedSupport.iv;
-    delete encrypted.aiJournalSupport;
   }
   
   return encrypted;
@@ -296,89 +252,44 @@ export async function encryptJournalEntry(journalData: any): Promise<any> {
 /**
  * Decrypt journal entries
  */
-export async function decryptJournalEntry(encryptedJournalData: any): Promise<any> {
+export async function decryptJournalEntry(encryptedJournalData: unknown): Promise<unknown> {
   if (!encryptedJournalData) return encryptedJournalData;
   
   const passphrase = getCurrentPassphrase();
-  const decrypted: any = { ...encryptedJournalData };
+  const decrypted: Record<string, unknown> = { ...encryptedJournalData as Record<string, unknown> };
   
-  // Decrypt userReflection
-  if (encryptedJournalData.userReflection_encrypted) {
-    try {
-      const decryptedValue = await decryptData(
-        encryptedJournalData.userReflection_encrypted,
-        passphrase,
-        encryptedJournalData.userReflection_salt,
-        encryptedJournalData.userReflection_iv
-      );
-      decrypted.userReflection = JSON.parse(decryptedValue);
-      
-      delete decrypted.userReflection_encrypted;
-      delete decrypted.userReflection_salt;
-      delete decrypted.userReflection_iv;
-    } catch (error) {
-      console.error('Failed to decrypt journal userReflection:', error);
-      decrypted.userReflection = '[Encrypted Data - Cannot Decrypt]';
+  const fieldsToDecrypt = [
+    'content', 'title', 'summary', 'insights', 'tags'
+  ];
+  
+  for (const field of fieldsToDecrypt) {
+    if ((encryptedJournalData as Record<string, unknown>)[`${field}_encrypted`]) {
+      try {
+        const decryptedValue = await decryptData(
+          (encryptedJournalData as Record<string, unknown>)[`${field}_encrypted`] as string,
+          passphrase
+        );
+        decrypted[field] = decryptedValue;
+        delete decrypted[`${field}_encrypted`];
+      } catch (error) {
+        console.error(`Failed to decrypt journal ${field}:`, error);
+        decrypted[field] = '[Encrypted Data - Cannot Decrypt]';
+      }
     }
   }
-
-  // Decrypt goals
-  if (encryptedJournalData.goals_encrypted) {
+  
+  // Decrypt goals array if present
+  if ((encryptedJournalData as Record<string, unknown>).goals_encrypted) {
     try {
-      const decryptedValue = await decryptData(
-        encryptedJournalData.goals_encrypted,
-        passphrase,
-        encryptedJournalData.goals_salt,
-        encryptedJournalData.goals_iv
+      const decryptedGoals = await decryptData(
+        (encryptedJournalData as Record<string, unknown>).goals_encrypted as string,
+        passphrase
       );
-      decrypted.goals = JSON.parse(decryptedValue);
-      
+      decrypted.goals = decryptedGoals;
       delete decrypted.goals_encrypted;
-      delete decrypted.goals_salt;
-      delete decrypted.goals_iv;
     } catch (error) {
       console.error('Failed to decrypt journal goals:', error);
-      decrypted.goals = [];
-    }
-  }
-
-  // Decrypt quick reflections
-  if (encryptedJournalData.quickReflections_encrypted) {
-    try {
-      const decryptedValue = await decryptData(
-        encryptedJournalData.quickReflections_encrypted,
-        passphrase,
-        encryptedJournalData.quickReflections_salt,
-        encryptedJournalData.quickReflections_iv
-      );
-      decrypted.quickReflections = JSON.parse(decryptedValue);
-      
-      delete decrypted.quickReflections_encrypted;
-      delete decrypted.quickReflections_salt;
-      delete decrypted.quickReflections_iv;
-    } catch (error) {
-      console.error('Failed to decrypt journal quick reflections:', error);
-      decrypted.quickReflections = [];
-    }
-  }
-
-  // Decrypt AI journal support
-  if (encryptedJournalData.aiJournalSupport_encrypted) {
-    try {
-      const decryptedValue = await decryptData(
-        encryptedJournalData.aiJournalSupport_encrypted,
-        passphrase,
-        encryptedJournalData.aiJournalSupport_salt,
-        encryptedJournalData.aiJournalSupport_iv
-      );
-      decrypted.aiJournalSupport = JSON.parse(decryptedValue);
-      
-      delete decrypted.aiJournalSupport_encrypted;
-      delete decrypted.aiJournalSupport_salt;
-      delete decrypted.aiJournalSupport_iv;
-    } catch (error) {
-      console.error('Failed to decrypt journal AI support:', error);
-      decrypted.aiJournalSupport = null;
+      decrypted.goals = '[Encrypted Data - Cannot Decrypt]';
     }
   }
   
@@ -386,51 +297,58 @@ export async function decryptJournalEntry(encryptedJournalData: any): Promise<an
 }
 
 /**
- * Encrypt feedback (except userId for system tracking)
+ * Encrypt feedback data
  */
-export async function encryptFeedback(feedbackData: any): Promise<any> {
+export async function encryptFeedback(feedbackData: unknown): Promise<unknown> {
   if (!feedbackData) return feedbackData;
   
   const passphrase = getCurrentPassphrase();
-  const encrypted: any = { ...feedbackData };
+  const encrypted: Record<string, unknown> = { ...feedbackData as Record<string, unknown> };
   
-  // Encrypt improvement suggestion but keep rating and IDs for analytics
-  if (feedbackData.improvementSuggestion) {
-    const encryptedField = await encryptData(feedbackData.improvementSuggestion, passphrase);
-    encrypted.improvementSuggestion_encrypted = encryptedField.encryptedData;
-    encrypted.improvementSuggestion_salt = encryptedField.salt;
-    encrypted.improvementSuggestion_iv = encryptedField.iv;
-    delete encrypted.improvementSuggestion;
+  const fieldsToEncrypt = [
+    'content', 'rating', 'suggestions', 'additionalComments'
+  ];
+  
+  for (const field of fieldsToEncrypt) {
+    if ((feedbackData as Record<string, unknown>)[field]) {
+      const encryptedField = await encryptData(
+        (feedbackData as Record<string, unknown>)[field], 
+        passphrase
+      );
+      encrypted[`${field}_encrypted`] = encryptedField;
+      delete encrypted[field];
+    }
   }
   
   return encrypted;
 }
 
 /**
- * Decrypt feedback
+ * Decrypt feedback data
  */
-export async function decryptFeedback(encryptedFeedbackData: any): Promise<any> {
+export async function decryptFeedback(encryptedFeedbackData: unknown): Promise<unknown> {
   if (!encryptedFeedbackData) return encryptedFeedbackData;
   
   const passphrase = getCurrentPassphrase();
-  const decrypted: any = { ...encryptedFeedbackData };
+  const decrypted: Record<string, unknown> = { ...encryptedFeedbackData as Record<string, unknown> };
   
-  if (encryptedFeedbackData.improvementSuggestion_encrypted) {
-    try {
-      const decryptedSuggestion = await decryptData(
-        encryptedFeedbackData.improvementSuggestion_encrypted,
-        passphrase,
-        encryptedFeedbackData.improvementSuggestion_salt,
-        encryptedFeedbackData.improvementSuggestion_iv
-      );
-      decrypted.improvementSuggestion = decryptedSuggestion;
-      
-      delete decrypted.improvementSuggestion_encrypted;
-      delete decrypted.improvementSuggestion_salt;
-      delete decrypted.improvementSuggestion_iv;
-    } catch (error) {
-      console.error('Failed to decrypt feedback suggestion:', error);
-      decrypted.improvementSuggestion = '[Encrypted Data - Cannot Decrypt]';
+  const fieldsToDecrypt = [
+    'content', 'rating', 'suggestions', 'additionalComments'
+  ];
+  
+  for (const field of fieldsToDecrypt) {
+    if ((encryptedFeedbackData as Record<string, unknown>)[`${field}_encrypted`]) {
+      try {
+        const decryptedValue = await decryptData(
+          (encryptedFeedbackData as Record<string, unknown>)[`${field}_encrypted`] as string,
+          passphrase
+        );
+        decrypted[field] = decryptedValue;
+        delete decrypted[`${field}_encrypted`];
+      } catch (error) {
+        console.error(`Failed to decrypt feedback ${field}:`, error);
+        decrypted[field] = '[Encrypted Data - Cannot Decrypt]';
+      }
     }
   }
   
@@ -438,28 +356,24 @@ export async function decryptFeedback(encryptedFeedbackData: any): Promise<any> 
 }
 
 /**
- * Utility function to check if user has passphrase available
+ * Get encryption status for UI display
  */
-export function isEncryptionAvailable(): boolean {
-  return !!sessionStorage.getItem('userPassphrase');
+export function getEncryptionStatus(): { isEncrypted: boolean; hasPassphrase: boolean } {
+  const passphrase = sessionStorage.getItem('userPassphrase');
+  return {
+    isEncrypted: true, // Always encrypted in this system
+    hasPassphrase: !!passphrase
+  };
 }
 
 /**
- * Get encryption status for UI display
+ * Validate that user has access to encrypted data
  */
-export function getEncryptionStatus(): {
-  isEncrypted: boolean;
-  message: string;
-} {
-  if (isEncryptionAvailable()) {
-    return {
-      isEncrypted: true,
-      message: "🔒 Your data is encrypted end-to-end. Only you can decrypt it."
-    };
-  } else {
-    return {
-      isEncrypted: false,
-      message: "⚠️ Encryption unavailable. Please log in with your passphrase."
-    };
+export function validateEncryptionAccess(): boolean {
+  try {
+    getCurrentPassphrase();
+    return true;
+  } catch {
+    return false;
   }
 }
