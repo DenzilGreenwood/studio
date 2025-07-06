@@ -7,6 +7,7 @@ import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { Footer } from "@/components/layout/footer";
 
 
 export default function AppLayout({
@@ -43,9 +44,7 @@ export default function AppLayout({
       <AppHeader />
       <EncryptionBanner />
       <main className="flex-1">{children}</main>
-      <footer className="py-6 text-center text-sm text-muted-foreground border-t">
-         &copy; 2024 CognitiveInsight. All rights reserved.
-      </footer>
+      <Footer />
     </div>
   );
 }

@@ -13,7 +13,7 @@ export default function NotFoundPage() {
         Oops! Page Not Found
       </h1>
       <p className="mt-4 max-w-md text-lg text-muted-foreground md:text-xl">
-        The page you're looking for doesn't seem to exist. Maybe it was moved, or you typed something wrong.
+        The page you&#39;re looking for doesn&#39;t seem to exist. Maybe it was moved, or you typed something wrong.
       </p>
       <Button asChild size="lg" className="mt-10 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg transition-transform hover:scale-105">
         <Link href="/">
