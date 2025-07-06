@@ -15,10 +15,8 @@ const nextConfig = {
       },
     ],
   },
-  // Enable experimental features for better Genkit support
-  experimental: {
-    serverComponentsExternalPackages: ['genkit', 'handlebars', '@genkit-ai/core', 'dotprompt'],
-  },
+  // External packages for server-side rendering
+  serverExternalPackages: ['genkit', 'handlebars', '@genkit-ai/core', 'dotprompt'],
   // Ensure proper environment variable handling
   env: {
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
