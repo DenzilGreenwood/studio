@@ -37,6 +37,13 @@ const nextConfig = {
         'dgram': false,
         'diagnostics_channel': false,
         'http2': false,
+        'dns': false,
+        'http': false,
+        'https': false,
+        'url': false,
+        'querystring': false,
+        'path': false,
+        'os': false,
       };
       
       // Ignore specific problematic modules

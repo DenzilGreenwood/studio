@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { Brain, UserCircle, LogOut, ChevronDown, Trash2, Loader2, BookOpen, Play, TrendingUp } from "lucide-react";
+import { Brain, UserCircle, LogOut, ChevronDown, Trash2, Loader2, BookOpen, Play, TrendingUp, Map, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EncryptionNotice } from "@/components/encryption/encryption-notice";
 import {
@@ -181,6 +181,14 @@ export function AppHeader() {
               <DropdownMenuItem onClick={() => router.push('/sessions')}>
                 <BookOpen className="mr-2 h-4 w-4" />
                 <span>Session History</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/clarity-map')}>
+                <Map className="mr-2 h-4 w-4" />
+                <span>Clarity Maps</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/insight-report')}>
+                <FileText className="mr-2 h-4 w-4" />
+                <span>Insight Reports</span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => router.push('/my-progress')}>
                 <TrendingUp className="mr-2 h-4 w-4" />
