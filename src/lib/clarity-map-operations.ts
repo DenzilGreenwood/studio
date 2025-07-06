@@ -65,9 +65,9 @@ export const clarityMapOperations = {
           edges: decryptedData.edges,
           title: decryptedData.title
         };
-      } catch (error) {
-        console.error('Failed to decrypt clarity map:', error);
-        return data; // Return encrypted data if decryption fails
+      } catch (_error) {
+        // Silent fallback to encrypted data if decryption fails
+        return data;
       }
     }
 
@@ -102,9 +102,9 @@ export const clarityMapOperations = {
             edges: decryptedData.edges,
             title: decryptedData.title
           });
-        } catch (error) {
-          console.error('Failed to decrypt clarity map:', error);
-          maps.push(data); // Add encrypted data if decryption fails
+        } catch (_error) {
+          // Silent fallback: add encrypted data if decryption fails
+          maps.push(data);
         }
       } else {
         maps.push(data);
@@ -142,8 +142,8 @@ export const clarityMapOperations = {
             edges: decryptedData.edges,
             title: decryptedData.title
           });
-        } catch (error) {
-          console.error('Failed to decrypt clarity map:', error);
+        } catch (_error) {
+          // Silent fallback: add encrypted data if decryption fails
           maps.push(data);
         }
       } else {
@@ -209,8 +209,8 @@ export const insightReportOperations = {
           sections: decryptedData.sections,
           title: decryptedData.title
         };
-      } catch (error) {
-        console.error('Failed to decrypt insight report:', error);
+      } catch (_error) {
+        // Silent fallback to encrypted data if decryption fails
         return data;
       }
     }
@@ -246,8 +246,8 @@ export const insightReportOperations = {
             sections: decryptedData.sections,
             title: decryptedData.title
           });
-        } catch (error) {
-          console.error('Failed to decrypt insight report:', error);
+        } catch (_error) {
+          // Silent fallback: add encrypted data if decryption fails
           reports.push(data);
         }
       } else {
@@ -286,8 +286,8 @@ export const insightReportOperations = {
             sections: decryptedData.sections,
             title: decryptedData.title
           });
-        } catch (error) {
-          console.error('Failed to decrypt insight report:', error);
+        } catch (_error) {
+          // Silent fallback: add encrypted data if decryption fails
           reports.push(data);
         }
       } else {

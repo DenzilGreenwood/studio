@@ -78,7 +78,7 @@ export default function HomePage() {
           <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <SignupButton />
             <Button variant="outline" size="lg" asChild className="shadow-lg transition-transform hover:scale-105">
-              <Link href="#features">Learn More</Link>
+              <Link href="/protocol-overview">Learn More</Link>
             </Button>
           </div>
         </section>

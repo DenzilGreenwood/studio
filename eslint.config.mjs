@@ -22,8 +22,8 @@ const eslintConfig = [
       '@typescript-eslint/no-explicit-any': 'warn',
       '@next/next/no-img-element': 'off',
       'react-hooks/exhaustive-deps': 'warn',
-      // Allow console statements in development
-      'no-console': process.env.NODE_ENV === 'production' ? 'error' : 'off',
+      // Allow console statements in development, but warn in production
+      'no-console': process.env.NODE_ENV === 'production' ? 'error' : 'warn',
     },
     ignores: [
       '.next/**',
