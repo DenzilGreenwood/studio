@@ -20,6 +20,7 @@ import { PDFGenerator, prepareSessionDataForPDF } from '@/lib/pdf-generator';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
 import { EmotionalProgression } from '@/components/protocol/emotional-progression';
+import { decryptChatMessage, decryptSessionData, getPassphraseSafely } from '@/lib/data-encryption';
 
 interface DisplayMessage extends FirestoreChatMessage {
   id: string; 
@@ -90,6 +91,15 @@ export default function SessionReportPage() {
     const fetchSessionData = async () => {
       setIsLoading(true);
       setError(null);
+      
+      // Check if user has passphrase for decryption
+      const passphrase = getPassphraseSafely();
+      if (!passphrase) {
+        setError("Authentication required. Please log in again to decrypt session data.");
+        setIsLoading(false);
+        return;
+      }
+      
       try {
         const targetUserId = firebaseUser.uid;
         const sessionDocRef = doc(db, `users/${targetUserId}/sessions/${sessionId}`);
@@ -102,17 +112,57 @@ export default function SessionReportPage() {
 
         const fetchedSessionData = sessionSnap.data() as ProtocolSession;
         
-        const processedSessionData = convertProtocolSessionTimestamps(fetchedSessionData);
+        // Decrypt session data if it's encrypted
+        let decryptedSessionData: ProtocolSession;
+        try {
+          decryptedSessionData = await decryptSessionData(fetchedSessionData) as ProtocolSession;
+        } catch (error) {
+          // If decryption fails, use original data (might be unencrypted or error)
+          // eslint-disable-next-line no-console
+          console.warn('Failed to decrypt session data, using original:', error);
+          decryptedSessionData = fetchedSessionData;
+        }
+        
+        const processedSessionData = convertProtocolSessionTimestamps(decryptedSessionData);
         
         const sessionForUser = authProfile;
 
         const messagesQuery = query(collection(db, `users/${targetUserId}/sessions/${sessionId}/messages`), orderBy("timestamp", "asc"));
         const messagesSnap = await getDocs(messagesQuery);
-        const fetchedMessages: DisplayMessage[] = messagesSnap.docs.map(docSnap => ({
-          id: docSnap.id,
-          ...docSnap.data(),
-          timestamp: (docSnap.data().timestamp as Timestamp)?.toDate() || new Date(),
-        } as DisplayMessage));
+        
+        // Decrypt messages before adding to session data
+        const fetchedMessages: DisplayMessage[] = [];
+        for (const docSnap of messagesSnap.docs) {
+          const messageData = docSnap.data() as FirestoreChatMessage;
+          try {
+            // Decrypt the message if it's encrypted
+            const decryptedMessage = await decryptChatMessage(messageData) as FirestoreChatMessage;
+            fetchedMessages.push({
+              id: docSnap.id,
+              sender: decryptedMessage.sender,
+              text: decryptedMessage.text,
+              timestamp: (decryptedMessage.timestamp as Timestamp)?.toDate() || new Date(),
+              phaseName: decryptedMessage.phaseName,
+              emotionalTone: decryptedMessage.emotionalTone,
+              isKeyStatement: decryptedMessage.isKeyStatement,
+              statementType: decryptedMessage.statementType,
+            } as DisplayMessage);
+          } catch (error) {
+            // If decryption fails, show placeholder or skip message
+            // eslint-disable-next-line no-console
+            console.warn('Failed to decrypt message:', error);
+            fetchedMessages.push({
+              id: docSnap.id,
+              sender: messageData.sender,
+              text: '[Encrypted Message - Cannot Decrypt]',
+              timestamp: (messageData.timestamp as Timestamp)?.toDate() || new Date(),
+              phaseName: messageData.phaseName || 'Unknown Phase',
+              emotionalTone: undefined,
+              isKeyStatement: false,
+              statementType: undefined,
+            } as DisplayMessage);
+          }
+        }
         
         const fullSessionData = { 
             ...processedSessionData, 
@@ -252,7 +302,7 @@ export default function SessionReportPage() {
         );
     }
 
-  const { summary, feedbackId, sessionForUser, circumstance } = sessionData;
+  const { summary, feedbackId, sessionForUser } = sessionData;
   const userToDisplay = sessionForUser || authProfile;
 
   return (
@@ -282,11 +332,11 @@ export default function SessionReportPage() {
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[525px]">
                            <DialogTitle className="sr-only">Session Feedback</DialogTitle>
-                           {firebaseUser && circumstance && (
+                           {firebaseUser && (
                               <PostSessionFeedback
                                 sessionId={sessionId}
                                 userId={firebaseUser.uid}
-                                circumstance={circumstance}
+                                circumstance={sessionData.circumstance || 'Not specified'}
                                 onFeedbackSubmitted={handleFeedbackSubmitted}
                               />
                            )}
@@ -571,7 +621,7 @@ export default function SessionReportPage() {
                           <PostSessionFeedback
                             sessionId={sessionId}
                             userId={firebaseUser?.uid || ''}
-                            circumstance={sessionData.circumstance}
+                            circumstance={sessionData.circumstance || 'Not specified'}
                             onFeedbackSubmitted={handleFeedbackSubmitted}
                           />
                         </DialogContent>

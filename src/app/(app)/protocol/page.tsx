@@ -21,14 +21,12 @@ import {
   getDocs,
   updateDoc,
   Timestamp,
-  where,
   writeBatch,
   getDoc
 } from '@/lib/firebase';
 import type { ProtocolSession, ChatMessage as FirestoreChatMessage } from '@/types';
 import { useRouter } from 'next/navigation'; 
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
-import { ClaritySummary } from '@/components/protocol/clarity-summary';
 import { EmotionalProgression } from '@/components/protocol/emotional-progression';
 import { Button } from '@/components/ui/button';
 import { encryptChatMessage, decryptChatMessage, encryptSessionData, decryptSessionData } from '@/lib/data-encryption';
@@ -36,25 +34,12 @@ import { encryptChatMessage, decryptChatMessage, encryptSessionData, decryptSess
 // Type imports from the central types file
 import type { FieldValue } from 'firebase/firestore';
 import { 
-  protocolPhaseNames,
   type ProtocolPhase,
   type CognitiveEdgeProtocolInput, 
-  type CognitiveEdgeProtocolOutput,
   type ClaritySummaryInput, 
   type ClaritySummaryOutput,
-  type SentimentAnalysisInput, 
-  type SentimentAnalysisOutput
+  type SentimentAnalysisInput
 } from '@/types';
-
-// Type imports only (no functions)
-import type { EmotionalToneOutput } from '@/ai/flows/emotional-tone-analyzer';
-
-// Define input types locally to avoid importing server-side code
-interface EmotionalToneInput {
-  userMessage: string;
-  context?: string;
-  previousTone?: string;
-}
 
 
 const TOTAL_PHASES = 6;
@@ -97,8 +82,9 @@ async function generateAndSaveSummary(
   userId: string,
   circumstance: string,
   summaryInputData: SessionDataForSummaryFunctionArg, 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   showToast: (options: any) => void,
-  completedPhases: number
+  _completedPhases: number
 ): Promise<ClaritySummaryContentType | null> {
   if (!sessionId || !userId) {
     showToast({ variant: "destructive", title: "Error", description: "User or Session ID missing for summary." });
@@ -115,10 +101,6 @@ async function generateAndSaveSummary(
   };
   
   const sessionDocRef = doc(db, `users/${userId}/sessions/${sessionId}`);
-  const finalUpdatePayload: Partial<ProtocolSession> = {
-    completedPhases,
-    endTime: serverTimestamp() as any,
-  };
 
   if (!summaryInputData.actualReframedBelief.trim() && !summaryInputData.actualLegacyStatement.trim()) {
     showToast({ variant: "destructive", title: "Missing Key Data", description: "Crucial session elements (reframed belief or legacy statement) were not captured. A full AI summary cannot be generated." });
@@ -170,8 +152,9 @@ async function generateAndSaveSummary(
     }, { merge: true });
     return summaryToPersist;
 
-  } catch (error: any) {
-    const errorMessage = error.message || "An unexpected error occurred.";
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
+    // eslint-disable-next-line no-console
     console.error("Error generating summary:", error);
     showToast({ variant: "destructive", title: "Summary Generation Failed", description: `Could not generate the insight summary. Details: ${errorMessage}` });
     const errorSummaryToPersist: ClaritySummaryContentType = {
@@ -190,7 +173,7 @@ async function generateAndSaveSummary(
 
 
 export default function ProtocolPage() {
-  const { firebaseUser, user } = useAuth();
+  const { firebaseUser, user, handlePassphraseError, checkPassphraseAvailability } = useAuth();
   const router = useRouter(); 
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [currentPhase, setCurrentPhase] = useState(1);
@@ -241,7 +224,7 @@ export default function ProtocolPage() {
 
   const { toast } = useToast();
 
-  const handleFeedbackAndRedirect = (feedbackId: string) => {
+  const handleFeedbackAndRedirect = (_feedbackId: string) => {
     if (currentSessionId && currentCircumstance) {
       const url = `/session-report/${currentSessionId}?circumstance=${encodeURIComponent(currentCircumstance)}&review_submitted=true`;
       router.push(url);
@@ -257,6 +240,17 @@ export default function ProtocolPage() {
 
   const initializeSession = useCallback(async () => {
     if (!firebaseUser || !user) return;
+    
+    // Check passphrase availability before proceeding
+    if (!checkPassphraseAvailability()) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Your session has expired. Please log in again.",
+      });
+      await handlePassphraseError();
+      return;
+    }
     
     // Since we removed profile requirements, we can proceed directly to session creation
     // The user can describe their challenge during the first phase
@@ -279,8 +273,20 @@ export default function ProtocolPage() {
       if (activeSessionDoc) {
         const encryptedSessionData = activeSessionDoc.data() as ProtocolSession;
         
-        // Decrypt session data before resuming
-        const sessionData = await decryptSessionData(encryptedSessionData);
+        try {
+          // Check passphrase availability before attempting decryption
+          if (!checkPassphraseAvailability()) {
+            toast({
+              variant: "destructive",
+              title: "Authentication Required",
+              description: "Your session has expired. Please log in again.",
+            });
+            await handlePassphraseError();
+            return;
+          }
+
+          // Decrypt session data before resuming
+          const sessionData = await decryptSessionData(encryptedSessionData) as ProtocolSession;
         
         // Resume existing session
         setCurrentSessionId(activeSessionDoc.id);
@@ -290,7 +296,8 @@ export default function ProtocolPage() {
         
         // Restore session-specific state
         if (sessionData.emotionalProgression) {
-          setEmotionalProgression(sessionData.emotionalProgression.map(ep => ({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          setEmotionalProgression(sessionData.emotionalProgression.map((ep: any) => ({
             ...ep,
             timestamp: ep.timestamp instanceof Timestamp ? ep.timestamp.toDate() : ep.timestamp
           })));
@@ -310,7 +317,8 @@ export default function ProtocolPage() {
                 ? sessionData.keyStatements.legacyStatement.timestamp.toDate()
                 : sessionData.keyStatements.legacyStatement.timestamp
             } : undefined,
-            insights: sessionData.keyStatements.insights?.map(insight => ({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            insights: sessionData.keyStatements.insights?.map((insight: any) => ({
               ...insight,
               timestamp: insight.timestamp instanceof Timestamp ? insight.timestamp.toDate() : insight.timestamp
             }))
@@ -341,7 +349,7 @@ export default function ProtocolPage() {
           const data = docSnap.data() as FirestoreChatMessage;
           try {
             // Decrypt the message data
-            const decryptedMessage = await decryptChatMessage(data);
+            const decryptedMessage = await decryptChatMessage(data) as FirestoreChatMessage;
             existingMessages.push({
               id: docSnap.id,
               sender: decryptedMessage.sender,
@@ -349,6 +357,7 @@ export default function ProtocolPage() {
               timestamp: (decryptedMessage.timestamp as Timestamp)?.toDate() || new Date(),
             });
           } catch (error) {
+            // eslint-disable-next-line no-console
             console.error('Failed to decrypt message:', error);
             // Fallback to showing encrypted data indicator
             existingMessages.push({
@@ -390,8 +399,24 @@ export default function ProtocolPage() {
         });
         
         return;
+        } catch (decryptError) {
+          // Handle passphrase-related errors
+          if (decryptError instanceof Error && decryptError.message.includes('passphrase not available')) {
+            toast({
+              variant: "destructive",
+              title: "Authentication Required",
+              description: "Your session has expired. Please log in again.",
+            });
+            await handlePassphraseError();
+            return;
+          }
+          
+          // Re-throw other errors
+          throw decryptError;
+        }
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error("Error checking for active sessions:", error);
     }
 
@@ -452,11 +477,11 @@ export default function ProtocolPage() {
     setSessionDataForSummary({ topEmotions: "Not analyzed" }); 
     setSessionHistoryForAI(undefined);
     setIsLoading(false);
-  }, [firebaseUser, user, router, toast]);
+  }, [firebaseUser, user, toast, checkPassphraseAvailability, handlePassphraseError]);
 
   useEffect(() => {
     if (firebaseUser && user && !currentSessionId && !sessionInitialized) {
-      console.log('Initializing session...', { firebaseUser: !!firebaseUser, user: !!user, currentSessionId, sessionInitialized });
+      // Session initialization logic
       setSessionInitialized(true);
       initializeSession();
     }
@@ -485,7 +510,7 @@ export default function ProtocolPage() {
           const data = docSnap.data() as FirestoreChatMessage;
           if (data.sender === 'user') {
             try {
-              const decryptedMessage = await decryptChatMessage(data);
+              const decryptedMessage = await decryptChatMessage(data) as FirestoreChatMessage;
               userMessagesTexts.push(decryptedMessage.text);
             } catch (error) {
               console.error('Failed to decrypt user message for sentiment analysis:', error);
@@ -814,7 +839,7 @@ export default function ProtocolPage() {
               const data = docSnap.data() as FirestoreChatMessage;
               if (data.sender === 'user') {
                 try {
-                  const decryptedMessage = await decryptChatMessage(data);
+                  const decryptedMessage = await decryptChatMessage(data) as FirestoreChatMessage;
                   userMessagesTexts.push(decryptedMessage.text);
                 } catch (error) {
                   console.error('Failed to decrypt user message for sentiment analysis:', error);
@@ -883,7 +908,7 @@ export default function ProtocolPage() {
 
           await batch.commit();
           
-          const generatedSummary = await generateAndSaveSummary(
+          await generateAndSaveSummary(
             currentSessionId, 
             firebaseUser.uid, 
             currentCircumstance!,
@@ -918,8 +943,9 @@ export default function ProtocolPage() {
          setIsLoading(false); 
       }
       
-    } catch (error: any) {
-      const errorMessage = error.message || "An unexpected error occurred. Check the server logs for more details.";
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred. Check the server logs for more details.";
+      // eslint-disable-next-line no-console
       console.error("Error in AI protocol:", error);
       toast({
         variant: "destructive",
@@ -1000,7 +1026,7 @@ export default function ProtocolPage() {
           <CheckCircle className="h-16 w-16 text-green-600 mb-4" />
           <h2 className="font-headline text-3xl text-primary mb-3">Session Complete! 🎉</h2>
           <p className="text-muted-foreground text-lg mb-6 max-w-md">
-            Congratulations! You've completed your session. Your personalized report with insights and analysis is ready for review.
+            Congratulations! You&apos;ve completed your session. Your personalized report with insights and analysis is ready for review.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md">
             <Button asChild size="lg" className="flex-1">
@@ -1017,7 +1043,7 @@ export default function ProtocolPage() {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-4">
-            You'll be redirected to your report shortly...
+            You&apos;ll be redirected to your report shortly...
           </p>
         </div>
       ) : !isProtocolComplete ? (
@@ -1038,11 +1064,11 @@ export default function ProtocolPage() {
         </>
       ) : null}
       
-      {isProtocolComplete && showFeedbackForm && currentSessionId && firebaseUser && currentCircumstance && (
+      {isProtocolComplete && showFeedbackForm && currentSessionId && firebaseUser && (
         <PostSessionFeedback 
             sessionId={currentSessionId} 
             userId={firebaseUser.uid}
-            circumstance={currentCircumstance}
+            circumstance={currentCircumstance || 'Not specified'}
             onFeedbackSubmitted={handleFeedbackAndRedirect}
         />
       )}

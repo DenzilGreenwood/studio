@@ -27,7 +27,7 @@ import { canCreateNewUser, incrementUserCount } from "@/lib/user-limit";
 import { 
   validatePassphrase
 } from "@/lib/cryptoUtils";
-import { storeEncryptedPassphrase, recoverPassphrase } from "@/services/recoveryService";
+import { storeEncryptedPassphrase, recoverPassphrase, findUserByEmail, hasRecoveryData } from "@/services/recoveryService";
 import { useEncryption } from "@/lib/encryption-context";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -44,7 +44,11 @@ const baseSchema = z.object({
 
 const loginSchema = baseSchema.extend({
   passphrase: z.string().min(8, { message: "Passphrase must be at least 8 characters." }).optional(),
-  recoveryKey: z.string().optional(),
+  recoveryKey: z.string()
+    .min(64, { message: "Recovery key must be 64 characters long." })
+    .max(64, { message: "Recovery key must be 64 characters long." })
+    .regex(/^[a-f0-9]+$/i, { message: "Recovery key must contain only hexadecimal characters (0-9, a-f)." })
+    .optional(),
 });
 
 const signupSchema = baseSchema.extend({
@@ -113,43 +117,84 @@ export function AuthForm({ mode }: AuthFormProps) {
         throw new Error('Copy command failed');
       }
     } catch (error) {
-      console.error('Copy failed:', error);
+      // Optionally log error to an external service here if needed
       toast({ 
         variant: "destructive", 
         title: "Failed to copy", 
-        description: "Please select and copy the key manually (Ctrl+C or Cmd+C)." 
+        description: `Please select and copy the key manually (Ctrl+C or Cmd+C). ${error instanceof Error ? error.message : "Unknown error occurred."}`
       });
     }
   };
 
   const handleRecoveryKeySubmit = async (recoveryKey: string, email: string) => {
     try {
-      // First, we need to get the user ID from the email
-      // This is a simplified approach - in a real app, you'd need to handle this differently
-      const userCredential = await signInWithEmailAndPassword(auth, email, form.getValues('password'));
-      
-      const decryptedPassphrase = await recoverPassphrase(userCredential.user.uid, recoveryKey);
-      
-      if (!decryptedPassphrase) {
-        throw new Error("No recovery data found for this account or invalid recovery key.");
+      // Step 1: Find user ID by email without requiring password
+      const userId = await findUserByEmail(email);
+      if (!userId) {
+        throw new Error("No account found with this email address.");
       }
 
-      // Use encryption context to set the recovered passphrase
+      // Step 2: Check if recovery data exists for this user
+      const hasRecovery = await hasRecoveryData(userId);
+      if (!hasRecovery) {
+        throw new Error("No recovery data found for this account. This account may have been created before the recovery system was implemented.");
+      }
+
+      // Step 3: Attempt to recover passphrase using the provided recovery key
+      const decryptedPassphrase = await recoverPassphrase(userId, recoveryKey);
+      if (!decryptedPassphrase) {
+        throw new Error("Invalid recovery key. Please check your recovery key and try again.");
+      }
+
+      // Step 4: Now authenticate with Firebase using the recovered credentials
+      // We still need the Firebase password for authentication
+      const password = form.getValues('password');
+      if (!password) {
+        throw new Error("Please enter your account password to complete recovery.");
+      }
+
+      await signInWithEmailAndPassword(auth, email, password);
+      
+      // Step 5: Set the recovered passphrase in encryption context
       setPassphrase(decryptedPassphrase);
       setRecoveredPassphrase(decryptedPassphrase);
       
       toast({ 
         title: "Recovery Successful", 
-        description: "Your passphrase has been recovered and set. Redirecting...",
+        description: "Your passphrase has been recovered and you are now logged in. Redirecting...",
       });
       
       // Navigate to protocol page after successful recovery
       router.push("/protocol");
     } catch (error) {
+      let errorMessage = "Recovery failed. Please check your details and try again.";
+      
+      if (error instanceof Error) {
+        // Provide more specific error messages
+        if (error.message.includes("No account found")) {
+          errorMessage = "No account found with this email address.";
+        } else if (error.message.includes("No recovery data")) {
+          errorMessage = "No recovery data found. This account may have been created before the recovery system was implemented.";
+        } else if (error.message.includes("Invalid recovery key")) {
+          errorMessage = "Invalid recovery key. Please check your 64-character recovery key and try again.";
+        } else if (error.message.includes("password")) {
+          errorMessage = "Please enter your account password to complete recovery.";
+        } else if (error.message.includes("auth/")) {
+          // Firebase auth errors
+          if (error.message.includes("auth/wrong-password")) {
+            errorMessage = "Incorrect password. Please enter your account password.";
+          } else if (error.message.includes("auth/user-not-found")) {
+            errorMessage = "Account not found. Please check your email address.";
+          } else if (error.message.includes("auth/too-many-requests")) {
+            errorMessage = "Too many failed attempts. Please try again later.";
+          }
+        }
+      }
+      
       toast({ 
         variant: "destructive", 
         title: "Recovery Failed", 
-        description: error instanceof Error ? error.message : "Invalid recovery key or email." 
+        description: errorMessage
       });
     }
   };
@@ -251,15 +296,33 @@ export function AuthForm({ mode }: AuthFormProps) {
         try {
           await incrementUserCount();
         } catch (countError) {
+          // eslint-disable-next-line no-console
           console.error("Error incrementing user count:", countError);
           // Don't fail signup for counter error
+          toast({
+            variant: "destructive",
+            title: "User Count Update Warning",
+            description: `Your account was created, but we encountered an issue updating our user count. Please contact support if you notice any issues.${countError instanceof Error ? ` Error: ${countError.message}` : ""}`,
+          });
         }
 
         // Show recovery key dialog
         setRecoveryKeyDialog({ isOpen: true, recoveryKey });
       }
     } catch (error) {
-      console.error("Auth error:", error);
+      // Handle errors during authentication
+      // console.error("Auth error:", error);
+      // Show generic error toast
+      toast({
+        variant: "destructive",
+        title: mode === "login" ? "Login Failed" : "Signup Failed",
+        description: "An unexpected error occurred. Please try again later.",
+      });
+      // Handle specific Firebase Auth errors
+      if (error instanceof Error && (error as AuthError).code) {
+        // Cast to AuthError to access code property
+        // This is a more specific error handling for Firebase Auth errors
+      }
       const authError = error as AuthError;
       let errorMessage = "An error occurred. Please try again.";
       
@@ -327,6 +390,17 @@ export function AuthForm({ mode }: AuthFormProps) {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                {/* Recovery Mode Information */}
+                {mode === "login" && isRecoveryMode && (
+                  <Alert>
+                    <Key className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>Recovery Mode:</strong> You&apos;ll need your recovery key AND your account password to recover your passphrase. 
+                      If you don&apos;t have your recovery key, you won&apos;t be able to access your encrypted data.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 <FormField
                   control={form.control}
                   name="email"
@@ -413,10 +487,22 @@ export function AuthForm({ mode }: AuthFormProps) {
                           Recovery Key
                         </FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter your recovery key" {...field} />
+                          <Input 
+                            placeholder="Enter your 64-character recovery key"
+                            className="font-mono text-sm"
+                            {...field}
+                            onChange={(e) => {
+                              // Remove any spaces and convert to lowercase for consistency
+                              const cleanedValue = e.target.value.replace(/\s/g, '').toLowerCase();
+                              field.onChange(cleanedValue);
+                            }}
+                          />
                         </FormControl>
-                        <FormDescription>
-                          Enter the recovery key you saved during signup. This is the ONLY way to recover your passphrase if forgotten.
+                        <FormDescription className="space-y-1">
+                          <div>Enter the recovery key you saved during signup. This is the ONLY way to recover your passphrase if forgotten.</div>
+                          <div className="text-xs text-muted-foreground">
+                            Format: 64-character hexadecimal string (0-9, a-f)
+                          </div>
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

@@ -25,7 +25,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { UserProfile } from '@/types';
-import { encryptUserProfile, decryptUserProfile } from '@/lib/data-encryption';
+import { encryptUserProfile, decryptUserProfile, getPassphraseSafely } from '@/lib/data-encryption';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -34,6 +34,8 @@ interface AuthContextType {
   logout: () => Promise<void>;
   deleteUserAccountAndData: () => Promise<void>;
   refreshUserProfile: () => Promise<void>;
+  checkPassphraseAvailability: () => boolean;
+  handlePassphraseError: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -285,8 +287,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const checkPassphraseAvailability = (): boolean => {
+    return getPassphraseSafely() !== null;
+  };
+
+  const handlePassphraseError = async (): Promise<void> => {
+    // Clear the user passphrase from session storage
+    sessionStorage.removeItem('userPassphrase');
+    
+    // Log out the user to force re-authentication
+    await logout();
+  };
+
   return (
-    <AuthContext.Provider value={{ user, firebaseUser, loading, logout, deleteUserAccountAndData, refreshUserProfile }}>
+    <AuthContext.Provider value={{ user, firebaseUser, loading, logout, deleteUserAccountAndData, refreshUserProfile, checkPassphraseAvailability, handlePassphraseError }}>
       {children}
     </AuthContext.Provider>
   );
@@ -333,9 +347,14 @@ export const createUserProfileDocument = async (
       };
 
       // Encrypt sensitive profile data before storing
-      const encryptedProfileData = await encryptUserProfile(userProfileData);
+      const encryptedProfileData = await encryptUserProfile(userProfileData) as Record<string, unknown>;
       
-      await setDoc(userRef, encryptedProfileData);
+      // Store both encrypted profile data and searchable email for recovery
+      await setDoc(userRef, {
+        ...encryptedProfileData,
+        email: email, // Keep email unencrypted for search functionality
+        uid: userAuth.uid, // Keep UID unencrypted for indexing
+      });
     } catch (error) {
       console.error("Error creating user document: ", error);
       throw error;

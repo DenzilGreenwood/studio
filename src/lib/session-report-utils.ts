@@ -1,12 +1,11 @@
 // src/lib/session-report-utils.ts
 "use client";
 
-import { db, collection, doc, getDoc, setDoc, updateDoc, query, orderBy, getDocs, where, Timestamp } from '@/lib/firebase';
+import { db, collection, doc, getDoc, setDoc, updateDoc, query, orderBy, getDocs, Timestamp } from '@/lib/firebase';
 import type { 
   SessionReport, 
   SessionJournal, 
   ProtocolSessionInteraction,
-  ReportGenerationInput,
   JournalAssistanceInput,
   Goal
 } from '@/types/session-reports';
@@ -45,8 +44,7 @@ export async function generateSessionReport(
       );
       const messagesSnap = await getDocs(messagesQuery);
       messages = messagesSnap.docs.map(doc => doc.data() as ChatMessage);
-    } catch (error) {
-      console.warn(`No messages found for session ${sessionId}, proceeding with empty message array`);
+    } catch {
       messages = [];
     }
 
@@ -250,7 +248,8 @@ export async function generateJournalAssistance(
     };
     
     const encryptedUpdate = await encryptJournalEntry(updateData);
-    await updateDoc(journalDoc, encryptedUpdate);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await updateDoc(journalDoc, encryptedUpdate as any);
 
     return assistance;
   } catch (error) {
@@ -272,7 +271,7 @@ export async function getCompleteSessionData(userId: string, sessionId: string) 
     let journal: SessionJournal | null = null;
     if (journalDoc.exists()) {
       const encryptedJournal = journalDoc.data() as SessionJournal;
-      journal = await decryptJournalEntry(encryptedJournal);
+      journal = await decryptJournalEntry(encryptedJournal) as SessionJournal;
     }
 
     return {

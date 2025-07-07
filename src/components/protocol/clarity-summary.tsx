@@ -58,14 +58,14 @@ export function ClaritySummary({ summaryData, sessionId }: ClaritySummaryProps) 
             <div className="mt-1 mb-3 p-3 bg-muted/30 rounded-md border border-dashed border-border">
               <p className="text-xs text-foreground/90 mb-1 font-medium flex items-center">
                 <Bot className="h-4 w-4 mr-2 text-accent" />
-                AI's Question:
+                AI&#39;s Question:
               </p>
-              <p className="text-sm text-muted-foreground italic">"{summaryData.reframedBeliefInteraction.aiQuestion}"</p>
+              <p className="text-sm text-muted-foreground italic">&ldquo;{summaryData.reframedBeliefInteraction.aiQuestion}&rdquo;</p>
               <p className="text-xs text-foreground/90 mt-3 mb-1 font-medium flex items-center">
                 <User className="h-4 w-4 mr-2 text-primary" />
                 Your Answer:
               </p>
-              <p className="text-sm text-muted-foreground italic">"{summaryData.reframedBeliefInteraction.userResponse}"</p>
+              <p className="text-sm text-muted-foreground italic">&ldquo;{summaryData.reframedBeliefInteraction.userResponse}&rdquo;</p>
             </div>
           )}
           <p className="text-muted-foreground bg-background p-3 rounded-md border"><strong className="text-primary">Final Belief:</strong> {summaryData.actualReframedBelief}</p>
@@ -80,14 +80,14 @@ export function ClaritySummary({ summaryData, sessionId }: ClaritySummaryProps) 
             <div className="mt-1 mb-3 p-3 bg-muted/30 rounded-md border border-dashed border-border">
               <p className="text-xs text-foreground/90 mb-1 font-medium flex items-center">
                 <Bot className="h-4 w-4 mr-2 text-accent" />
-                AI's Question:
+                AI&apos;s Question:
               </p>
-              <p className="text-sm text-muted-foreground italic">"{summaryData.legacyStatementInteraction.aiQuestion}"</p>
+              <p className="text-sm text-muted-foreground italic">&ldquo;{summaryData.legacyStatementInteraction.aiQuestion}&rdquo;</p>
               <p className="text-xs text-foreground/90 mt-3 mb-1 font-medium flex items-center">
                 <User className="h-4 w-4 mr-2 text-primary" />
                 Your Answer:
               </p>
-              <p className="text-sm text-muted-foreground italic">"{summaryData.legacyStatementInteraction.userResponse}"</p>
+              <p className="text-sm text-muted-foreground italic">&ldquo;{summaryData.legacyStatementInteraction.userResponse}&rdquo;</p>
             </div>
           )}
           <p className="text-muted-foreground bg-background p-3 rounded-md border"><strong className="text-primary">Final Statement:</strong> {summaryData.actualLegacyStatement}</p>

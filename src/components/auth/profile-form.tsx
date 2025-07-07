@@ -262,7 +262,7 @@ export function ProfileForm() {
                   <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
                     <h4 className="font-medium text-primary mb-2">Active Session Found</h4>
                     <p className="text-sm text-muted-foreground mb-3">
-                      You have an ongoing session: "{activeSession.circumstance}"
+                      You have an ongoing session: &quot;{activeSession.circumstance}&quot;
                       <br />
                       Progress: {activeSession.completedPhases}/6 phases completed
                     </p>

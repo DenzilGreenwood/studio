@@ -18,7 +18,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 interface PostSessionFeedbackProps {
   sessionId: string;
   userId: string;
-  circumstance: string;
+  circumstance?: string;
   onFeedbackSubmitted?: (feedbackId: string) => void;
   onReturnToStart?: () => void;
 }
@@ -52,7 +52,7 @@ export function PostSessionFeedback({ sessionId, userId, circumstance, onFeedbac
       const feedbackData: Omit<SessionFeedback, 'feedbackId'> = {
         sessionId,
         userId,
-        circumstance,
+        circumstance: circumstance || 'Not specified',
         helpfulRating,
         improvementSuggestion: improvementSuggestion.trim() === '' ? undefined : improvementSuggestion.trim(),
         email: email.trim() === '' ? undefined : email.trim(),

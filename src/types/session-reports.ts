@@ -15,6 +15,7 @@ export interface SessionReport {
   
   // Session Metadata
   circumstance: string;                     // What was discussed
+  ageRange?: string;                        // User's age range (optional)
   startTime: Timestamp | Date;             // When session started
   endTime: Timestamp | Date;               // When session completed
   duration: number;                         // Session length in minutes
