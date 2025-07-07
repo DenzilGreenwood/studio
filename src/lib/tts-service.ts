@@ -1,22 +1,5 @@
 // src/lib/tts-service.ts
-interface TTSRequest {
-  input: {
-    text: string;  // Changed from 'markup' to 'text' as per Google TTS API
-  };
-  voice: {
-    languageCode: string;
-    name: string;
-  };
-  audioConfig: {
-    audioEncoding: string;
-    speakingRate?: number;
-    pitch?: number;
-  };
-}
-
-interface TTSResponse {
-  audioContent: string; // Base64 encoded audio
-}
+import { textToSpeech } from '@/ai/flows/tts-flow';
 
 class TextToSpeechService {
   private audioElement: HTMLAudioElement | null = null;
@@ -74,7 +57,7 @@ class TextToSpeechService {
     this.hasUserInteracted = true;
   }
 
-  // Use browser's Speech Synthesis API as primary method
+  // Use browser's Speech Synthesis API as a fallback
   async playTextWithSpeechSynthesis(text: string, options?: { speakingRate?: number; pitch?: number }): Promise<void> {
     if (!this.speechSynthesis) {
       throw new Error('Speech synthesis not supported in this browser');
@@ -154,45 +137,21 @@ class TextToSpeechService {
     });
   }
 
-  async synthesizeText(text: string, options?: { speakingRate?: number; pitch?: number }): Promise<string> {
+  // This method now returns a full data URI by calling the Genkit flow
+  async synthesizeText(text: string): Promise<string> {
     try {
       // Clean the text for better TTS
       const cleanText = this.cleanTextForTTS(text);
       
-      const requestBody: TTSRequest = {
-        input: {
-          text: cleanText  // Changed from 'markup' to 'text' as required by Google TTS API
-        },
-        voice: {
-          languageCode: "en-US",
-          name: "en-US-Standard-C", // Using a standard voice that's guaranteed to exist
-          // Removed voiceClone as it's not a standard field
-        },
-        audioConfig: {
-          audioEncoding: "LINEAR16", // Using LINEAR16 for better compatibility
-          speakingRate: options?.speakingRate || 1.0,
-          pitch: options?.pitch || 0.0
-        }
-      };
+      const result = await textToSpeech({ text: cleanText });
 
-      const response = await fetch('/api/tts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`TTS API request failed: ${response.status} - ${errorText}`);
-        throw new Error(`TTS API request failed: ${response.status}`);
+      if (!result.audioDataUri) {
+          throw new Error('TTS Genkit flow did not return audio data URI.');
       }
-
-      const data: TTSResponse = await response.json();
-      return data.audioContent;
+      
+      return result.audioDataUri;
     } catch (error) {
-      console.error('Error synthesizing text:', error);
+      console.error('Error synthesizing text via Genkit:', error);
       throw new Error('Failed to synthesize speech');
     }
   }
@@ -229,11 +188,7 @@ class TextToSpeechService {
       // Stop any currently playing audio
       this.stop();
 
-      const audioContent = await this.synthesizeText(text, options);
-      
-      // Convert base64 to blob and create object URL
-      const audioBlob = this.base64ToBlob(audioContent, 'audio/wav'); // LINEAR16 is WAV format
-      const audioUrl = URL.createObjectURL(audioBlob);
+      const audioUrl = await this.synthesizeText(text);
       
       this.audioElement.src = audioUrl;
       
@@ -252,15 +207,10 @@ class TextToSpeechService {
         URL.revokeObjectURL(audioUrl);
       }, { once: true });
       
-    } catch (cloudError) {
-      console.error('Cloud TTS also failed:', cloudError);
+    } catch (error) {
+      console.warn('Cloud TTS failed, falling back to browser Speech API:', error);
       
-      // Re-throw user interaction errors without modification
-      if (cloudError instanceof Error && cloudError.message.includes('user interaction')) {
-        throw cloudError;
-      }
-      
-      // Last resort: try browser speech synthesis again
+      // Fallback to browser Speech Synthesis API
       if (this.speechSynthesis) {
         try {
           await this.playTextWithSpeechSynthesis(text, options);
@@ -363,34 +313,6 @@ class TextToSpeechService {
     
     const byteArray = new Uint8Array(byteNumbers);
     return new Blob([byteArray], { type: mimeType });
-  }
-
-  private async ensureVoicesLoaded(): Promise<void> {
-    if (!this.speechSynthesis) {
-      throw new Error('Speech synthesis not available');
-    }
-
-    return new Promise((resolve) => {
-      const voices = this.speechSynthesis!.getVoices();
-      if (voices.length > 0) {
-        resolve();
-        return;
-      }
-
-      // Wait for voices to be loaded
-      const handleVoicesChanged = () => {
-        this.speechSynthesis!.removeEventListener('voiceschanged', handleVoicesChanged);
-        resolve();
-      };
-
-      this.speechSynthesis!.addEventListener('voiceschanged', handleVoicesChanged);
-      
-      // Fallback timeout in case voiceschanged never fires
-      setTimeout(() => {
-        this.speechSynthesis!.removeEventListener('voiceschanged', handleVoicesChanged);
-        resolve();
-      }, 3000);
-    });
   }
 }
 
