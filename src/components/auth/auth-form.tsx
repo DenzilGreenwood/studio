@@ -27,7 +27,7 @@ import { canCreateNewUser, incrementUserCount } from "@/lib/user-limit";
 import { 
   validatePassphrase
 } from "@/lib/cryptoUtils";
-import { storeEncryptedPassphrase, recoverPassphrase, findUserByEmail, hasRecoveryData } from "@/services/recoveryService";
+import { storeEncryptedPassphrase, recoverPassphraseWithEmail, findUserByEmail, hasRecoveryData } from "@/services/recoveryService";
 import { useEncryption } from "@/lib/encryption-context";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -140,8 +140,8 @@ export function AuthForm({ mode }: AuthFormProps) {
         throw new Error("No recovery data found for this account. This account may have been created before the recovery system was implemented.");
       }
 
-      // Step 3: Attempt to recover passphrase using the provided recovery key
-      const decryptedPassphrase = await recoverPassphrase(userId, recoveryKey);
+      // Step 3: Attempt to recover passphrase using the provided recovery key and send email
+      const { passphrase: decryptedPassphrase, emailSent } = await recoverPassphraseWithEmail(userId, recoveryKey, email);
       if (!decryptedPassphrase) {
         throw new Error("Invalid recovery key. Please check your recovery key and try again.");
       }
@@ -159,10 +159,18 @@ export function AuthForm({ mode }: AuthFormProps) {
       setPassphrase(decryptedPassphrase);
       setRecoveredPassphrase(decryptedPassphrase);
       
-      toast({ 
-        title: "Recovery Successful", 
-        description: "Your passphrase has been recovered and you are now logged in. Redirecting...",
-      });
+      // Step 6: Notify user about email
+      if (emailSent) {
+        toast({ 
+          title: "Recovery Successful", 
+          description: "Your passphrase has been recovered and sent to your email. You are now logged in. Redirecting...",
+        });
+      } else {
+        toast({ 
+          title: "Recovery Successful", 
+          description: "Your passphrase has been recovered and you are now logged in. Email delivery failed - please note your passphrase. Redirecting...",
+        });
+      }
       
       // Navigate to protocol page after successful recovery
       router.push("/protocol");
@@ -559,14 +567,14 @@ export function AuthForm({ mode }: AuthFormProps) {
                   </>
                 )}
 
-                {/* Show recovered passphrase */}
+                {/* Show recovery mode information instead of displaying passphrase */}
                 {recoveredPassphrase && (
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      <strong>Recovered Passphrase:</strong> {recoveredPassphrase}
+                      <strong>Recovery Complete:</strong> Your passphrase has been sent to your email address for security.
                       <br />
-                      <small>Please save this securely and use it to log in.</small>
+                      <small>Please check your email and save the passphrase securely.</small>
                     </AlertDescription>
                   </Alert>
                 )}

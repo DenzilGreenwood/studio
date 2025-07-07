@@ -3,6 +3,39 @@ import { db } from "@/lib/firebase";
 import { doc, setDoc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { encryptPassphrase, decryptPassphrase, generateRecoveryKey } from "@/lib/cryptoUtils";
 
+// Function to send recovery email (calls the email API)
+async function sendPassphraseRecoveryEmail(userEmail: string, recoveredPassphrase: string): Promise<boolean> {
+  try {
+    const response = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: 'passphrase-recovery',
+        email: userEmail,
+        data: {
+          passphrase: recoveredPassphrase
+        }
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Email API responded with status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return result.success === true;
+  } catch (error) {
+    // Only log to console in development
+    if (process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
+      console.error('Failed to send recovery email:', error);
+    }
+    return false;
+  }
+}
+
 // Called on user signup
 export async function storeEncryptedPassphrase(userId: string, passphrase: string) {
   try {
@@ -45,6 +78,28 @@ export async function recoverPassphrase(userId: string, recoveryKey: string): Pr
     return decryptedPassphrase;
   } catch {
     return null;
+  }
+}
+
+// Called during "Forgot Passphrase" flow with email notification
+export async function recoverPassphraseWithEmail(userId: string, recoveryKey: string, userEmail: string): Promise<{ passphrase: string | null; emailSent: boolean }> {
+  try {
+    // First, try to recover the passphrase
+    const recoveredPassphrase = await recoverPassphrase(userId, recoveryKey);
+    
+    if (!recoveredPassphrase) {
+      return { passphrase: null, emailSent: false };
+    }
+
+    // If passphrase was recovered successfully, send email
+    const emailSent = await sendPassphraseRecoveryEmail(userEmail, recoveredPassphrase);
+    
+    return { 
+      passphrase: recoveredPassphrase, 
+      emailSent 
+    };
+  } catch {
+    return { passphrase: null, emailSent: false };
   }
 }
 
