@@ -44,7 +44,33 @@ function getCurrentPassphrase(): string {
 
 // Helper to safely get passphrase with fallback
 export function getPassphraseSafely(): string | null {
-  return sessionStorage.getItem('userPassphrase');
+  try {
+    const storedPassphrase = sessionStorage.getItem('userPassphrase');
+    if (!storedPassphrase) return null;
+    
+    // Try to decrypt the passphrase (it may be encrypted now)
+    try {
+      // Get the same stable session key used in encryption-context
+      const sessionKey = sessionStorage.getItem('session_encryption_key');
+      if (!sessionKey) {
+        // If no session key exists, assume legacy plain text storage
+        return storedPassphrase;
+      }
+      
+      // Simple XOR decryption matching encryption-context.tsx
+      const decoded = atob(storedPassphrase);
+      let result = '';
+      for (let i = 0; i < decoded.length; i++) {
+        result += String.fromCharCode(decoded.charCodeAt(i) ^ sessionKey.charCodeAt(i % sessionKey.length));
+      }
+      return result;
+    } catch {
+      // If decryption fails, assume it's already plain text (legacy format)
+      return storedPassphrase;
+    }
+  } catch {
+    return null;
+  }
 }
 
 /**

@@ -27,7 +27,7 @@ import { canCreateNewUser, incrementUserCount } from "@/lib/user-limit";
 import { 
   validatePassphrase
 } from "@/lib/cryptoUtils";
-import { storeEncryptedPassphrase, recoverPassphraseWithEmail, findUserByEmail, hasRecoveryData } from "@/services/recoveryService";
+import { storeEncryptedPassphrase, recoverPassphraseZeroKnowledge, findUserByEmail, hasRecoveryData } from "@/services/recoveryService";
 import { useEncryption } from "@/lib/encryption-context";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -39,7 +39,7 @@ interface AuthFormProps {
 
 const baseSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  password: z.string().min(8, { message: "Password must be at least 8 characters." }),
 });
 
 const loginSchema = baseSchema.extend({
@@ -91,37 +91,30 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   const copyRecoveryKey = async () => {
     try {
-      // Try modern clipboard API first
+      // Use modern Clipboard API
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(recoveryKeyDialog.recoveryKey);
         toast({ title: "Recovery Key Copied", description: "Save this key securely!" });
         return;
       }
       
-      // Fallback for older browsers or non-HTTPS
-      const textArea = document.createElement('textarea');
-      textArea.value = recoveryKeyDialog.recoveryKey;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-999999px';
-      textArea.style.top = '-999999px';
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      
-      const successful = document.execCommand('copy');
-      document.body.removeChild(textArea);
-      
-      if (successful) {
-        toast({ title: "Recovery Key Copied", description: "Save this key securely!" });
-      } else {
-        throw new Error('Copy command failed');
+      // If Clipboard API is not available, show manual copy instructions
+      throw new Error('Clipboard API not available');
+    } catch {
+      // Auto-select the text and show instructions for manual copying
+      const element = document.getElementById('recovery-key-text');
+      if (element) {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
       }
-    } catch (error) {
-      // Optionally log error to an external service here if needed
+      
       toast({ 
-        variant: "destructive", 
-        title: "Failed to copy", 
-        description: `Please select and copy the key manually (Ctrl+C or Cmd+C). ${error instanceof Error ? error.message : "Unknown error occurred."}`
+        title: "Copy Manually", 
+        description: "The text is now selected. Press Ctrl+C (or Cmd+C) to copy the recovery key.",
+        duration: 5000 // Show longer to give user time to copy
       });
     }
   };
@@ -140,14 +133,14 @@ export function AuthForm({ mode }: AuthFormProps) {
         throw new Error("No recovery data found for this account. This account may have been created before the recovery system was implemented.");
       }
 
-      // Step 3: Attempt to recover passphrase using the provided recovery key and send email
-      const { passphrase: decryptedPassphrase, emailSent } = await recoverPassphraseWithEmail(userId, recoveryKey, email);
-      if (!decryptedPassphrase) {
-        throw new Error("Invalid recovery key. Please check your recovery key and try again.");
+      // Step 3: Zero-Knowledge Recovery - decrypt passphrase client-side
+      const { passphrase: decryptedPassphrase, success, error } = await recoverPassphraseZeroKnowledge(userId, recoveryKey);
+      
+      if (!success || !decryptedPassphrase) {
+        throw new Error(error || "Invalid recovery key. Please check your recovery key and try again.");
       }
 
-      // Step 4: Now authenticate with Firebase using the recovered credentials
-      // We still need the Firebase password for authentication
+      // Step 4: Authenticate with Firebase using account password
       const password = form.getValues('password');
       if (!password) {
         throw new Error("Please enter your account password to complete recovery.");
@@ -156,21 +149,14 @@ export function AuthForm({ mode }: AuthFormProps) {
       await signInWithEmailAndPassword(auth, email, password);
       
       // Step 5: Set the recovered passphrase in encryption context
-      setPassphrase(decryptedPassphrase);
+      await setPassphrase(decryptedPassphrase);
       setRecoveredPassphrase(decryptedPassphrase);
       
-      // Step 6: Notify user about email
-      if (emailSent) {
-        toast({ 
-          title: "Recovery Successful", 
-          description: "Your passphrase has been recovered and sent to your email. You are now logged in. Redirecting...",
-        });
-      } else {
-        toast({ 
-          title: "Recovery Successful", 
-          description: "Your passphrase has been recovered and you are now logged in. Email delivery failed - please note your passphrase. Redirecting...",
-        });
-      }
+      // Step 6: Zero-Knowledge Success - passphrase shown in UI only (never emailed)
+      toast({ 
+        title: "🔐 Zero-Knowledge Recovery Successful", 
+        description: "Your passphrase has been recovered and is displayed below. Save it securely - it will not be sent via email.",
+      });
       
       // Navigate to protocol page after successful recovery
       router.push("/protocol");
@@ -239,13 +225,12 @@ export function AuthForm({ mode }: AuthFormProps) {
           return;
         }
 
-        // Validate passphrase strength
-        const passphraseValidation = validatePassphrase(loginValues.passphrase);
-        if (!passphraseValidation.isValid) {
+        // Basic length validation only (for login) - don't block existing users with weaker passphrases
+        if (loginValues.passphrase.length < 8) {
           toast({
             variant: "destructive",
             title: "Invalid Passphrase",
-            description: passphraseValidation.errors[0]
+            description: "Passphrase must be at least 8 characters long."
           });
           return;
         }
@@ -253,7 +238,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         await signInWithEmailAndPassword(auth, loginValues.email, loginValues.password);
         
         // Use encryption context to set passphrase (triggers profile refresh)
-        setPassphrase(loginValues.passphrase);
+        await setPassphrase(loginValues.passphrase);
         
         toast({ title: "Login Successful", description: "Redirecting..." });
         router.push("/protocol");
@@ -294,7 +279,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         }
         
         // Use encryption context to set passphrase (needed for encryption and triggers profile refresh)
-        setPassphrase(signupValues.passphrase);
+        await setPassphrase(signupValues.passphrase);
 
         await createUserProfileDocument(userCredential.user, { 
           pseudonym: pseudonymToUse
@@ -304,8 +289,6 @@ export function AuthForm({ mode }: AuthFormProps) {
         try {
           await incrementUserCount();
         } catch (countError) {
-          // eslint-disable-next-line no-console
-          console.error("Error incrementing user count:", countError);
           // Don't fail signup for counter error
           toast({
             variant: "destructive",
@@ -376,22 +359,22 @@ export function AuthForm({ mode }: AuthFormProps) {
             <UiCardDescription>
               {mode === "login"
                 ? (
-                  <div className="space-y-2 text-left">
+                  <span className="space-y-2 text-left block">
                     <span className="block">Enter your credentials and security passphrase.</span>
                     <span className="text-xs text-muted-foreground block">
-                      <strong>🔒 Your privacy is protected:</strong> This system ensures that all user data remains private — 
-                      not even CognitiveInsight staff can decrypt it without your passphrase or recovery key.
+                      <strong>🔒 Zero-Knowledge Architecture:</strong> Following MyImaginaryFriends.ai standards - 
+                      your data is encrypted client-side and never accessible by CognitiveInsight staff, even during recovery.
                     </span>
-                  </div>
+                  </span>
                 )
                 : (
-                  <div className="space-y-2 text-left">
-                    <span className="block">Create your account with end-to-end encryption.</span>
+                  <span className="space-y-2 text-left block">
+                    <span className="block">Create your account with client-side zero-knowledge encryption.</span>
                     <span className="text-xs text-muted-foreground block">
-                      <strong>🔒 Complete Privacy:</strong> Your passphrase encrypts all data (sessions, journals, conversations) before storage. 
-                      Only you can decrypt it — we cannot access your private information even if we wanted to.
+                      <strong>🔒 True Privacy:</strong> Your passphrase encrypts all data in your browser before storage. 
+                      We never see your passphrase - even recovery happens client-side with zero server knowledge.
                     </span>
-                  </div>
+                  </span>
                 )}
             </UiCardDescription>
           </CardHeader>
@@ -403,8 +386,12 @@ export function AuthForm({ mode }: AuthFormProps) {
                   <Alert>
                     <Key className="h-4 w-4" />
                     <AlertDescription>
-                      <strong>Recovery Mode:</strong> You&apos;ll need your recovery key AND your account password to recover your passphrase. 
-                      If you don&apos;t have your recovery key, you won&apos;t be able to access your encrypted data.
+                      <strong>Zero-Knowledge Recovery Mode:</strong> You&apos;ll need your recovery key AND account password. 
+                      Your passphrase will be decrypted in your browser and displayed to you - never emailed or logged.
+                      <br />
+                      <small className="text-xs mt-1 block text-muted-foreground">
+                        Following MyImaginaryFriends.ai zero-knowledge architecture.
+                      </small>
                     </AlertDescription>
                   </Alert>
                 )}
@@ -507,10 +494,12 @@ export function AuthForm({ mode }: AuthFormProps) {
                           />
                         </FormControl>
                         <FormDescription className="space-y-1">
-                          <div>Enter the recovery key you saved during signup. This is the ONLY way to recover your passphrase if forgotten.</div>
-                          <div className="text-xs text-muted-foreground">
+                          <span className="block">Enter the recovery key you saved during signup. This will decrypt your passphrase locally in your browser.</span>
+                          <span className="block text-xs text-muted-foreground">
                             Format: 64-character hexadecimal string (0-9, a-f)
-                          </div>
+                            <br />
+                            <strong>Zero-Knowledge:</strong> Decryption happens client-side only.
+                          </span>
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -567,14 +556,68 @@ export function AuthForm({ mode }: AuthFormProps) {
                   </>
                 )}
 
-                {/* Show recovery mode information instead of displaying passphrase */}
+                {/* Zero-Knowledge Recovery: Show passphrase in browser only */}
                 {recoveredPassphrase && (
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
+                  <Alert className="border-green-200 bg-green-50">
+                    <Shield className="h-4 w-4 text-green-600" />
                     <AlertDescription>
-                      <strong>Recovery Complete:</strong> Your passphrase has been sent to your email address for security.
-                      <br />
-                      <small>Please check your email and save the passphrase securely.</small>
+                      <span className="space-y-3 block">
+                        <span className="block">
+                          <strong className="text-green-800">🔐 Zero-Knowledge Recovery Complete</strong>
+                          <span className="text-sm text-green-700 mt-1 block">
+                            Your passphrase has been decrypted locally in your browser. Save it securely:
+                          </span>
+                        </span>
+                        <span className="bg-white border border-green-300 rounded-md p-3 block">
+                          <span className="flex items-center justify-between">
+                            <code className="text-lg font-mono text-gray-900 select-all break-all" data-passphrase>
+                              {recoveredPassphrase}
+                            </code>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  if (navigator.clipboard && window.isSecureContext) {
+                                    await navigator.clipboard.writeText(recoveredPassphrase);
+                                    toast({ title: "Copied", description: "Passphrase copied to clipboard" });
+                                  } else {
+                                    // Auto-select the passphrase text for manual copying
+                                    const codeElement = document.querySelector('code[data-passphrase]') as HTMLElement;
+                                    if (codeElement) {
+                                      const range = document.createRange();
+                                      range.selectNodeContents(codeElement);
+                                      const selection = window.getSelection();
+                                      selection?.removeAllRanges();
+                                      selection?.addRange(range);
+                                    }
+                                    toast({ 
+                                      title: "Copy Manually", 
+                                      description: "Text selected. Press Ctrl+C (or Cmd+C) to copy.",
+                                      duration: 3000
+                                    });
+                                  }
+                                } catch {
+                                  toast({ 
+                                    variant: "destructive",
+                                    title: "Copy Failed", 
+                                    description: "Please select and copy the passphrase manually." 
+                                  });
+                                }
+                              }}
+                              className="ml-2 flex-shrink-0"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </span>
+                        </span>
+                        <span className="text-xs text-green-600 space-y-1 block">
+                          <span className="block">✅ <strong>Zero-Knowledge:</strong> This passphrase was never sent via email or stored in logs</span>
+                          <span className="block">✅ <strong>Client-Side:</strong> Decryption happened entirely in your browser</span>
+                          <span className="block">✅ <strong>Private:</strong> Only you can see this passphrase</span>
+                        </span>
+                      </span>
                     </AlertDescription>
                   </Alert>
                 )}
@@ -596,7 +639,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                       form.reset();
                     }}
                   >
-                    {isRecoveryMode ? "Back to Login" : "Forgot Passphrase? Use Recovery Key"}
+                    {isRecoveryMode ? "Back to Login" : "Forgot Passphrase? Zero-Knowledge Recovery"}
                   </Button>
                 )}
               </form>
@@ -624,10 +667,11 @@ export function AuthForm({ mode }: AuthFormProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Key className="h-5 w-5" />
-              Important: Save Your Recovery Key
+              Critical: Save Your Zero-Knowledge Recovery Key
             </DialogTitle>
             <DialogDescription>
-              This recovery key can restore your passphrase if you forget it. Store it securely - you won&apos;t see it again! Without both your passphrase AND this recovery key, your encrypted data cannot be recovered by anyone, including CognitiveInsight staff.
+              This recovery key enables client-side decryption of your passphrase if forgotten. Following MyImaginaryFriends.ai 
+              zero-knowledge architecture - this key will never be shown again and enables local browser-only recovery.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -689,7 +733,12 @@ export function AuthForm({ mode }: AuthFormProps) {
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                <strong>⚠️ Critical Warning:</strong> Without this recovery key, you cannot recover your passphrase if forgotten. Your encrypted data will be permanently inaccessible to everyone, including CognitiveInsight staff. This ensures your complete privacy, but makes the recovery key your responsibility.
+                <strong>⚠️ Zero-Knowledge Warning:</strong> Without this recovery key, your passphrase cannot be recovered by anyone. 
+                Your data remains encrypted and inaccessible forever - this ensures true zero-knowledge privacy but makes this key your responsibility.
+                <br />
+                <small className="text-xs mt-1 block text-muted-foreground">
+                  MyImaginaryFriends.ai Architecture: Even during recovery, decryption happens in your browser only.
+                </small>
               </AlertDescription>
             </Alert>
           </div>

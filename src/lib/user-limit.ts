@@ -16,16 +16,14 @@ export async function getCurrentUserCount(): Promise<number> {
       try {
         await setDoc(counterRef, { count: 0 });
         return 0;
-      } catch (initError) {
-        console.error('Error initializing user count:', initError);
-        // Return 0 if we can't initialize, allowing signup to proceed
+      } catch {
+        // Error initializing user count - return 0 to allow signup to proceed
         return 0;
       }
     }
-  } catch (error) {
-    console.error('Error getting user count:', error);
+  } catch {
     // Return 0 instead of throwing to allow signup flow to continue
-    console.warn('Defaulting to user count of 0 due to access error');
+    // Defaulting to user count of 0 due to access error
     return 0;
   }
 }
@@ -44,10 +42,9 @@ export async function incrementUserCount(): Promise<void> {
       // If document doesn't exist, create it with count 1
       await setDoc(counterRef, { count: 1 });
     }
-  } catch (error) {
-    console.error('Error incrementing user count:', error);
+  } catch {
     // Don't throw error - let signup proceed even if count increment fails
-    console.warn('User count increment failed, but allowing signup to proceed');
+    // User count increment failed, but allowing signup to proceed
   }
 }
 
@@ -63,10 +60,9 @@ export async function canCreateNewUser(): Promise<{ allowed: boolean; message?: 
     }
     
     return { allowed: true };
-  } catch (error) {
-    console.error('Error checking user limit:', error);
+  } catch {
     // Default to allowing registration if check fails to avoid blocking users
-    console.warn('User limit check failed, defaulting to allow registration');
+    // User limit check failed, defaulting to allow registration
     return { 
       allowed: true, 
       message: 'Unable to verify user capacity, but registration is open' 

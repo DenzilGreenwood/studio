@@ -1,53 +1,48 @@
-// lib/recoveryService.ts
+// lib/recoveryService.ts - Zero-Knowledge Encryption Implementation
+// Following MyImaginaryFriends.ai Zero-Knowledge Architecture
 import { db } from "@/lib/firebase";
 import { doc, setDoc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
-import { encryptPassphrase, decryptPassphrase, generateRecoveryKey } from "@/lib/cryptoUtils";
+import { 
+  decryptPassphrase, 
+  generateRecoveryKey 
+} from "@/lib/cryptoUtils";
+import { 
+  encryptPassphraseWithRecoveryKeyAndMetadata, 
+  decryptPassphraseWithRecoveryKeyAndMetadata,
+  getEncryptionBlobInfo 
+} from "@/lib/encryption";
 
-// Function to send recovery email (calls the email API)
-async function sendPassphraseRecoveryEmail(userEmail: string, recoveredPassphrase: string): Promise<boolean> {
-  try {
-    const response = await fetch('/api/send-email', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        type: 'passphrase-recovery',
-        email: userEmail,
-        data: {
-          passphrase: recoveredPassphrase
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Email API responded with status: ${response.status}`);
-    }
-
-    const result = await response.json();
-    return result.success === true;
-  } catch (error) {
-    // Only log to console in development
-    if (process.env.NODE_ENV === 'development') {
-      // eslint-disable-next-line no-console
-      console.error('Failed to send recovery email:', error);
-    }
-    return false;
-  }
+// Enhanced recovery data structure with comprehensive metadata
+interface RecoveryData {
+  encryptedPassphrase: string;
+  createdAt: Date;
+  userId: string;
+  version?: string;
+  lastUpdated?: Date;
+  algorithm?: string;
 }
 
-// Called on user signup
+// Called on user signup - stores encrypted passphrase blob with recovery key
 export async function storeEncryptedPassphrase(userId: string, passphrase: string) {
   try {
     const recoveryKey = generateRecoveryKey();
-    const encrypted = await encryptPassphrase(passphrase, recoveryKey);
-
-    // Store encrypted passphrase with user ID
-    await setDoc(doc(db, "recovery", userId), { 
-      encryptedPassphrase: encrypted,
+    
+    // Use enhanced encryption with comprehensive metadata
+    const encryptedBlob = await encryptPassphraseWithRecoveryKeyAndMetadata(passphrase, recoveryKey);
+    
+    // Extract metadata for audit purposes
+    const blobInfo = getEncryptionBlobInfo(encryptedBlob);
+    
+    const recoveryData: RecoveryData = {
+      encryptedPassphrase: encryptedBlob,
       createdAt: new Date(),
-      userId: userId
-    });
+      userId: userId,
+      version: blobInfo.version,
+      algorithm: blobInfo.algorithm
+    };
+
+    // Store encrypted passphrase blob - server never sees plaintext passphrase
+    await setDoc(doc(db, "recovery", userId), recoveryData);
     
     return recoveryKey;
   } catch {
@@ -55,7 +50,51 @@ export async function storeEncryptedPassphrase(userId: string, passphrase: strin
   }
 }
 
-// Called during "Forgot Passphrase" flow
+// Zero-Knowledge Recovery: Returns encrypted blob for client-side decryption
+export async function getEncryptedPassphraseBlob(userId: string): Promise<string | null> {
+  try {
+    const snapshot = await getDoc(doc(db, "recovery", userId));
+    if (!snapshot.exists()) {
+      return null;
+    }
+
+    const data = snapshot.data() as RecoveryData;
+    return data.encryptedPassphrase || null;
+  } catch {
+    return null;
+  }
+}
+
+// Get recovery data metadata without decrypting
+export async function getRecoveryDataInfo(userId: string): Promise<{
+  exists: boolean;
+  version?: string;
+  algorithm?: string;
+  createdAt?: Date;
+  isLegacyFormat?: boolean;
+} | null> {
+  try {
+    const snapshot = await getDoc(doc(db, "recovery", userId));
+    if (!snapshot.exists()) {
+      return { exists: false };
+    }
+
+    const data = snapshot.data() as RecoveryData;
+    const blobInfo = getEncryptionBlobInfo(data.encryptedPassphrase);
+    
+    return {
+      exists: true,
+      version: data.version,
+      algorithm: data.algorithm,
+      createdAt: data.createdAt,
+      isLegacyFormat: blobInfo.isLegacyFormat
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Enhanced legacy function with automatic format detection
 export async function recoverPassphrase(userId: string, recoveryKey: string): Promise<string | null> {
   try {
     // Validate recovery key format (should be 64 character hex string)
@@ -63,43 +102,99 @@ export async function recoverPassphrase(userId: string, recoveryKey: string): Pr
       return null;
     }
 
-    const snapshot = await getDoc(doc(db, "recovery", userId));
-    if (!snapshot.exists()) {
+    const encryptedBlob = await getEncryptedPassphraseBlob(userId);
+    if (!encryptedBlob) {
       return null;
     }
 
-    const { encryptedPassphrase } = snapshot.data();
-    if (!encryptedPassphrase) {
-      return null;
+    // Auto-detect format and decrypt accordingly
+    const blobInfo = getEncryptionBlobInfo(encryptedBlob);
+    
+    if (blobInfo.isLegacyFormat) {
+      // Use legacy decryption for backward compatibility
+      return await decryptPassphrase(encryptedBlob, recoveryKey);
+    } else {
+      // Use enhanced decryption for new format
+      return await decryptPassphraseWithRecoveryKeyAndMetadata(encryptedBlob, recoveryKey);
     }
-
-    // Attempt to decrypt the passphrase with the provided recovery key
-    const decryptedPassphrase = await decryptPassphrase(encryptedPassphrase, recoveryKey);
-    return decryptedPassphrase;
   } catch {
     return null;
   }
 }
 
-// Called during "Forgot Passphrase" flow with email notification
-export async function recoverPassphraseWithEmail(userId: string, recoveryKey: string, userEmail: string): Promise<{ passphrase: string | null; emailSent: boolean }> {
+// Zero-Knowledge Recovery - Returns decrypted passphrase for UI display only
+// Enhanced with automatic format detection and improved error messages
+export async function recoverPassphraseZeroKnowledge(userId: string, recoveryKey: string): Promise<{
+  passphrase: string | null;
+  success: boolean;
+  error?: string;
+  metadata?: {
+    version?: string;
+    algorithm?: string;
+    isLegacyFormat?: boolean;
+  };
+}> {
   try {
-    // First, try to recover the passphrase
-    const recoveredPassphrase = await recoverPassphrase(userId, recoveryKey);
-    
-    if (!recoveredPassphrase) {
-      return { passphrase: null, emailSent: false };
+    // Validate recovery key format
+    if (!recoveryKey || recoveryKey.length !== 64 || !/^[a-f0-9]+$/i.test(recoveryKey)) {
+      return {
+        passphrase: null,
+        success: false,
+        error: "Invalid recovery key format. Must be 64-character hexadecimal."
+      };
     }
 
-    // If passphrase was recovered successfully, send email
-    const emailSent = await sendPassphraseRecoveryEmail(userEmail, recoveredPassphrase);
+    // Get encrypted blob from server
+    const encryptedBlob = await getEncryptedPassphraseBlob(userId);
+    if (!encryptedBlob) {
+      return {
+        passphrase: null,
+        success: false,
+        error: "No recovery data found for this account."
+      };
+    }
+
+    // Auto-detect format and extract metadata
+    const blobInfo = getEncryptionBlobInfo(encryptedBlob);
     
-    return { 
-      passphrase: recoveredPassphrase, 
-      emailSent 
+    let decryptedPassphrase: string;
+    
+    if (blobInfo.isLegacyFormat) {
+      // Use legacy decryption for backward compatibility
+      decryptedPassphrase = await decryptPassphrase(encryptedBlob, recoveryKey);
+    } else {
+      // Use enhanced decryption for new format
+      decryptedPassphrase = await decryptPassphraseWithRecoveryKeyAndMetadata(encryptedBlob, recoveryKey);
+    }
+    
+    if (!decryptedPassphrase) {
+      return {
+        passphrase: null,
+        success: false,
+        error: "Invalid recovery key. Unable to decrypt passphrase.",
+        metadata: {
+          version: blobInfo.version,
+          algorithm: blobInfo.algorithm,
+          isLegacyFormat: blobInfo.isLegacyFormat
+        }
+      };
+    }
+
+    return {
+      passphrase: decryptedPassphrase,
+      success: true,
+      metadata: {
+        version: blobInfo.version,
+        algorithm: blobInfo.algorithm,
+        isLegacyFormat: blobInfo.isLegacyFormat
+      }
     };
-  } catch {
-    return { passphrase: null, emailSent: false };
+  } catch (error) {
+    return {
+      passphrase: null,
+      success: false,
+      error: error instanceof Error ? error.message : "Decryption failed. Invalid recovery key or corrupted data."
+    };
   }
 }
 

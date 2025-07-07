@@ -90,7 +90,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               const encryptedProfileData = docSnap.data() as UserProfile;
               
               // Check if passphrase is available before attempting decryption
-              const passphrase = sessionStorage.getItem('userPassphrase');
+              const passphrase = getPassphraseSafely();
               
               if (passphrase) {
                 // Decrypt profile data if passphrase is available
@@ -261,7 +261,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const refreshUserProfile = async () => {
     if (!firebaseUser) return;
     
-    const passphrase = sessionStorage.getItem('userPassphrase');
+    const passphrase = getPassphraseSafely();
     if (!passphrase) return;
     
     try {

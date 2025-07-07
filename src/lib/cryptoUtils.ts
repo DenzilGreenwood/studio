@@ -20,7 +20,7 @@ export async function deriveKey(passphrase: string, salt: Uint8Array): Promise<C
     ["deriveKey"]
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" },
+    { name: "PBKDF2", salt, iterations: 310000, hash: "SHA-256" }, // Updated to OWASP 2024 recommendation
     keyMaterial,
     { name: "AES-GCM", length: 256 },
     true,
