@@ -29,8 +29,34 @@ import { v4 as uuidv4 } from 'uuid';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-// Dynamically import React-Quill to avoid SSR issues
-const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
+// Define ReactQuill component props interface
+interface ReactQuillProps {
+  value?: string;
+  onChange?: (content: string) => void;
+  modules?: Record<string, unknown>;
+  formats?: string[];
+  theme?: string;
+  className?: string;
+  readOnly?: boolean;
+}
+
+// Dynamically import React-Quill with React 18 compatibility
+const ReactQuill = dynamic(
+  () => import('react-quill').then((mod) => {
+    // Return the default component directly with proper typing
+    const QuillComponent = (props: ReactQuillProps) => {
+      const Component = mod.default;
+      return <Component {...props} />;
+    };
+    
+    QuillComponent.displayName = 'QuillComponent';
+    return { default: QuillComponent };
+  }),
+  { 
+    ssr: false,
+    loading: () => <div className="h-64 bg-gray-100 rounded animate-pulse" />
+  }
+);
 import 'react-quill/dist/quill.snow.css';
 
 interface InsightReportProps {
@@ -428,7 +454,7 @@ export function InsightReportComponent({
                   ) : (
                     <ReactQuill
                       value={value}
-                      onChange={(content) => updateSection(key as keyof typeof sections, content)}
+                      onChange={(content: string) => updateSection(key as keyof typeof sections, content)}
                       modules={quillModules}
                       formats={quillFormats}
                       theme="snow"
