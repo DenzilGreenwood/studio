@@ -7,7 +7,7 @@ export const baseSchema = z.object({
 });
 
 export const loginSchema = baseSchema.extend({
-  passphrase: z.string().min(8, { message: "Passphrase must be at least 8 characters." }).optional(),
+  passphrase: z.string().min(8, { message: "Passphrase must be at least 8 characters." }),
   recoveryKey: z.string()
     .min(64, { message: "Recovery key must be 64 characters long." })
     .max(64, { message: "Recovery key must be 64 characters long." })

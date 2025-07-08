@@ -38,27 +38,9 @@ export function useAuthSubmission() {
       return;
     }
 
-    // Regular login flow
-    if (!values.passphrase) {
-      toast({
-        variant: "destructive",
-        title: "Passphrase Required",
-        description: "Please enter your passphrase to login."
-      });
-      return;
-    }
-
-    if (values.passphrase.length < 8) {
-      toast({
-        variant: "destructive",
-        title: "Invalid Passphrase",
-        description: "Passphrase must be at least 8 characters long."
-      });
-      return;
-    }
-
+    // Regular login flow - validation is now handled by the Zod schema
     await signInWithEmailAndPassword(auth, values.email, values.password);
-    await setPassphrase(values.passphrase);
+    await setPassphrase(values.passphrase!); // Non-null assertion as schema ensures it exists
     
     toast({ title: "Login Successful", description: "Redirecting..." });
     router.push("/protocol");
