@@ -218,9 +218,49 @@ export async function encryptPassphraseWithRecoveryKeyAndMetadata(passphrase: st
   return await encryptDataWithMetadata(passphrase, recoveryKey);
 }
 
-// Decrypt passphrase with recovery key (legacy support)
-export async function decryptPassphraseWithRecoveryKey(encryptedPassphrase: string, recoveryKey: string, salt: string, iv: string): Promise<string> {
-  return decryptData(encryptedPassphrase, recoveryKey, salt, iv);
+export async function deriveKeyFromRecoveryKey(recoveryKey: string, salt: Uint8Array): Promise<CryptoKey> {
+  const encoder = new TextEncoder();
+  const baseKey = await window.crypto.subtle.importKey(
+    "raw",
+    encoder.encode(recoveryKey),
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"]
+  );
+
+  return await window.crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: salt,
+      iterations: 100000,
+      hash: "SHA-256"
+    },
+    baseKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["decrypt"]
+  );
+}
+
+
+export async function decryptPassphraseFromRecoveryKey(
+  encryptedPassphraseBase64: string,
+  ivBase64: string,
+  saltBase64: string,
+  recoveryKey: string
+): Promise<string> {
+  const iv = Uint8Array.from(atob(ivBase64), c => c.charCodeAt(0));
+  const salt = Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0));
+  const encrypted = Uint8Array.from(atob(encryptedPassphraseBase64), c => c.charCodeAt(0));
+
+  const key = await deriveKeyFromRecoveryKey(recoveryKey, salt);
+  const decrypted = await window.crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    key,
+    encrypted
+  );
+
+  return new TextDecoder().decode(decrypted);
 }
 
 // Enhanced passphrase decryption with metadata

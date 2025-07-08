@@ -11,7 +11,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { googleAI } from '@genkit-ai/googleai';
-import wav from 'wav';
+import * as wav from 'wav';
 
 export const TextToSpeechInputSchema = z.object({
   text: z.string().describe("The text to be converted to speech."),
@@ -78,9 +78,9 @@ async function toWav(
       bitDepth: sampleWidth * 8,
     });
 
-    const buffers: any[] = [];
+    const buffers: Buffer[] = [];
     writer.on('error', reject);
-    writer.on('data', (chunk) => {
+    writer.on('data', (chunk: Buffer) => {
       buffers.push(chunk);
     });
     writer.on('end', () => {

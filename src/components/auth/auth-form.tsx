@@ -202,7 +202,11 @@ export function AuthForm({ mode }: AuthFormProps) {
         
         if (isRecoveryMode) {
           // Validate recovery mode requirements
+          await signInWithEmailAndPassword(auth, loginValues.email, loginValues.password);
+
           if (!loginValues.recoveryKey || loginValues.recoveryKey.trim() === '') {
+
+          
             toast({
               variant: "destructive",
               title: "Recovery Key Required",

@@ -16,7 +16,7 @@ const nextConfig = {
     ],
   },
   // External packages for server-side rendering
-  serverExternalPackages: ['genkit', 'handlebars', '@genkit-ai/core', 'dotprompt'],
+  serverExternalPackages: ['genkit', 'handlebars', '@genkit-ai/core', '@genkit-ai/googleai', 'dotprompt'],
   // Ensure proper environment variable handling
   env: {
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
