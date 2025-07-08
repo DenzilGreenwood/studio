@@ -1,3 +1,4 @@
+
 // src/components/auth/auth-form.tsx
 "use client";
 
@@ -281,41 +282,39 @@ export function AuthForm({ mode }: AuthFormProps) {
         setRecoveryKeyDialog({ isOpen: true, recoveryKey });
       }
     } catch (error) {
-      // Handle errors during authentication
-      // console.error("Auth error:", error);
-      // Show generic error toast
-      toast({
-        variant: "destructive",
-        title: mode === "login" ? "Login Failed" : "Signup Failed",
-        description: "An unexpected error occurred. Please try again later.",
-      });
-      // Handle specific Firebase Auth errors
-      if (error instanceof Error && (error as AuthError).code) {
-        // Cast to AuthError to access code property
-        // This is a more specific error handling for Firebase Auth errors
-      }
-      const authError = error as AuthError;
-      let errorMessage = "An error occurred. Please try again.";
+      let errorMessage = "An unexpected error occurred. Please try again later.";
       
-      switch (authError.code) {
-        case 'auth/email-already-in-use':
-          errorMessage = "An account with this email already exists.";
-          break;
-        case 'auth/weak-password':
-          errorMessage = "Password is too weak. Please choose a stronger password.";
-          break;
-        case 'auth/user-not-found':
-        case 'auth/wrong-password':
-          errorMessage = "Invalid email or password.";
-          break;
-        case 'auth/invalid-email':
-          errorMessage = "Invalid email address.";
-          break;
-        case 'auth/too-many-requests':
-          errorMessage = "Too many failed attempts. Please try again later.";
-          break;
+      if (error instanceof Error) {
+        // Check if it's a Firebase AuthError by looking for a 'code' property
+        if ('code' in error && typeof (error as AuthError).code === 'string') {
+          const authError = error as AuthError;
+          switch (authError.code) {
+            case 'auth/email-already-in-use':
+              errorMessage = "An account with this email already exists.";
+              break;
+            case 'auth/weak-password':
+              errorMessage = "Password is too weak. Please choose a stronger password.";
+              break;
+            case 'auth/user-not-found':
+            case 'auth/wrong-password':
+              errorMessage = "Invalid email or password.";
+              break;
+            case 'auth/invalid-email':
+              errorMessage = "The email address is not valid.";
+              break;
+            case 'auth/too-many-requests':
+              errorMessage = "Too many failed login attempts. Please try again later.";
+              break;
+            default:
+              errorMessage = authError.message; // Fallback to the specific Firebase error message
+              break;
+          }
+        } else {
+          // It's a generic Error (like from our recovery flow), use its message
+          errorMessage = error.message;
+        }
       }
-      
+    
       toast({
         variant: "destructive",
         title: mode === "login" ? "Login Failed" : "Signup Failed",
@@ -602,7 +601,12 @@ export function AuthForm({ mode }: AuthFormProps) {
                   </Alert>
                 )}
 
-                <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={form.formState.isSubmitting}>
+                <Button 
+                  type="button" 
+                  onClick={form.handleSubmit(onSubmit)} 
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" 
+                  disabled={form.formState.isSubmitting}
+                >
                   {form.formState.isSubmitting ? "Processing..." : (
                     isRecoveryMode ? "Recover Passphrase" : (mode === "login" ? "Login" : "Sign Up")
                   )}
