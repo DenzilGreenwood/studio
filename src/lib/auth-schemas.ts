@@ -1,6 +1,10 @@
 // src/lib/auth-schemas.ts
 import * as z from "zod";
 
+export interface AuthFormProps {
+  mode: "login" | "signup";
+}
+
 export const baseSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().min(8, { message: "Password must be at least 8 characters." }),
