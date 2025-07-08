@@ -3,7 +3,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import * as z from "zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -27,41 +26,18 @@ import { canCreateNewUser, incrementUserCount } from "@/lib/user-limit";
 import { 
   validatePassphrase
 } from "@/lib/cryptoUtils";
-import { storeEncryptedPassphrase, recoverPassphraseZeroKnowledge, findUserByEmail, hasRecoveryData } from "@/services/recoveryService";
+import { storeEncryptedPassphrase, recoverPassphraseZeroKnowledge, findUIDByEmail, hasRecoveryData } from "@/services/recoveryService";
 import { useEncryption } from "@/lib/encryption-context";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-
-interface AuthFormProps {
-  mode: "login" | "signup";
-}
-
-const baseSchema = z.object({
-  email: z.string().email({ message: "Invalid email address." }),
-  password: z.string().min(8, { message: "Password must be at least 8 characters." }),
-});
-
-const loginSchema = baseSchema.extend({
-  passphrase: z.string().min(8, { message: "Passphrase must be at least 8 characters." }).optional(),
-  recoveryKey: z.string()
-    .min(64, { message: "Recovery key must be 64 characters long." })
-    .max(64, { message: "Recovery key must be 64 characters long." })
-    .regex(/^[a-f0-9]+$/i, { message: "Recovery key must contain only hexadecimal characters (0-9, a-f)." })
-    .optional(),
-});
-
-const signupSchema = baseSchema.extend({
-  pseudonym: z.string().min(2, { message: "Pseudonym must be at least 2 characters." }).max(50, {message: "Pseudonym cannot exceed 50 characters."}).trim().optional().or(z.literal('')),
-  passphrase: z.string().min(8, { message: "Passphrase must be at least 8 characters." }),
-  confirmPassphrase: z.string(),
-}).refine((data) => data.passphrase === data.confirmPassphrase, {
-  message: "Passphrases don't match",
-  path: ["confirmPassphrase"],
-});
-
-type LoginFormValues = z.infer<typeof loginSchema>;
-type SignupFormValues = z.infer<typeof signupSchema>;
+import { 
+AuthFormProps, 
+loginSchema, 
+signupSchema, 
+type LoginFormValues, 
+type SignupFormValues 
+} from "@/lib/auth-schemas";
 
 export function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
@@ -122,19 +98,19 @@ export function AuthForm({ mode }: AuthFormProps) {
   const handleRecoveryKeySubmit = async (recoveryKey: string, email: string) => {
     try {
       // Step 1: Find user ID by email without requiring password
-      const userId = await findUserByEmail(email);
-      if (!userId) {
-        throw new Error("No account found with this email address.");
+      const uidResult = await findUIDByEmail(email);
+      if (!uidResult.uid || !uidResult.exists) {
+        throw new Error(uidResult.error || "No account found with this email address.");
       }
 
       // Step 2: Check if recovery data exists for this user
-      const hasRecovery = await hasRecoveryData(userId);
+      const hasRecovery = await hasRecoveryData(uidResult.uid);
       if (!hasRecovery) {
         throw new Error("No recovery data found for this account. This account may have been created before the recovery system was implemented.");
       }
 
       // Step 3: Zero-Knowledge Recovery - decrypt passphrase client-side
-      const { passphrase: decryptedPassphrase, success, error } = await recoverPassphraseZeroKnowledge(userId, recoveryKey);
+      const { passphrase: decryptedPassphrase, success, error } = await recoverPassphraseZeroKnowledge(uidResult.uid, recoveryKey);
       
       if (!success || !decryptedPassphrase) {
         throw new Error(error || "Invalid recovery key. Please check your recovery key and try again.");
