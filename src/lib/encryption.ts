@@ -1,3 +1,4 @@
+
 // src/lib/encryption.ts
 "use client";
 
@@ -24,7 +25,7 @@ interface EncryptionBlob {
 }
 
 // Current encryption version for future compatibility
-const ENCRYPTION_VERSION = "1.1.0";
+const ENCRYPTION_VERSION = "1.1.1";
 const PBKDF2_ITERATIONS = 310000; // OWASP 2024 recommendation
 
 // Generate a random recovery key
