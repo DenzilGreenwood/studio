@@ -1,3 +1,4 @@
+
 // src/components/auth/auth-form.tsx
 "use client";
 
@@ -620,7 +621,12 @@ export function AuthForm({ mode }: AuthFormProps) {
                   </Alert>
                 )}
 
-                <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={form.formState.isSubmitting}>
+                <Button 
+                  type="button" 
+                  onClick={form.handleSubmit(onSubmit)} 
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" 
+                  disabled={form.formState.isSubmitting}
+                >
                   {form.formState.isSubmitting ? "Processing..." : (
                     isRecoveryMode ? "Recover Passphrase" : (mode === "login" ? "Login" : "Sign Up")
                   )}
