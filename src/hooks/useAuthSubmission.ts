@@ -6,7 +6,6 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfi
 import { auth } from "@/lib/firebase";
 import { createUserProfileDocument } from "@/context/auth-context";
 import { canCreateNewUser, incrementUserCount } from "@/lib/user-limit";
-import { validatePassphrase } from "@/lib/cryptoUtils";
 import { storeEncryptedPassphrase } from "@/services/recoveryService";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
@@ -49,16 +48,6 @@ export function useAuthSubmission() {
     values: SignupFormValues,
     setRecoveryKeyDialog: (dialog: { isOpen: boolean; recoveryKey: string }) => void
   ) => {
-    const passphraseValidation = validatePassphrase(values.passphrase);
-    if (!passphraseValidation.isValid) {
-      toast({
-        variant: "destructive",
-        title: "Weak Passphrase",
-        description: passphraseValidation.errors.join(", ")
-      });
-      return;
-    }
-
     const limitCheck = await canCreateNewUser();
     if (!limitCheck.allowed) {
       toast({

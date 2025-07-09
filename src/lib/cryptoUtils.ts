@@ -58,33 +58,3 @@ export async function decryptPassphrase(encryptedPassphrase: string, recoveryKey
   const result = await decryptData(encryptedPassphrase, recoveryKey);
   return result as string;
 }
-
-// Validate passphrase strength
-export function validatePassphrase(passphrase: string): { isValid: boolean; errors: string[] } {
-  const errors: string[] = [];
-  
-  if (passphrase.length < 8) {
-    errors.push('Passphrase must be at least 8 characters long');
-  }
-  
-  if (!/[A-Z]/.test(passphrase)) {
-    errors.push('Passphrase must contain at least one uppercase letter');
-  }
-  
-  if (!/[a-z]/.test(passphrase)) {
-    errors.push('Passphrase must contain at least one lowercase letter');
-  }
-  
-  if (!/[0-9]/.test(passphrase)) {
-    errors.push('Passphrase must contain at least one number');
-  }
-  
-  if (!/[^A-Za-z0-9]/.test(passphrase)) {
-    errors.push('Passphrase must contain at least one special character');
-  }
-
-  return {
-    isValid: errors.length === 0,
-    errors
-  };
-}
