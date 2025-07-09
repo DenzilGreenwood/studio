@@ -26,7 +26,7 @@ import { AuthFormHeader } from "./AuthFormHeader";
 import { RecoveryModeAlert } from "./RecoveryModeAlert";
 import { PassphraseRecoveryDisplay } from "./PassphraseRecoveryDisplay";
 import { selectAllText, copyToClipboard } from "@/lib/clipboard-utils";
-import { Alert } from "../ui/alert";
+import { Alert, AlertDescription } from "../ui/alert";
 
 
 export function AuthForm({ mode }: AuthFormProps) {
