@@ -1,3 +1,4 @@
+
 // src/hooks/useAuthSubmission.ts
 "use client";
 
@@ -10,37 +11,35 @@ import { storeEncryptedPassphrase } from "@/services/recoveryService";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useEncryption } from "@/lib/encryption-context";
+import { useRecoveryFlow } from "./useRecoveryFlow";
 import type { LoginFormValues, SignupFormValues } from "@/lib/auth-schemas";
 
 export function useAuthSubmission() {
   const { toast } = useToast();
   const router = useRouter();
   const { setPassphrase } = useEncryption();
+  const { handleRecoveryKeySubmit } = useRecoveryFlow();
 
   const handleLogin = async (
     values: LoginFormValues,
-    isRecoveryMode: boolean,
-    handleRecoveryKeySubmit: (recoveryKey: string, email: string) => Promise<void>
-  ) => {
+    isRecoveryMode: boolean
+  ): Promise<string | void> => {
     if (isRecoveryMode) {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
-
-      if (!values.recoveryKey || values.recoveryKey.trim() === '') {
-        toast({
-          variant: "destructive",
-          title: "Recovery Key Required",
-          description: "Please enter your recovery key."
-        });
+      if (!values.recoveryKey) {
+        toast({ variant: "destructive", title: "Recovery Key Required" });
         return;
       }
-      
-      await handleRecoveryKeySubmit(values.recoveryKey, values.email);
-      return;
+      if (!values.password) {
+        toast({ variant: "destructive", title: "Password Required for Recovery" });
+        return;
+      }
+      const recoveredPassphrase = await handleRecoveryKeySubmit(values.recoveryKey, values.email, values.password);
+      return recoveredPassphrase;
     }
 
-    // Regular login flow - validation is now handled by the Zod schema
+    // Regular login
     await signInWithEmailAndPassword(auth, values.email, values.password);
-    await setPassphrase(values.passphrase!); // Non-null assertion as schema ensures it exists
+    await setPassphrase(values.passphrase);
     
     toast({ title: "Login Successful", description: "Redirecting..." });
     router.push("/protocol");
@@ -50,7 +49,6 @@ export function useAuthSubmission() {
     values: SignupFormValues,
     setRecoveryKeyDialog: (dialog: { isOpen: boolean; recoveryKey: string }) => void
   ) => {
-    // Validate passphrase strength
     const passphraseValidation = validatePassphrase(values.passphrase);
     if (!passphraseValidation.isValid) {
       toast({
@@ -61,7 +59,6 @@ export function useAuthSubmission() {
       return;
     }
 
-    // Check user limit
     const limitCheck = await canCreateNewUser();
     if (!limitCheck.allowed) {
       toast({
@@ -72,7 +69,6 @@ export function useAuthSubmission() {
       return;
     }
 
-    // Create account and store encrypted passphrase
     const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
     const recoveryKey = await storeEncryptedPassphrase(userCredential.user.uid, values.passphrase);
     
@@ -87,28 +83,33 @@ export function useAuthSubmission() {
       pseudonym: pseudonymToUse
     });
 
-    // Increment user count
     try {
       await incrementUserCount();
     } catch (countError) {
       toast({
         variant: "destructive",
         title: "User Count Update Warning",
-        description: `Your account was created, but we encountered an issue updating our user count. Please contact support if you notice any issues.${countError instanceof Error ? ` Error: ${countError.message}` : ""}`,
+        description: `Your account was created, but we encountered an issue. ${countError instanceof Error ? error.message : ""}`,
       });
     }
 
-    // Show recovery key dialog
     setRecoveryKeyDialog({ isOpen: true, recoveryKey });
   };
 
+  const handleSubmit = async (
+    values: LoginFormValues | SignupFormValues,
+    mode: "login" | "signup",
+    isRecoveryMode: boolean,
+    setRecoveryKeyDialog: (dialog: { isOpen: boolean; recoveryKey: string }) => void
+  ): Promise<string | void> => {
+    if (mode === "login") {
+      return handleLogin(values as LoginFormValues, isRecoveryMode);
+    } else {
+      await handleSignup(values as SignupFormValues, setRecoveryKeyDialog);
+    }
+  };
+  
   const handleAuthError = (error: unknown, mode: "login" | "signup") => {
-    toast({
-      variant: "destructive",
-      title: mode === "login" ? "Login Failed" : "Signup Failed",
-      description: "An unexpected error occurred. Please try again later.",
-    });
-
     if (error instanceof Error && (error as AuthError).code) {
       const authError = error as AuthError;
       let errorMessage = "An error occurred. Please try again.";
@@ -122,13 +123,17 @@ export function useAuthSubmission() {
           break;
         case 'auth/user-not-found':
         case 'auth/wrong-password':
+        case 'auth/invalid-credential':
           errorMessage = "Invalid email or password.";
           break;
         case 'auth/invalid-email':
-          errorMessage = "Invalid email address.";
+          errorMessage = "The email address is not valid.";
           break;
         case 'auth/too-many-requests':
           errorMessage = "Too many failed attempts. Please try again later.";
+          break;
+        default:
+          errorMessage = authError.message;
           break;
       }
       
@@ -137,12 +142,24 @@ export function useAuthSubmission() {
         title: mode === "login" ? "Login Failed" : "Signup Failed",
         description: errorMessage,
       });
+    } else if (error instanceof Error) {
+        // This handles errors thrown from our custom logic, like recovery flow
+        toast({
+            variant: "destructive",
+            title: "Operation Failed",
+            description: error.message,
+        });
+    } else {
+        toast({
+          variant: "destructive",
+          title: mode === "login" ? "Login Failed" : "Signup Failed",
+          description: "An unexpected error occurred. Please try again later.",
+        });
     }
   };
 
   return {
-    handleLogin,
-    handleSignup,
+    handleSubmit,
     handleAuthError,
   };
 }
