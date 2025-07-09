@@ -1,9 +1,9 @@
-
 // src/components/auth/auth-form.tsx
 "use client";
 
 import { useForm } from "react-hook-form";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -30,6 +30,7 @@ import { Alert, AlertDescription } from "../ui/alert";
 
 
 export function AuthForm({ mode }: AuthFormProps) {
+  const router = useRouter();
   const {
     form,
     isRecoveryMode,
@@ -66,7 +67,6 @@ export function AuthForm({ mode }: AuthFormProps) {
     setRecoveryKeyDialog({ isOpen: false, recoveryKey: "" });
     // After signup and seeing recovery key, redirect to profile
     if (mode === "signup") {
-      const router = (form as any).router; // A bit of a hack to get router instance
       router.push("/profile");
     }
   };
@@ -297,7 +297,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                 Copy Key
               </Button>
               <Button onClick={handleDialogClose} className="w-full flex-1" variant="outline">
-                I&apos;ve Saved It
+                I've Saved It
               </Button>
             </div>
             <Alert variant="destructive">
