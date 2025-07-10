@@ -18,16 +18,40 @@ export const emotionalToneFunction = onRequest({
 
     const body = req.body;
     
+    // Validate required field
+    if (!body.text && !body.userMessage) {
+      res.status(400).json({
+        error: 'Missing required field: text or userMessage'
+      });
+      return;
+    }
+    
     logger.info('Analyzing emotional tone', {
-      hasText: !!body.text
+      hasText: !!body.text || !!body.userMessage
     });
 
-    // TODO: Implement emotional tone analysis or call to Genkit service
+    // Import and call the Genkit emotional tone analysis flow
+    const { analyzeEmotionalTone } = await import('../lib/ai-flows.js');
+    
+    const emotionalToneInput = {
+      userMessage: body.text || body.userMessage,
+      context: body.context,
+      previousTone: body.previousTone
+    };
+
+    const aiResult = await analyzeEmotionalTone(emotionalToneInput);
+
     const result = {
-      tone: "balanced",
-      emotions: ["contemplative", "hopeful", "determined"],
-      confidence: 0.85,
-      analysis: "Emotional tone analysis has been moved to Firebase Functions. Implementation in progress.",
+      primaryEmotion: aiResult.primaryEmotion,
+      intensity: aiResult.intensity,
+      secondaryEmotion: aiResult.secondaryEmotion,
+      confidence: aiResult.confidence,
+      progression: aiResult.progression,
+      triggerWords: aiResult.triggerWords,
+      // Keep legacy fields for backward compatibility
+      tone: aiResult.primaryEmotion,
+      emotions: [aiResult.primaryEmotion, aiResult.secondaryEmotion].filter(Boolean),
+      analysis: `Primary emotion: ${aiResult.primaryEmotion} (intensity: ${aiResult.intensity}/10). Emotional progression: ${aiResult.progression}.`,
       timestamp: new Date().toISOString()
     };
 

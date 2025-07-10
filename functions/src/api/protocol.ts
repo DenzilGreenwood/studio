@@ -9,10 +9,20 @@ import * as logger from "firebase-functions/logger";
 // Types for the protocol input
 interface CognitiveEdgeProtocolInput {
   userInput: string;
-  phase: number;
+  phase: number | string;
   attemptCount?: number;
   sessionHistory?: any[];
 }
+
+const phaseNames = [
+  'Stabilize & Structure',
+  'Listen for Core Frame', 
+  'Validate Emotion / Reframe',
+  'Provide Grounded Support',
+  'Reflective Pattern Discovery',
+  'Empower & Legacy Statement',
+  'Complete'
+] as const;
 
 // Since we can't directly import Genkit flows in Firebase Functions,
 // we'll need to implement a different approach or use HTTP calls to Genkit
@@ -59,14 +69,34 @@ export const protocolFunction = onRequest({
       attemptCount: body.attemptCount 
     });
 
-    // TODO: Implement protocol logic or call to Genkit service
-    // For now, return a placeholder response
+    // Convert numeric phase to phase name if needed
+    let phaseName: typeof phaseNames[number];
+    if (typeof body.phase === 'number') {
+      const phaseIndex = Math.max(0, Math.min(body.phase, phaseNames.length - 1));
+      phaseName = phaseNames[phaseIndex];
+    } else {
+      phaseName = body.phase as typeof phaseNames[number];
+    }
+
+    // Import and call the Genkit cognitive edge protocol flow
+    const { processCognitiveEdgeProtocol } = await import('../lib/ai-flows.js');
+    
+    const protocolInput = {
+      userInput: body.userInput,
+      phase: phaseName,
+      sessionHistory: body.sessionHistory ? JSON.stringify(body.sessionHistory) : undefined,
+      attemptCount: body.attemptCount
+    };
+
+    const aiResult = await processCognitiveEdgeProtocol(protocolInput);
+
     const result = {
-      response: "Protocol processing has been moved to Firebase Functions. Implementation in progress.",
-      nextPhase: body.phase + 1,
+      response: aiResult.response,
+      nextPhase: aiResult.nextPhase,
       sessionHistory: body.sessionHistory || [],
       phase: body.phase,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      updatedSessionHistory: aiResult.sessionHistory
     };
 
     logger.info('Protocol API: Success', { 

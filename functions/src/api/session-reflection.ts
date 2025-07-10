@@ -18,23 +18,37 @@ export const sessionReflectionFunction = onRequest(async (req, res) => {
       return;
     }
 
-    // TODO: Import and use the actual AI flow when available
-    // const { generateSessionReflection } = await import('@/ai/flows/session-reflection-flow');
-    // const reflection = await generateSessionReflection(body);
+    // Import and call the Genkit session reflection flow
+    const { generateSessionReflection } = await import('../lib/ai-flows.js');
+    
+    const sessionReflectionInput = {
+      sessionSummary: body.sessionSummary,
+      actualReframedBelief: body.actualReframedBelief,
+      actualLegacyStatement: body.actualLegacyStatement,
+      topEmotions: Array.isArray(body.topEmotions) ? body.topEmotions.join(', ') : body.topEmotions,
+      circumstance: body.circumstance,
+      sessionDate: body.sessionDate,
+      userReflection: body.userReflection,
+      previousSessions: body.previousSessions
+    };
 
-    // Placeholder response
+    const aiResult = await generateSessionReflection(sessionReflectionInput);
+
+    // Transform the AI result to match the expected response format
     const reflection = {
-      reflection: `Based on your session about ${body.circumstance}, you've made meaningful progress. Your reframed belief "${body.actualReframedBelief}" shows growth from your legacy statement "${body.actualLegacyStatement}". The emotions you experienced (${body.topEmotions}) are part of your journey.`,
+      reflection: aiResult.conversationalHighlights,
       keyInsights: [
-        'You have shown courage in exploring difficult topics',
-        'Your new perspective creates opportunities for growth',
-        'The emotions you felt are valid and informative'
+        aiResult.emotionalInsights,
+        aiResult.progressReflection,
+        aiResult.encouragingMessage
       ],
-      nextSteps: [
-        'Continue practicing your new belief',
-        'Notice when old patterns emerge',
-        'Celebrate small wins along the way'
-      ]
+      nextSteps: aiResult.actionableItems,
+      conversationalHighlights: aiResult.conversationalHighlights,
+      actionableItems: aiResult.actionableItems,
+      emotionalInsights: aiResult.emotionalInsights,
+      progressReflection: aiResult.progressReflection,
+      encouragingMessage: aiResult.encouragingMessage,
+      reflectionPrompts: aiResult.reflectionPrompts
     };
     
     res.json(reflection);

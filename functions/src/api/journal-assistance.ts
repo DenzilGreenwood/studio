@@ -18,30 +18,43 @@ export const journalAssistanceFunction = onRequest(async (req, res) => {
       return;
     }
 
-    // TODO: Import and use the actual AI flow when available
-    // This route uses Genkit AI flows that need to be set up in Firebase Functions
+    // Import and call the Genkit journaling assistance flow
+    const { generateJournalingAssistance } = await import('../lib/ai-flows.js');
+    
+    const journalingInput = {
+      sessionSummary: body.reportData.sessionSummary || 'Session completed successfully',
+      reframedBelief: body.reportData.insights?.primaryReframe || 'New perspective gained',
+      legacyStatement: body.reportData.insights?.legacyStatement || 'Commitment to growth',
+      topEmotions: body.reportData.insights?.emotionalJourney || 'reflective, hopeful',
+      circumstance: body.reportData.circumstance,
+      userMessage: body.userMessage || "I'd like to reflect on my session",
+      conversationHistory: body.conversationHistory,
+      currentReflection: body.currentReflection,
+      currentGoals: body.currentGoals,
+      previousSessions: body.previousJournals
+    };
 
-    // Placeholder response
+    const aiResult = await generateJournalingAssistance(journalingInput);
+
+    // Transform the AI result to match the expected response format
     const assistance = {
-      conversationalHighlights: `Your session about ${body.reportData.circumstance} revealed important insights about your growth journey.`,
-      reflectionPrompts: [
-        "What surprised you most about your session today?",
-        "How do you feel about the new perspective you've gained?",
-        "What would you like to explore further in your next session?"
-      ],
+      conversationalHighlights: aiResult.response,
+      reflectionPrompts: aiResult.suggestedQuestions,
       actionableInsights: [
         "Practice your new reframed belief in daily situations",
-        "Notice when old thought patterns emerge",
+        "Notice when old thought patterns emerge", 
         "Celebrate moments when you apply your new insights"
       ],
-      progressTracking: "You're making meaningful progress in your personal growth journey. Each session builds on the last.",
-      encouragement: "You've shown great courage in exploring these topics. Your willingness to grow is admirable.",
-      personalizedQuestions: [
-        `How might you apply "${body.reportData.insights.primaryReframe}" in your daily life?`,
-        "What support do you need to maintain this new perspective?",
-        "How will you know when you're successfully integrating these insights?"
-      ],
-      crossSessionInsights: body.previousJournals?.length ? "Looking at your previous reflections, there's a clear pattern of growth and increasing self-awareness." : undefined
+      progressTracking: "You're making meaningful progress in your personal growth journey.",
+      encouragement: aiResult.encouragement,
+      personalizedQuestions: aiResult.suggestedQuestions,
+      crossSessionInsights: body.previousJournals?.length ? "Looking at your previous reflections, there's a clear pattern of growth and increasing self-awareness." : undefined,
+      // Add AI flow specific fields
+      response: aiResult.response,
+      suggestedQuestions: aiResult.suggestedQuestions,
+      concernsDetected: aiResult.concernsDetected,
+      reflectionPrompt: aiResult.reflectionPrompt,
+      goalSuggestion: aiResult.goalSuggestion
     };
     
     res.json(assistance);
