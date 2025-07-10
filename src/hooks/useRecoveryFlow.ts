@@ -19,10 +19,9 @@ export function useRecoveryFlow() {
       const userId = await findUIDByEmail(email);
       if (!userId) {
         throw new Error("No account found with this email address.");
-      } else{
-        const hasUserId = "true"
-      }
-
+      } 
+      
+    
       // Step 2: Check if recovery data exists
       const hasRecovery = await hasRecoveryData(hasUserId);
       if (!hasRecovery) {

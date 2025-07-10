@@ -4,12 +4,63 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Brain, Lock, Shield, Sparkles, User, ArrowRight, Mail } from "lucide-react";
+import { Brain, Lock, Shield, Sparkles, User, ArrowRight, Mail, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Footer } from "@/components/layout/footer";
 import { Badge } from "@/components/ui/badge";
+import React, { useState } from 'react';
+import { useToast } from "@/hooks/use-toast";
 
 export default function HomePage() {
+  const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
+
+  const handleInterestSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!email || !email.includes('@')) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: "Interested@CognitiveInsight.ai", // Send the notification to this address
+          type: 'interest-notification',
+          data: { email: email }, // The user's email
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send notification.');
+      }
+
+      toast({
+        title: "Thank You!",
+        description: "You've been added to our notification list.",
+      });
+      setEmail(''); // Clear input on success
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Submission Failed",
+        description: "Could not submit your email. Please try again later.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-secondary/30 text-foreground">
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -43,9 +94,23 @@ export default function HomePage() {
               <CardDescription>Enter your email to get notified when we launch.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              <form className="flex flex-col sm:flex-row gap-2">
-                <Input type="email" placeholder="you@example.com" className="flex-1" />
-                <Button type="submit" className="w-full sm:w-auto">Notify Me</Button>
+              <form className="flex flex-col sm:flex-row gap-2" onSubmit={handleInterestSubmit}>
+                <Input 
+                  type="email" 
+                  placeholder="you@example.com" 
+                  className="flex-1"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isSubmitting}
+                />
+                <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : "Notify Me"}
+                </Button>
               </form>
             </CardContent>
           </Card>
