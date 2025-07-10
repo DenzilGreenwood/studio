@@ -182,6 +182,10 @@ export function AppHeader() {
                 <BookOpen className="mr-2 h-4 w-4" />
                 <span>Session History</span>
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/journals')}>
+                <BookOpen className="mr-2 h-4 w-4" />
+                <span>Journals</span>
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => router.push('/clarity-map')}>
                 <Map className="mr-2 h-4 w-4" />
                 <span>Clarity Maps</span>

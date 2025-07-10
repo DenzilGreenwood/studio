@@ -1,50 +1,82 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
-    function isAdmin() {
-      return request.auth != null && 
-             request.auth.uid != null &&
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
 
+    // Helper function to check if user owns the resource
     function isOwner(userId) {
       return request.auth != null && request.auth.uid == userId;
     }
 
-    // USER DATA
+    // Deny all reads and writes by default.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // USERS
+    // Allow users to read, update, create, and delete their own profile.
     match /users/{userId} {
-      allow read, create, update, delete: if isOwner(userId) || isAdmin();
+      allow read, update, create, delete: if isOwner(userId);
     }
 
-    match /users/{userId}/{document=**} {
-      allow read, write: if isOwner(userId) || isAdmin();
-    }
-    
-    // RECOVERY DATA
-    match /recovery/{userId} {
-        allow read, create, update, delete: if isOwner(userId) || isAdmin();
+    // SESSIONS
+    // Allow users to manage their own session documents.
+    match /users/{userId}/sessions/{sessionId} {
+      allow read, write, delete: if isOwner(userId);
     }
 
-    // FEEDBACK (users can submit, admins can read)
+    // REPORTS (New architecture)
+    // Allow users to manage their own session reports.
+    match /users/{userId}/reports/{reportId} {
+      allow read, write, delete: if isOwner(userId);
+    }
+
+    // JOURNALS (New architecture)
+    // Allow users to manage their own journal entries.
+    match /users/{userId}/journals/{journalId} {
+      allow read, write, delete: if isOwner(userId);
+    }
+
+    // CLEAN REPORTS (New clean architecture)
+    // Allow users to manage their own clean session reports.
+    match /users/{userId}/clean-reports/{reportId} {
+      allow read, write, delete: if isOwner(userId);
+    }
+
+    // MESSAGES
+    // Allow users to manage messages within their own sessions.
+    match /users/{userId}/sessions/{sessionId}/messages/{messageId} {
+      allow read, write, delete: if isOwner(userId);
+    }
+
+    // FEEDBACK
+    // Allow any authenticated user to submit (create) feedback.
+    // Allow users to delete their own feedback (for account deletion).
+    // Prevent regular users from reading or updating other users' feedback.
     match /feedback/{feedbackId} {
-        allow create: if request.auth != null; // User must be logged in to submit feedback
-        allow read: if isAdmin();
-        allow update, delete: if false; // Feedback is immutable once submitted
+      allow create: if request.auth != null;
+      allow delete: if request.auth != null && 
+                    exists(/databases/$(database)/documents/feedback/$(feedbackId)) &&
+                    get(/databases/$(database)/documents/feedback/$(feedbackId)).data.userId == request.auth.uid;
+      allow update: if false;
     }
-    
-    // INTERESTED USERS (public write for sign-up form)
-    match /interested_users/{docId} {
-      allow create: if true; // Anyone can sign up for the notification list
-      allow read, update, delete: if isAdmin(); // Only admins can manage the list
-    }
-    
-    // SYSTEM DATA
+
+    // SYSTEM
+    // Allow reading user count for signup validation (no auth required for checking signup limits)
+    // Allow writing to user count for authenticated operations (signup flow)
     match /system/userCount {
-        allow read: if true;
-        allow write: if true; // Allow server-side operations during signup
+      allow read: if true; // Allow anyone to check user count for signup validation
+      allow write, create, update: if true; // Allow server-side operations during signup
+    }
+
+    // RECOVERY
+    // Allow users to manage their own recovery data (encrypted passphrase backup).
+    // This is used for the passphrase recovery system.
+    match /recovery/{userId} {
+      allow read, create, update: if isOwner(userId);
+      allow delete: if isOwner(userId); // Allow users to delete their recovery data
     }
   }
 }
+

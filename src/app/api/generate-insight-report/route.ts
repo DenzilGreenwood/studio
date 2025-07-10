@@ -3,9 +3,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateInsightReport } from '@/ai/flows/insight-report-generator';
 
 export async function POST(request: NextRequest) {
+  let body: { sessionData?: unknown; focusArea?: string } = {};
+  let sessionData: { 
+    circumstance?: string; 
+    chatHistory?: Array<{ sender: 'user' | 'ai'; text: string; timestamp: string }>; 
+    keyStatements?: { reframedBelief?: string; legacyStatement?: string; insights?: string[] }
+  } = {};
+  
   try {
-    const body = await request.json();
-    const { sessionData, focusArea } = body;
+    body = await request.json();
+    sessionData = body.sessionData as typeof sessionData || {};
+    const { focusArea } = body;
 
     // Call the AI flow with session data
     const result = await generateInsightReport({
@@ -19,11 +27,8 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(result);
-  } catch (error) {
-    console.error('Error generating insight report:', error);
-    
-    // Return fallback template if AI fails
-    const sessionData = await request.json().then(body => body.sessionData).catch(() => ({}));
+  } catch {
+    // Use the already parsed sessionData instead of trying to parse request again
     
     const fallbackResult = {
       title: `Insight Report - ${sessionData.circumstance || 'Session'} - ${new Date().toLocaleDateString()}`,
