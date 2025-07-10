@@ -3,7 +3,7 @@
 
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { recoverPassphraseZeroKnowledge, findUserByEmail, hasRecoveryData } from "@/services/recoveryService";
+import { recoverPassphraseZeroKnowledge, findUIDByEmail, hasRecoveryData } from "@/services/recoveryService";
 import { useEncryption } from "@/lib/encryption-context";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
@@ -16,13 +16,15 @@ export function useRecoveryFlow() {
   const handleRecoveryKeySubmit = async (recoveryKey: string, email: string, password: string) => {
     try {
       // Step 1: Find user ID by email
-      const userId = await findUserByEmail(email);
+      const userId = await findUIDByEmail(email);
       if (!userId) {
         throw new Error("No account found with this email address.");
+      } else{
+        const hasUserId = "true"
       }
 
       // Step 2: Check if recovery data exists
-      const hasRecovery = await hasRecoveryData(userId);
+      const hasRecovery = await hasRecoveryData(hasUserId);
       if (!hasRecovery) {
         throw new Error("No recovery data found for this account. This account may have been created before the recovery system was implemented.");
       }

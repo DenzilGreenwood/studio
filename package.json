@@ -10,8 +10,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "health": "curl -s http://localhost:3000/api/health | jq",
-    "genkit:start": "genkit start -- tsx src/ai/dev.ts",
-    "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
+    "genkit:start": "genkit start --tsx src/ai/genkit.ts",
+    "genkit:watch": "genkit start --tsx --watch src/ai/genkit.ts",
     "genkit:flows": "genkit flow:list",
     "genkit:trace": "genkit trace"
   },
