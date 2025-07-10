@@ -24,6 +24,7 @@ import {
   enableNetwork,
   disableNetwork
 } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 
 const firebaseConfig = {
@@ -49,6 +50,7 @@ if (getApps().length === 0) {
 
 const auth = getAuth(app);
 const db = getFirestore(app);
+const functions = getFunctions(app);
 
 
 // Connect to emulators in development
@@ -71,6 +73,8 @@ export {
   app, 
   auth, 
   db, 
+  functions,
+  httpsCallable,
   collection,
   collectionGroup,
   doc,

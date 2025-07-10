@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { Brain, UserCircle, LogOut, ChevronDown, Trash2, Loader2, BookOpen, Play, TrendingUp, Map, FileText } from "lucide-react";
+import { Brain, UserCircle, LogOut, ChevronDown, Trash2, Loader2, BookOpen, Play, TrendingUp, Map, FileText, Shield, Users, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EncryptionNotice } from "@/components/encryption/encryption-notice";
 import {
@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useAuth } from "@/context/auth-context";
+import { useAuth } from "@/context/auth-context-v2";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import React, { useState, useEffect } from "react";
@@ -32,7 +32,7 @@ import { db, collection, query, orderBy, getDocs } from "@/lib/firebase";
 import type { ProtocolSession } from "@/types";
 
 export function AppHeader() {
-  const { user, firebaseUser, loading, logout, deleteUserAccountAndData } = useAuth();
+  const { user, firebaseUser, loading, logout, deleteUserAccountAndData, authorityProfile, isAdmin } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -105,7 +105,8 @@ export function AppHeader() {
       setIsDeleteDialogOpen(false); // Close dialog
       router.push("/"); // Redirect to homepage
     } catch (error: unknown) {
-      console.error("Error deleting account:", error);
+      // Error deleting account
+      void error;
       toast({
         variant: "destructive",
         title: "Account Deletion Failed",
@@ -198,6 +199,29 @@ export function AppHeader() {
                 <TrendingUp className="mr-2 h-4 w-4" />
                 <span>My Progress</span>
               </DropdownMenuItem>
+              
+              {/* Admin Section */}
+              {isAdmin() && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs text-primary">
+                    Admin Tools ({authorityProfile?.role})
+                  </DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => router.push('/admin/dashboard')}>
+                    <Shield className="mr-2 h-4 w-4" />
+                    <span>Admin Dashboard</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push('/admin/users')}>
+                    <Users className="mr-2 h-4 w-4" />
+                    <span>User Management</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push('/admin/feedback')}>
+                    <BarChart3 className="mr-2 h-4 w-4" />
+                    <span>Feedback Analytics</span>
+                  </DropdownMenuItem>
+                </>
+              )}
+              
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => setIsDeleteDialogOpen(true)}

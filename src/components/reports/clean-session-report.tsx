@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, Download, RefreshCw, Lightbulb, Target, Heart, TrendingUp, CheckCircle, Star, ArrowRight, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { getCleanReport, generateCleanReport, generateCleanPdf } from '@/lib/firebase-functions-client';
 
 interface CleanSessionReportProps {
   sessionId: string;
