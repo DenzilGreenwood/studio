@@ -72,7 +72,7 @@ async function _decryptUserData(encryptedData: string) {
 /*
 // Example: Using encryption context in a React component
 import { useEncryption } from '@/lib/encryption-context';
-import { useAuth } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context-v2';
 
 function LoginComponent() {
   const { setPassphrase } = useEncryption();

@@ -6,6 +6,9 @@ import { EncryptionProvider } from '@/lib/encryption-context';
 import { AuthorityMigration } from '@/components/authority/AuthorityMigration';
 import { Alegreya, Belleza } from 'next/font/google';
 
+// Force dynamic rendering for the entire app to prevent SSG issues with auth
+export const dynamic = 'force-dynamic';
+
 const alegreya = Alegreya({
   subsets: ['latin'],
   style: ['normal', 'italic'],

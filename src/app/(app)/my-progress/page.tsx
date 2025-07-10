@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context-v2';
 import { db, collection, query, where, orderBy, getDocs } from '@/lib/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ import {
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import type { CrossSessionAnalysisOutput, ProtocolSession } from '@/types';
+import { getCrossSessionAnalysis } from '@/lib/firebase-functions-client';
 
 type SessionWithId = ProtocolSession & { sessionId: string };
 
@@ -116,11 +117,7 @@ export default function MyProgressPage() {
         focusArea: undefined // Could be inferred from common themes
       };
 
-      const response = await fetch('/api/cross-session-analysis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(analysisInput)
-      });
+      const response = await getCrossSessionAnalysis(analysisInput);
 
       if (!response.ok) {
         throw new Error('Failed to generate analysis');

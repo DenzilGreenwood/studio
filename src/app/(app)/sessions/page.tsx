@@ -20,7 +20,7 @@
  */
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { useAuth } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context-v2';
 import { db, collection, query, where, orderBy, getDocs, doc, updateDoc, serverTimestamp, Timestamp } from '@/lib/firebase';
 import type { ProtocolSession } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';

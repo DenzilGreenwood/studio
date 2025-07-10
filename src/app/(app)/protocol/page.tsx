@@ -6,7 +6,7 @@ import { ChatInterface, type Message as UIMessage } from '@/components/protocol/
 import { PhaseIndicator } from '@/components/protocol/phase-indicator';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle, BookOpen, Eye } from 'lucide-react';
-import { useAuth } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context-v2';
 import { TTSSettings } from '@/components/ui/tts-settings';
 import Link from 'next/link';
 import { 
@@ -28,6 +28,12 @@ import type { ProtocolSession, ChatMessage as FirestoreChatMessage } from '@/typ
 import { useRouter } from 'next/navigation'; 
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
 import { EmotionalProgression } from '@/components/protocol/emotional-progression';
+import { 
+  getClaritySummary,
+  analyzeSentiment,
+  analyzeEmotionalTone,
+  callProtocol 
+} from '@/lib/firebase-functions-client';
 import { Button } from '@/components/ui/button';
 import { encryptChatMessage, decryptChatMessage, encryptSessionData, decryptSessionData } from '@/lib/data-encryption';
 
@@ -121,13 +127,7 @@ async function generateAndSaveSummary(
     };
     
     // Call the API for clarity summary
-    const summaryResponse = await fetch('/api/clarity-summary', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(summaryInputForAI),
-    });
+    const summaryResponse = await getClaritySummary(summaryInputForAI);
 
     if (!summaryResponse.ok) {
       throw new Error('Failed to generate clarity summary');
@@ -525,13 +525,7 @@ export default function ProtocolPage() {
           const sentimentInput: SentimentAnalysisInput = { userMessages: userMessagesText };
           
           // Call the API for sentiment analysis
-          const sentimentResponse = await fetch('/api/sentiment-analysis', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(sentimentInput),
-          });
+          const sentimentResponse = await analyzeSentiment(sentimentInput);
 
           if (sentimentResponse.ok) {
             const sentimentOutput = await sentimentResponse.json();
@@ -603,16 +597,10 @@ export default function ProtocolPage() {
         : undefined;
       
       // Call the API for emotional tone analysis
-      const emotionalToneResponse = await fetch('/api/emotional-tone', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userMessage: currentUserInputText,
-          context: `Phase: ${prevPhaseName}. Session context: ${currentCircumstance}`,
-          previousTone: previousEmotion
-        }),
+      const emotionalToneResponse = await analyzeEmotionalTone({
+        userMessage: currentUserInputText,
+        context: `Phase: ${prevPhaseName}. Session context: ${currentCircumstance}`,
+        previousTone: previousEmotion
       });
 
       let emotionalAnalysis = null;
@@ -661,13 +649,7 @@ export default function ProtocolPage() {
       };
 
       // Call the API for cognitive edge protocol
-      const response = await fetch('/api/protocol', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(input),
-      });
+      const response = await callProtocol(input);
 
       if (!response.ok) {
         // Get more detailed error information
@@ -854,13 +836,7 @@ export default function ProtocolPage() {
               const sentimentInput: SentimentAnalysisInput = { userMessages: userMessagesText };
               
               // Call the API for sentiment analysis
-              const sentimentResponse = await fetch('/api/sentiment-analysis', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(sentimentInput),
-              });
+              const sentimentResponse = await analyzeSentiment(sentimentInput);
 
               if (sentimentResponse.ok) {
                 const sentimentOutput = await sentimentResponse.json();

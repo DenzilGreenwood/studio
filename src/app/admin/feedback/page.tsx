@@ -1,33 +1,29 @@
 "use client";
 
-import { useAuth } from "@/context/auth-context-v2";
-import { AdminFeedbackDashboard } from "@/components/admin/AdminFeedbackDashboard";
-import { ComponentUpgradeWrapper } from "@/components/authority/ComponentUpgradeWrapper";
-import { UserRole } from "@/types";
+import dynamic from 'next/dynamic';
+import { Suspense } from 'react';
+
+// Dynamically import the admin feedback component to prevent SSG issues
+const DynamicAdminFeedback = dynamic(
+  () => import('@/components/admin/AdminFeedbackClient'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-pulse">Loading feedback analytics...</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+);
 
 export default function AdminFeedbackPage() {
-  const { isAdmin } = useAuth();
-
-  if (!isAdmin()) {
-    return (
-      <ComponentUpgradeWrapper
-        componentName="Feedback Analytics"
-        requiredRole={UserRole.ADMIN}
-        showUpgradeInfo={false}
-      >
-        <div />
-      </ComponentUpgradeWrapper>
-    );
-  }
-
   return (
-    <div className="container mx-auto p-6">
-      <ComponentUpgradeWrapper
-        componentName="Feedback Analytics"
-        showUpgradeInfo={true}
-      >
-        <AdminFeedbackDashboard />
-      </ComponentUpgradeWrapper>
-    </div>
+    <Suspense fallback={<div>Loading...</div>}>
+      <DynamicAdminFeedback />
+    </Suspense>
   );
 }

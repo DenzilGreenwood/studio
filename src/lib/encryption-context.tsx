@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
-import { useAuth } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context-v2';
 
 interface EncryptionContextType {
   userPassphrase: string | null;
