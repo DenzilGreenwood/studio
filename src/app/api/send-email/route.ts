@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS || !SMTP_FROM) {
       console.error('Email service not configured. Please set SMTP variables in .env.local');
-      return NextResponse.json({ error: 'Email service is not configured on the server.' }, { status: 500 });
+      return NextResponse.json({ error: 'Email service is not configured on the server.' }, { status: 503 });
     }
 
     const transporter = nodemailer.createTransport({
