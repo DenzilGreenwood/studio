@@ -3,7 +3,7 @@
 
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { recoverPassphraseZeroKnowledge, findUserByEmail, hasRecoveryData } from "@/services/recoveryService";
+import { recoverPassphraseZeroKnowledge, findUIDByEmail } from "@/services/recoveryService";
 import { useEncryption } from "@/lib/encryption-context";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
@@ -16,35 +16,29 @@ export function useRecoveryFlow() {
   const handleRecoveryKeySubmit = async (recoveryKey: string, email: string, password: string) => {
     try {
       // Step 1: Find user ID by email
-      const userId = await findUserByEmail(email);
-      if (!userId) {
-        throw new Error("No account found with this email address.");
+      const uidResult = await findUIDByEmail(email);
+      if (!uidResult.uid || !uidResult.exists) {
+        throw new Error(uidResult.error || "No account found with this email address.");
       }
 
-      // Step 2: Check if recovery data exists
-      const hasRecovery = await hasRecoveryData(userId);
-      if (!hasRecovery) {
-        throw new Error("No recovery data found for this account. This account may have been created before the recovery system was implemented.");
-      }
-
-      // Step 3: Zero-Knowledge Recovery
-      const { passphrase: decryptedPassphrase, success, error } = await recoverPassphraseZeroKnowledge(userId, recoveryKey);
+      // Step 2: Zero-Knowledge Recovery
+      const { passphrase: decryptedPassphrase, success, error } = await recoverPassphraseZeroKnowledge(uidResult.uid, recoveryKey);
       
       if (!success || !decryptedPassphrase) {
         throw new Error(error || "Invalid recovery key. Please check your recovery key and try again.");
       }
 
-      // Step 4: Authenticate with Firebase
+      // Step 3: Authenticate with Firebase
       if (!password) {
         throw new Error("Please enter your account password to complete recovery.");
       }
 
       await signInWithEmailAndPassword(auth, email, password);
       
-      // Step 5: Set recovered passphrase
+      // Step 4: Set recovered passphrase
       await setPassphrase(decryptedPassphrase);
       
-      // Step 6: Success feedback
+      // Step 5: Success feedback
       toast({ 
         title: "🔐 Zero-Knowledge Recovery Successful", 
         description: "Your passphrase has been recovered and is displayed below. Save it securely - it will not be sent via email.",

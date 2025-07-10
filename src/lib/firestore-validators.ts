@@ -140,6 +140,22 @@ export const validateFirestorePaths = {
     return basePath;
   },
   
+  journal: (userId: string, journalId?: string) => {
+    const basePath = `users/${userId}/journals`;
+    if (journalId) {
+      return `${basePath}/${journalId}`;
+    }
+    return basePath;
+  },
+  
+  journalMessage: (userId: string, journalId: string, messageId?: string) => {
+    const basePath = `users/${userId}/journals/${journalId}/messages`;
+    if (messageId) {
+      return `${basePath}/${messageId}`;
+    }
+    return basePath;
+  },
+  
   feedback: (feedbackId?: string) => {
     if (feedbackId) {
       return `feedback/${feedbackId}`;
