@@ -34,14 +34,28 @@ export const sentimentAnalysisFunction = onRequest({
       messagesCount: body.userMessages?.length || 0
     });
 
-    // TODO: Implement sentiment analysis or call to Genkit service
+    // Import and call the Genkit sentiment analysis flow
+    const { analyzeSentiment } = await import('../lib/ai-flows.js');
+    
+    // Convert array to string if needed
+    const userMessagesString = Array.isArray(body.userMessages) 
+      ? body.userMessages.join(' ') 
+      : body.userMessages;
+    
+    const sentimentInput = {
+      userMessages: userMessagesString
+    };
+
+    const aiResult = await analyzeSentiment(sentimentInput);
+
     const result = {
-      sentiment: "neutral",
+      sentiment: "neutral", // Keep for backward compatibility
       confidence: 0.8,
-      emotions: ["contemplative", "optimistic"],
-      analysis: "Sentiment analysis has been moved to Firebase Functions. Implementation in progress.",
+      emotions: aiResult.detectedEmotions.split(', '),
+      detectedEmotions: aiResult.detectedEmotions,
+      analysis: aiResult.detectedEmotions,
       timestamp: new Date().toISOString(),
-      messageCount: body.userMessages.length
+      messageCount: Array.isArray(body.userMessages) ? body.userMessages.length : 1
     };
 
     logger.info('Sentiment analysis completed successfully');

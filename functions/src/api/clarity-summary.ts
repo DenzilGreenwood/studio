@@ -6,8 +6,9 @@
 import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { handleCors, validateMethod, logError } from "../utils/common";
+import type { ClaritySummaryInput } from "../../../src/types/index.js";
 
-interface ClaritySummaryInput {
+interface ClaritySummaryRequestBody {
   reframedBelief: string;
   legacyStatement: string;
   topEmotions: string[];
@@ -22,7 +23,7 @@ export const claritySummaryFunction = onRequest({
     if (handleCors(req, res)) return;
     if (!validateMethod(req, res, ['POST'])) return;
 
-    const body: ClaritySummaryInput = req.body;
+    const body: ClaritySummaryRequestBody = req.body;
     
     // Validate required fields
     if (!body.reframedBelief || !body.legacyStatement || !body.topEmotions) {
@@ -38,10 +39,19 @@ export const claritySummaryFunction = onRequest({
       emotionsCount: body.topEmotions?.length || 0
     });
 
-    // TODO: Implement clarity summary generation or call to Genkit service
+    // Import and call the Genkit clarity summary flow
+    const { generateClaritySummary } = await import('../lib/ai-flows.js');
+    
+    const summaryInput: ClaritySummaryInput = {
+      reframedBelief: body.reframedBelief,
+      legacyStatement: body.legacyStatement,
+      topEmotions: Array.isArray(body.topEmotions) ? body.topEmotions.join(', ') : body.topEmotions
+    };
+
+    const aiResult = await generateClaritySummary(summaryInput);
+
     const result = {
-      summary: "Clarity summary generation has been moved to Firebase Functions. Implementation in progress.",
-      insights: [],
+      insightSummary: aiResult.insightSummary,
       timestamp: new Date().toISOString(),
       input: {
         reframedBelief: body.reframedBelief,
