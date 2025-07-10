@@ -35,9 +35,8 @@ export default function HomePage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: "Interested@CognitiveInsight.ai", // Send the notification to this address
           type: 'interest-notification',
-          data: { email: email }, // The user's email
+          data: { email: email },
         }),
       });
 
@@ -71,7 +70,7 @@ export default function HomePage() {
           </Link>
           <nav className="flex items-center gap-4">
             <Button variant="ghost" asChild>
-              <a href="#contact">Contact</a>
+              <a href="mailto:founder@CognitiveInsight.ai">Contact</a>
             </Button>
           </nav>
         </div>
