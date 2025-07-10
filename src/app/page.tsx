@@ -140,27 +140,22 @@ export default function HomePage() {
         <section id="1on1" className="py-16 md:py-24">
           <div className="container mx-auto px-4">
             <Card className="max-w-4xl mx-auto shadow-xl border-primary/20 overflow-hidden">
-                <div className="grid md:grid-cols-2">
-                    <div className="p-8 flex flex-col justify-center">
-                        <div className="rounded-full bg-primary/10 p-3 w-16 h-16 mb-4 flex items-center justify-center">
-                            <User className="h-8 w-8 text-primary" />
-                        </div>
-                        <CardTitle className="font-headline text-3xl font-bold text-foreground">
-                          Prefer a Human Thought Partner?
-                        </CardTitle>
-                        <CardDescription className="text-lg mt-4">
-                          Work directly with me, <strong>James Greenwood</strong>, creator of the Cognitive Edge Protocol™, in a private 1-on-1 session.
-                        </CardDescription>
-                         <Button asChild size="lg" className="mt-6 w-full sm:w-auto">
-                            <a href="mailto:founder@cognitiveinsight.ai" id="discovery">
-                              Book a Discovery Call
-                              <ArrowRight className="ml-2 h-4 w-4" />
-                            </a>
-                        </Button>
+                <div className="p-8 flex flex-col items-center text-center">
+                    <div className="rounded-full bg-primary/10 p-3 w-16 h-16 mb-4 flex items-center justify-center">
+                        <User className="h-8 w-8 text-primary" />
                     </div>
-                    <div className="hidden md:block">
-                        <img src="https://placehold.co/600x600.png" alt="James Greenwood" data-ai-hint="professional portrait" className="object-cover w-full h-full" />
-                    </div>
+                    <CardTitle className="font-headline text-3xl font-bold text-foreground">
+                      Prefer a Human Thought Partner?
+                    </CardTitle>
+                    <CardDescription className="text-lg mt-4 max-w-2xl">
+                      Work directly with me, <strong>James Greenwood</strong>, creator of the Cognitive Edge Protocol™, in a private 1-on-1 session.
+                    </CardDescription>
+                     <Button asChild size="lg" className="mt-6 w-full sm:w-auto">
+                        <a href="mailto:founder@cognitiveinsight.ai" id="discovery">
+                          Book a Discovery Call
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </a>
+                    </Button>
                 </div>
             </Card>
           </div>
