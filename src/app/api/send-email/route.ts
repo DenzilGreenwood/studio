@@ -1,6 +1,8 @@
+
 // src/app/api/send-email/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
+import { db, collection, addDoc, serverTimestamp } from '@/lib/firebase';
 
 // Email types and their configurations
 const emailConfigs = {
@@ -21,16 +23,6 @@ const emailConfigs = {
       </div>
     `,
   },
-  'interest-notification': {
-    subject: 'New Interest in CognitiveInsight!',
-    createBody: (data: { email?: string }) => `
-      <div style="font-family: sans-serif; padding: 20px; color: #333;">
-        <h2>New User Interest</h2>
-        <p>A new user has expressed interest in CognitiveInsight through the coming soon page.</p>
-        <p><strong>Email:</strong> ${data.email || 'No email provided'}</p>
-      </div>
-    `,
-  },
 };
 
 export async function POST(request: NextRequest) {
@@ -41,14 +33,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields: email and type' }, { status: 400 });
     }
 
+    // Handle 'interest-notification' by writing to Firestore
+    if (type === 'interest-notification') {
+      if (!data || !data.email) {
+        return NextResponse.json({ error: 'Missing email for interest notification' }, { status: 400 });
+      }
+
+      const interestedUsersRef = collection(db, 'interested_users');
+      await addDoc(interestedUsersRef, {
+        email: data.email,
+        submittedAt: serverTimestamp(),
+      });
+      
+      return NextResponse.json({ success: true, message: 'Interest logged successfully' });
+    }
+    
+    // Handle other email types
     const config = emailConfigs[type as keyof typeof emailConfigs];
     if (!config) {
       return NextResponse.json({ error: 'Invalid email type specified' }, { status: 400 });
     }
 
-    // Validate environment variables
-    const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, SMTP_SECURE } = process.env;
-
+    // Validate environment variables for sending emails
+    const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
     if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS || !SMTP_FROM) {
       console.error('Email service not configured. Please set SMTP variables in .env.local');
       return NextResponse.json({ error: 'Email service is not configured on the server.' }, { status: 503 });
@@ -57,7 +64,7 @@ export async function POST(request: NextRequest) {
     const transporter = nodemailer.createTransport({
       host: SMTP_HOST,
       port: parseInt(SMTP_PORT, 10),
-      secure: SMTP_SECURE === 'true', // true for 465, false for other ports
+      secure: process.env.SMTP_SECURE === 'true',
       auth: {
         user: SMTP_USER,
         pass: SMTP_PASS,
@@ -75,9 +82,9 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ success: true, message: 'Email sent successfully' });
   } catch (error) {
-    console.error('Error sending email:', error);
+    console.error('Error in API route:', error);
     return NextResponse.json(
-      { error: 'Failed to send email' },
+      { error: 'Failed to process request' },
       { status: 500 }
     );
   }
