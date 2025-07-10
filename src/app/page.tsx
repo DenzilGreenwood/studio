@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Brain, Lock, Shield, Sparkles, User, ArrowRight, Mail } from "lucide-react";
 import Link from "next/link";
 import { Footer } from "@/components/layout/footer";
+import { Badge } from "@/components/ui/badge";
 
 export default function HomePage() {
   return (
