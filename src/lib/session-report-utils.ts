@@ -2,6 +2,7 @@
 "use client";
 
 import { db, collection, doc, getDoc, setDoc, updateDoc, query, orderBy, getDocs, Timestamp } from '@/lib/firebase';
+import { getJournalAssistance } from '@/lib/firebase-functions-client';
 import type { 
   SessionReport, 
   SessionJournal, 
@@ -222,12 +223,8 @@ export async function generateJournalAssistance(
       previousJournals: previousJournals
     };
 
-    const response = await fetch('/api/journal-assistance', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(assistanceInput)
-    });
-
+    const response = await getJournalAssistance(assistanceInput);
+    
     if (!response.ok) {
       throw new Error('Failed to generate journal assistance');
     }

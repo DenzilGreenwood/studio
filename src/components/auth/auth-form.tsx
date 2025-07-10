@@ -22,7 +22,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Brain, Eye, EyeOff, Copy, Key, Shield, AlertCircle } from "lucide-react";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, type AuthError } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { createUserProfileDocument } from "@/context/auth-context";
+import { createUserProfileDocument } from "@/context/auth-context-v2";
+import { useAuth } from "@/context/auth-context-v2";
 import { canCreateNewUser, incrementUserCount } from "@/lib/user-limit";
 import { 
   validatePassphrase
@@ -44,6 +45,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { setPassphrase } = useEncryption();
+  const { initializeDataService } = useAuth();
   const [showPassphrase, setShowPassphrase] = useState(false);
   const [showConfirmPassphrase, setShowConfirmPassphrase] = useState(false);
   const [recoveryKeyDialog, setRecoveryKeyDialog] = useState<{ isOpen: boolean; recoveryKey: string; }>({ isOpen: false, recoveryKey: "" });
@@ -125,7 +127,8 @@ export function AuthForm({ mode }: AuthFormProps) {
 
       await signInWithEmailAndPassword(auth, email, password);
       
-      // Step 5: Set the recovered passphrase in encryption context
+      // Step 5: Initialize DataService and set passphrase
+      await initializeDataService(decryptedPassphrase);
       await setPassphrase(decryptedPassphrase);
       setRecoveredPassphrase(decryptedPassphrase);
       
@@ -218,7 +221,10 @@ export function AuthForm({ mode }: AuthFormProps) {
 
         await signInWithEmailAndPassword(auth, loginValues.email, loginValues.password);
         
-        // Use encryption context to set passphrase (triggers profile refresh)
+        // Initialize DataService with authority system
+        await initializeDataService(loginValues.passphrase);
+        
+        // Also set passphrase for encryption context compatibility
         await setPassphrase(loginValues.passphrase);
         
         toast({ title: "Login Successful", description: "Redirecting..." });
@@ -259,7 +265,10 @@ export function AuthForm({ mode }: AuthFormProps) {
           await updateProfile(userCredential.user, { displayName: pseudonymToUse });
         }
         
-        // Use encryption context to set passphrase (needed for encryption and triggers profile refresh)
+        // Initialize DataService with authority system for new user
+        await initializeDataService(signupValues.passphrase);
+        
+        // Also set passphrase for encryption context compatibility
         await setPassphrase(signupValues.passphrase);
 
         await createUserProfileDocument(userCredential.user, { 

@@ -1,4 +1,6 @@
 // src/app/profile/page.tsx
+'use client';
+
 import { ProfileForm } from "@/components/auth/profile-form";
 import { EncryptionNotice } from "@/components/encryption/encryption-notice";
 
