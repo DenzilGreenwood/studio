@@ -8,8 +8,8 @@ import { auth } from './firebase';
  * In development with emulator, this points to the local emulator
  */
 const FUNCTIONS_BASE_URL = process.env.NODE_ENV === 'development' 
-  ? 'http://localhost:5001/cognitiveinsight-8ca36/us-central1'
-  : 'https://us-central1-cognitiveinsight-8ca36.cloudfunctions.net';
+  ? 'http://localhost:5002/cognitiveinsight-e5c40/us-central1'
+  : 'https://us-central1-cognitiveinsight-e5c40.cloudfunctions.net';
 
 /**
  * Generic function to call Firebase Functions via HTTP
@@ -41,6 +41,18 @@ export async function callFirebaseFunction(
   }
 
   const url = `${FUNCTIONS_BASE_URL}/${functionName}`;
+  
+  // Debug logging in development
+  if (process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console
+    console.log('Calling Firebase Function:', {
+      functionName,
+      url,
+      method,
+      hasData: !!data,
+      hasAuthToken: !!authToken
+    });
+  }
   
   const fetchOptions: RequestInit = {
     method,
@@ -83,7 +95,7 @@ export function createCallableFunction<T = unknown, R = unknown>(functionName: s
  */
 
 // Health check
-export const healthCheck = () => callFirebaseFunction('health', undefined, { method: 'GET' });
+export const healthCheck = createCallableFunction<void, { status: string; timestamp: string }>('health');
 
 // Protocol endpoint
 export const callProtocol = (data: unknown) => callFirebaseFunction('protocol', data);

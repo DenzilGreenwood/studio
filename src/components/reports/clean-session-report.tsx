@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context-v2';
 import { CleanSessionReport } from '@/types/clean-reports';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,13 +36,8 @@ export function CleanSessionReportComponent({ sessionId, userId }: CleanSessionR
 
     try {
       setIsLoading(true);
-      const token = await firebaseUser.getIdToken();
       
-      const response = await fetch(`/api/clean-report?sessionId=${sessionId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await getCleanReport(sessionId);
 
       if (response.ok) {
         const data = await response.json();
@@ -55,9 +50,10 @@ export function CleanSessionReportComponent({ sessionId, userId }: CleanSessionR
         }
       } else if (response.status === 404) {
         // Report doesn't exist, try to generate it
-        await generateCleanReport();
+        await generateCleanReportLocal();
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error fetching clean report:', error);
       toast({
         title: "Error",
@@ -69,21 +65,13 @@ export function CleanSessionReportComponent({ sessionId, userId }: CleanSessionR
     }
   };
 
-  const generateCleanReport = async () => {
+  const generateCleanReportLocal = async () => {
     if (!firebaseUser || !targetUserId) return;
 
     try {
       setIsGenerating(true);
-      const token = await firebaseUser.getIdToken();
       
-      const response = await fetch('/api/clean-report', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ sessionId, regenerate: false }),
-      });
+      const response = await generateCleanReport({ sessionId, regenerate: false });
 
       if (response.ok) {
         const data = await response.json();
@@ -118,16 +106,8 @@ export function CleanSessionReportComponent({ sessionId, userId }: CleanSessionR
 
     try {
       setIsGeneratingPdf(true);
-      const token = await firebaseUser.getIdToken();
       
-      const response = await fetch('/api/clean-pdf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ sessionId }),
-      });
+      const response = await generateCleanPdf({ sessionId });
 
       if (response.ok) {
         const blob = await response.blob();
@@ -148,6 +128,7 @@ export function CleanSessionReportComponent({ sessionId, userId }: CleanSessionR
         throw new Error('Failed to generate PDF');
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error downloading PDF:', error);
       toast({
         title: "Error",

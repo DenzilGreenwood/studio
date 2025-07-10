@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Send, Brain, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context-v2';
 import { TTSControl } from '@/components/ui/tts-control';
 import { useTTSSettings } from '@/hooks/use-tts-settings';
 

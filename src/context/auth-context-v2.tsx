@@ -458,6 +458,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
+  
+  // Guard against SSG/SSR by checking if we're in a browser environment
+  if (typeof window === 'undefined') {
+    // Return a safe default during SSG/SSR - this should match AuthContextType exactly
+    return {
+      user: null,
+      firebaseUser: null,
+      dataService: null,
+      encryptionKey: null,
+      loading: true,
+      logout: async () => {},
+      deleteUserAccountAndData: async () => {},
+      refreshUserProfile: async () => {},
+      checkPassphraseAvailability: () => false,
+      handlePassphraseError: async () => {},
+      initializeDataService: async () => {},
+      authorityProfile: null,
+      authorityDataService: null,
+      hasPermission: () => false,
+      hasRole: () => false,
+      isAdmin: () => false,
+      switchToAdminMode: async () => {},
+      updateUserRole: async () => ({ success: false, error: 'SSR not supported' }),
+      grantPermission: async () => ({ success: false, error: 'SSR not supported' }),
+    };
+  }
+
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }

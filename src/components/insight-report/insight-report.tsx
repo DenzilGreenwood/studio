@@ -22,12 +22,13 @@ import {
 } from 'lucide-react';
 import { InsightReport } from '@/types';
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context-v2';
 import { useEncryption } from '@/lib/encryption-context';
 import { encryptData } from '@/lib/encryption';
 import { v4 as uuidv4 } from 'uuid';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { generateInsightReport } from '@/lib/firebase-functions-client';
 
 // Define ReactQuill component props interface
 interface ReactQuillProps {
@@ -487,19 +488,13 @@ async function generateReportContent(sessionData: {
 }) {
   try {
     // Make API call to server-side endpoint instead of importing Genkit directly
-    const response = await fetch('/api/generate-insight-report', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    const response = await generateInsightReport({
+      sessionData: {
+        circumstance: sessionData.circumstance || 'Reflection Session',
+        chatHistory: sessionData.chatHistory || [],
+        keyStatements: sessionData.keyStatements
       },
-      body: JSON.stringify({
-        sessionData: {
-          circumstance: sessionData.circumstance || 'Reflection Session',
-          chatHistory: sessionData.chatHistory || [],
-          keyStatements: sessionData.keyStatements
-        },
-        focusArea: sessionData.circumstance || undefined
-      }),
+      focusArea: sessionData.circumstance || undefined
     });
 
     if (!response.ok) {

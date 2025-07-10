@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { MessageSquare, Send, Loader2, Sparkles, Heart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { callJournalingAssistant } from '@/lib/firebase-functions-client';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -57,20 +58,16 @@ export function AiChatAssistant({
     setIsChatting(true);
 
     try {
-      const response = await fetch('/api/journaling-assistant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionSummary,
-          reframedBelief,
-          legacyStatement,
-          topEmotions,
-          circumstance,
-          userMessage: currentMessage,
-          conversationHistory: chatMessages,
-          currentReflection,
-          currentGoals
-        })
+      const response = await callJournalingAssistant({
+        sessionSummary,
+        reframedBelief,
+        legacyStatement,
+        topEmotions,
+        circumstance,
+        userMessage: currentMessage,
+        conversationHistory: chatMessages,
+        currentReflection,
+        currentGoals
       });
 
       const data = await response.json();

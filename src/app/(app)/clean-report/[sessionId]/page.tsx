@@ -4,7 +4,7 @@
 import React from 'react';
 import { useParams } from 'next/navigation';
 import { CleanSessionReportComponent } from '@/components/reports/clean-session-report';
-import { useAuth } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context-v2';
 import { Loader2 } from 'lucide-react';
 
 export default function CleanReportPage() {

@@ -32,6 +32,13 @@ export function SignupButton() {
       } catch (error) {
         // eslint-disable-next-line no-console
         console.error('Error checking user limit:', error);
+        // eslint-disable-next-line no-console
+        console.error('Error details:', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined,
+          type: typeof error,
+          error
+        });
         // Default to allowing signup if check fails
         setLimitStatus({ 
           allowed: true, 

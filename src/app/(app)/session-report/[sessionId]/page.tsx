@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams, notFound } from 'next/navigation'; 
-import { useAuth } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context-v2';
 import { db, doc, getDoc, collection, query, orderBy, getDocs, Timestamp } from '@/lib/firebase';
 import type { ProtocolSession, ChatMessage as FirestoreChatMessage, UserProfile } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

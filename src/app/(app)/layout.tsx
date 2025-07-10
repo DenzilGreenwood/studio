@@ -3,7 +3,7 @@
 
 import { AppHeader } from "@/components/layout/app-header";
 import { EncryptionBanner } from "@/components/encryption/encryption-status";
-import { useAuth } from "@/context/auth-context";
+import { useAuth } from "@/context/auth-context-v2";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";

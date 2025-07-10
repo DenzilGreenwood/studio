@@ -10,7 +10,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useAuth } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context-v2';
 import { submitFeedback } from '@/services/feedbackService';
 import { CreateFeedbackRequest, FeedbackContext, FEEDBACK_CONTEXTS } from '@/types/feedback';
 
