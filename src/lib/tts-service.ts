@@ -57,6 +57,36 @@ class TextToSpeechService {
     this.hasUserInteracted = true;
   }
 
+  // Ensure voices are loaded for Speech Synthesis API
+  private async ensureVoicesLoaded(): Promise<void> {
+    if (!this.speechSynthesis) return;
+
+    return new Promise<void>((resolve) => {
+      const voices = this.speechSynthesis!.getVoices();
+      if (voices.length > 0) {
+        resolve();
+        return;
+      }
+
+      // Wait for voices to be loaded
+      const onVoicesChanged = () => {
+        const voices = this.speechSynthesis!.getVoices();
+        if (voices.length > 0) {
+          this.speechSynthesis!.removeEventListener('voiceschanged', onVoicesChanged);
+          resolve();
+        }
+      };
+
+      this.speechSynthesis!.addEventListener('voiceschanged', onVoicesChanged);
+      
+      // Fallback timeout in case voices never load
+      setTimeout(() => {
+        this.speechSynthesis!.removeEventListener('voiceschanged', onVoicesChanged);
+        resolve();
+      }, 3000);
+    });
+  }
+
   // Use browser's Speech Synthesis API as a fallback
   async playTextWithSpeechSynthesis(text: string, options?: { speakingRate?: number; pitch?: number }): Promise<void> {
     if (!this.speechSynthesis) {

@@ -8,8 +8,8 @@ import { auth } from './firebase';
  * In development with emulator, this points to the local emulator
  */
 const FUNCTIONS_BASE_URL = process.env.NODE_ENV === 'development' 
-  ? 'http://localhost:5002/cognitiveinsight-e5c40/us-central1'
-  : 'https://us-central1-cognitiveinsight-e5c40.cloudfunctions.net';
+  ? 'http://localhost:5002/cognitiveinsight-ai-2f52b/us-central1'
+  : 'https://us-central1-cognitiveinsight-ai-2f52b.cloudfunctions.net';
 
 /**
  * Generic function to call Firebase Functions via HTTP
@@ -21,9 +21,10 @@ export async function callFirebaseFunction(
   options: {
     method?: 'GET' | 'POST';
     headers?: Record<string, string>;
+    timeout?: number;
   } = {}
 ): Promise<Response> {
-  const { method = 'POST', headers = {} } = options;
+  const { method = 'POST', headers = {}, timeout = 10000 } = options;
   
   // Get auth token if user is authenticated
   let authToken = '';
@@ -61,13 +62,40 @@ export async function callFirebaseFunction(
       ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
       ...headers,
     },
+    // Add timeout to prevent hanging requests
+    signal: AbortSignal.timeout(timeout),
   };
 
   if (method === 'POST' && data) {
     fetchOptions.body = JSON.stringify(data);
   }
 
-  return fetch(url, fetchOptions);
+  try {
+    const response = await fetch(url, fetchOptions);
+    
+    // Check if the response is ok
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+    
+    return response;
+  } catch (error) {
+    // Enhanced error handling
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        throw new Error(`Request to ${functionName} timed out after ${timeout}ms`);
+      } else if (error.message.includes('fetch')) {
+        // Network connectivity issue
+        if (process.env.NODE_ENV === 'development') {
+          throw new Error(`Cannot connect to Firebase Functions emulator at ${url}. Make sure the emulator is running with: firebase emulators:start`);
+        } else {
+          throw new Error(`Network error connecting to ${functionName} function`);
+        }
+      }
+    }
+    throw error;
+  }
 }
 
 /**
@@ -100,8 +128,39 @@ export const healthCheck = createCallableFunction<void, { status: string; timest
 // Protocol endpoint
 export const callProtocol = (data: unknown) => callFirebaseFunction('protocol', data);
 
-// User limit check
-export const checkUserLimit = () => callFirebaseFunction('userLimit', undefined, { method: 'GET' });
+// User limit check with enhanced error handling
+export const checkUserLimit = async (): Promise<Response> => {
+  try {
+    return await callFirebaseFunction('userLimit', undefined, { 
+      method: 'GET',
+      timeout: 5000 // Shorter timeout for UI responsiveness
+    });
+  } catch (error) {
+    // In development, if emulator isn't running, provide helpful error
+    if (process.env.NODE_ENV === 'development' && error instanceof Error && error.message.includes('emulator')) {
+      // eslint-disable-next-line no-console
+      console.warn('Firebase emulator not running. To start it, run: firebase emulators:start');
+    }
+    
+    // Return a mock response to prevent UI breaking
+    const mockResponse = new Response(
+      JSON.stringify({
+        allowed: true,
+        currentCount: 0,
+        maxUsers: 100,
+        remainingSlots: 100,
+        message: 'Registration is open (user limit check unavailable)'
+      }),
+      {
+        status: 200,
+        statusText: 'OK',
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+    
+    return mockResponse;
+  }
+};
 
 // Clarity summary
 export const getClaritySummary = (data: unknown) => callFirebaseFunction('claritySummary', data);

@@ -7,7 +7,7 @@
 import {
   storeEncryptedPassphrase,
   recoverPassphrase,
-  findUserByEmail,
+  findUIDByEmail as findUserByEmail,
   hasRecoveryData
 } from '../../src/services/recoveryService';
 

@@ -26,26 +26,34 @@ const emotionalTonePrompt = ai.definePrompt({
   model: 'googleai/gemini-1.5-pro-latest',
   input: { schema: EmotionalToneInputSchema },
   output: { schema: EmotionalToneOutputSchema },
-  prompt: `You are an expert emotional tone analyzer specializing in cognitive consulting sessions.
+  prompt: `You are an expert emotional tone analyzer for The Cognitive Edge Protocol™, specializing in detecting breakthrough moments and cognitive discoveries.
 
-Analyze the emotional tone of this user message:
+**Message to Analyze:**
 "{{{userMessage}}}"
 
-{{#context}}Context: {{{context}}}{{/context}}
-{{#previousTone}}Previous emotional tone: {{{previousTone}}}{{/previousTone}}
+{{#context}}**Protocol Context:** {{{context}}}{{/context}}
+{{#previousTone}}**Previous Emotional State:** {{{previousTone}}}{{/previousTone}}
 
-Respond in this exact JSON format:
-{
-  "primaryEmotion": "specific emotional term",
-  "intensity": number from 1-10,
-  "secondaryEmotion": "optional secondary emotion or null",
-  "confidence": number from 0.0-1.0,
-  "progression": "improving" | "stable" | "declining" | "breakthrough",
-  "triggerWords": ["word1", "word2", "word3"]
-}
+**Analysis Focus:**
+- **Identity Moments**: Detect when users connect with their authentic self
+- **Mental Model Discoveries**: When they reveal their core way of seeing the world
+- **Cognitive Edge Insights**: Moments of recognizing unique thinking patterns
+- **Agency Shifts**: From feeling acted upon to feeling empowered
+- **Breakthrough Energy**: Sudden clarity or "aha" moments
+- **Crisis-to-Catalyst**: Transformation of problems into opportunities
 
-Use specific, nuanced emotional terms like "cautious optimism", "frustrated determination", "vulnerable openness" for primary emotion.
-Focus on emotions relevant to cognitive consulting: anxiety, depression, hope, clarity, confusion, resistance, acceptance, breakthrough moments, etc.`,
+**Emotional Categories for Cognitive Edge Protocol:**
+- Crisis states: overwhelmed, stuck, frustrated, defeated, anxious
+- Discovery states: curious, intrigued, contemplative, engaged
+- Breakthrough states: empowered, clear, confident, determined, inspired
+- Integration states: resolved, grounded, purposeful, aligned
+
+**Special Detection:**
+- Look for language indicating self-recognition ("I am...", "I realize...", "My way of...")
+- Notice shifts from external blame to internal power
+- Detect moments of connecting with unique abilities or perspectives
+
+Analyze the emotional tone with focus on their cognitive and identity journey:`,
 });
 
 const emotionalToneFlow = ai.defineFlow(
@@ -74,7 +82,7 @@ const emotionalToneFlow = ai.defineFlow(
         triggerWords: Array.isArray(output.triggerWords) ? output.triggerWords : [],
       };
     } catch (error) {
-      console.error('Error in emotional tone analysis flow:', error);
+      logAIFlowExecution('emotionalToneFlow', input, undefined, error instanceof Error ? error : new Error(String(error)));
       
       // Return a safe fallback response
       return {
@@ -101,7 +109,7 @@ export async function analyzeEmotionalTone(input: EmotionalToneInput): Promise<E
     logAIFlowExecution('analyzeEmotionalTone', input, undefined, error instanceof Error ? error : new Error(String(error)));
     
     // Return fallback instead of throwing to prevent breaking the conversation
-    console.warn('Emotional tone analysis failed, using fallback:', formattedError);
+    logAIFlowExecution('analyzeEmotionalTone-fallback', input, undefined, new Error(`Fallback used: ${formattedError}`));
     return {
       primaryEmotion: detectEmotionFallback(input.userMessage),
       intensity: 5,
