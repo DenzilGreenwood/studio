@@ -48,6 +48,18 @@ export function useAuthSubmission() {
     values: SignupFormValues,
     setRecoveryKeyDialog: (dialog: { isOpen: boolean; recoveryKey: string }) => void
   ) => {
+    // Validate passphrase strength
+    const passphraseValidation = validatePassphrase(values.passphrase);
+    if (!passphraseValidation.isValid) {
+      toast({
+        variant: "destructive",
+        title: "Weak Passphrase",
+        description: passphraseValidation.errors.join(", ")
+      });
+      return;
+    }
+
+    // Check user limit
     const limitCheck = await canCreateNewUser();
     if (!limitCheck.allowed) {
       toast({
@@ -59,7 +71,7 @@ export function useAuthSubmission() {
     }
 
     const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-    const recoveryKey = await storeEncryptedPassphrase(userCredential.user.uid, values.passphrase);
+    const recoveryKey = await recoveryOperations.storeEncryptedPassphrase(userCredential.user.uid, values.passphrase);
     
     const pseudonymToUse = values.pseudonym ? values.pseudonym.trim() : "";
 
@@ -73,7 +85,7 @@ export function useAuthSubmission() {
     });
 
     try {
-      await incrementUserCount();
+      await userLimitOperations.incrementUserCount();
     } catch (countError) {
       toast({
         variant: "destructive",

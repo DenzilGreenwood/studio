@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Eye, Trash2, Search, BookOpen } from 'lucide-react';
 import { useAuth } from '@/context/auth-context-v2';
 import { useToast } from "@/hooks/use-toast";
-import { journalOperations } from '@/lib/journal-operations';
+import { journalOperations } from '@/lib/data-services';
 import { JournalEntry } from '@/types/journals';
 import { Timestamp } from 'firebase/firestore';
 

@@ -11,7 +11,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/context/auth-context-v2';
-import { submitFeedback } from '@/services/feedbackService';
+import { feedbackOperations } from '@/lib/data-services';
 import { CreateFeedbackRequest, FeedbackContext, FEEDBACK_CONTEXTS } from '@/types/feedback';
 
 interface FeedbackComponentProps {
@@ -65,7 +65,7 @@ export function FeedbackComponent({
       version: process.env.NEXT_PUBLIC_APP_VERSION
     };
 
-    const result = await submitFeedback(user.uid, feedbackRequest);
+    const result = await feedbackOperations.submitFeedback(user.uid, feedbackRequest);
 
     if (result.success) {
       setSubmitted(true);

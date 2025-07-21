@@ -11,7 +11,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/auth-context-v2';
-import { getFeedbackAnalytics } from '@/services/feedbackService';
+import { feedbackOperations } from '@/lib/data-services';
 import { FeedbackAnalytics, FEEDBACK_CONTEXTS } from '@/types/feedback';
 
 interface AdminFeedbackDashboardProps {
@@ -52,7 +52,7 @@ export function AdminFeedbackDashboard({ className = '' }: AdminFeedbackDashboar
           break;
       }
 
-      const result = await getFeedbackAnalytics(
+      const result = await feedbackOperations.getFeedbackAnalytics(
         startDate, 
         endDate,
         selectedContext === 'all' ? undefined : selectedContext
