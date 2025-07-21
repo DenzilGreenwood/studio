@@ -7,9 +7,29 @@ import { Input } from "@/components/ui/input";
 import { Brain, Lock, Shield, Sparkles, User, ArrowRight, Mail, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Footer } from "@/components/layout/footer";
-import { Badge } from "@/components/ui/badge";
-import React, { useState } from 'react';
-import { useToast } from "@/hooks/use-toast";
+import { CaseStudyCard } from "@/components/case-study/case-study-card";
+
+interface FeatureCardProps {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}
+
+function FeatureCard({ icon, title, description }: FeatureCardProps) {
+  return (
+    <Card className="transform transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+      <CardHeader className="items-center">
+        <div className="rounded-full bg-primary/10 p-4 mb-4">
+          {icon}
+        </div>
+        <CardTitle className="font-headline text-2xl">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <CardDescription className="text-center text-base">{description}</CardDescription>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function HomePage() {
   const [email, setEmail] = useState('');
@@ -61,17 +81,36 @@ export default function HomePage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-secondary/30 text-foreground">
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-secondary/30">
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="w-full px-4 sm:px-6 flex h-16 items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Brain className="h-8 w-8 text-primary" />
             <span className="font-headline text-2xl font-semibold text-primary">CognitiveInsight</span>
           </Link>
-          <nav className="flex items-center gap-4">
-            <Button variant="ghost" asChild>
-              <a href="mailto:founder@CognitiveInsight.ai">Contact</a>
-            </Button>
+          <nav className="flex items-center gap-6">
+            <div className="hidden md:flex items-center gap-6">
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="#ai">AI Companion</Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="#1on1">1:1 Guidance</Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="#case-study">Case Study</Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="#contact">Contact</Link>
+              </Button>
+            </div>
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" asChild>
+                <Link href="/login">Login</Link>
+              </Button>
+              <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                <Link href="/signup">Get Started</Link>
+              </Button>
+            </div>
           </nav>
         </div>
       </header>

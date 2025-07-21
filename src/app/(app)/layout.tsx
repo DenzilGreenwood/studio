@@ -1,7 +1,7 @@
 // src/app/(app)/layout.tsx
 "use client"; 
 
-import { AppHeader } from "@/components/layout/app-header";
+import { Navigation } from "@/components/layout/navigation";
 import { EncryptionBanner } from "@/components/encryption/encryption-status";
 import { useAuth } from "@/context/auth-context-v2";
 import { useRouter } from "next/navigation";
@@ -41,7 +41,7 @@ export default function AppLayout({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <AppHeader />
+      <Navigation variant="app" />
       <EncryptionBanner />
       <main className="flex-1">{children}</main>
       <Footer />
