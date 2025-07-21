@@ -76,7 +76,7 @@ export async function storeEncryptedPassphrase(userId: string, passphrase: strin
     };
 
     // Store encrypted passphrase blob - server never sees plaintext passphrase
-    await setDoc(doc(db, userId, "recovery", userId), recoveryData);
+    await setDoc(doc(db, `users/${userId}/recovery/data`), recoveryData);
     
     return recoveryKey;
   } catch {
@@ -87,7 +87,7 @@ export async function storeEncryptedPassphrase(userId: string, passphrase: strin
 // Zero-Knowledge Recovery: Returns encrypted blob for client-side decryption
 export async function getEncryptedPassphraseBlob(userId: string): Promise<string | null> {
   try {
-    const snapshot = await getDoc(doc(db, userId, "recovery", userId));
+    const snapshot = await getDoc(doc(db, `users/${userId}/recovery/data`));
     if (!snapshot.exists()) {
       return null;
     }
@@ -108,7 +108,7 @@ export async function getRecoveryDataInfo(userId: string): Promise<{
   isLegacyFormat?: boolean;
 } | null> {
   try {
-    const snapshot = await getDoc(doc(db, userId, "recovery", userId));
+    const snapshot = await getDoc(doc(db, `users/${userId}/recovery/data`));
     if (!snapshot.exists()) {
       return { exists: false };
     }
@@ -292,7 +292,7 @@ export async function getEncryptedPassphraseBlobByUID(uid: string): Promise<{
       };
     }
 
-    const snapshot = await getDoc(doc(db, uid, "recovery", uid));
+    const snapshot = await getDoc(doc(db, `users/${uid}/recovery/data`));
     if (!snapshot.exists()) {
       return {
         encryptedBlob: null,
@@ -424,7 +424,7 @@ export async function recoverPassphraseByEmail(email: string, recoveryKey: strin
 // Check if recovery data exists for a user
 export async function hasRecoveryData(userId: string): Promise<boolean> {
   try {
-    const snapshot = await getDoc(doc(db, userId,"recovery", userId));
+    const snapshot = await getDoc(doc(db, `users/${userId}/recovery/data`));
     return snapshot.exists() && snapshot.data()?.encryptedPassphrase;
   } catch {
     return false;
