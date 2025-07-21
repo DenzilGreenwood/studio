@@ -1,6 +1,5 @@
 /**
  * Health Check Function
- * Migrated from: src/app/api/health/route.ts
  */
 
 import { onRequest } from "firebase-functions/v2/https";

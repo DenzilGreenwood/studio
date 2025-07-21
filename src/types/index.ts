@@ -526,10 +526,6 @@ export interface AuthorityUserProfile extends Record<string, unknown> {
   adminSince?: Date;
   lastAdminAction?: Date;
   
-  // Migration tracking
-  migrationStatus: 'pending' | 'completed' | 'failed';
-  authorityMigrationDate?: Date;
-  
   // DataService compatibility
   lastDataServiceUpdate?: Date;
   encryptionVersion?: string;
@@ -563,18 +559,6 @@ export interface SystemConfiguration extends BaseDocument {
   updatedBy: string;
   updatedAt: Date;
   environment: 'development' | 'staging' | 'production';
-}
-
-/**
- * Migration statistics
- */
-export interface MigrationStats {
-  totalUsers: number;
-  migrated: number;
-  failed: number;
-  errors: string[];
-  startTime: Date;
-  endTime?: Date;
 }
 
 /**

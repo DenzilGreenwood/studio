@@ -9,16 +9,21 @@
     "sourceMap": true,
     "strict": true,
     "target": "es2020",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["../src/*"]
-    }
+    "skipLibCheck": true
   },
   "compileOnSave": true,
   "include": [
-    "src"
+    "src/**/*"
   ],
   "exclude": [
-    "../src/ai/flows/**/*"
+    "../src",
+    "../types",
+    "../components",
+    "../app",
+    "../lib",
+    "../hooks",
+    "../context",
+    "../services",
+    "node_modules/**/*"
   ]
 }

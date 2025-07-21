@@ -66,8 +66,7 @@ export function ComponentUpgradeWrapper({
             Authority System Active
           </Badge>
           <span>
-            {componentName} • Role: {authorityProfile.role} • 
-            Migration: {authorityProfile.migrationStatus}
+            {componentName} • Role: {authorityProfile.role}
           </span>
         </div>
       )}

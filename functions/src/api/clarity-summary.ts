@@ -1,12 +1,10 @@
 /**
  * Clarity Summary Function
- * Migrated from: src/app/api/clarity-summary/route.ts
  */
 
 import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { handleCors, validateMethod, logError } from "../utils/common";
-import type { ClaritySummaryInput } from "../../../src/types/index.js";
 
 interface ClaritySummaryRequestBody {
   reframedBelief: string;
@@ -42,7 +40,7 @@ export const claritySummaryFunction = onRequest({
     // Import and call the Genkit clarity summary flow
     const { generateClaritySummary } = await import('../lib/ai-flows.js');
     
-    const summaryInput: ClaritySummaryInput = {
+    const summaryInput = {
       reframedBelief: body.reframedBelief,
       legacyStatement: body.legacyStatement,
       topEmotions: Array.isArray(body.topEmotions) ? body.topEmotions.join(', ') : body.topEmotions

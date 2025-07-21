@@ -7,7 +7,7 @@ import { db, collection, query, orderBy, getDocs, doc, getDoc } from '@/lib/fire
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { getCompleteSessionDataWithMigration } from '@/lib/session-report-utils';
+import { getCompleteSessionData } from '@/lib/session-report-utils';
 
 export default function DebugPage() {
   const { firebaseUser } = useAuth();
@@ -56,24 +56,12 @@ export default function DebugPage() {
         data: doc.data()
       }));
 
-      // Test migration for first session if it exists
-      let migrationTest = null;
-      if (sessions.length > 0) {
-        const firstSessionId = sessions[0].id;
-        try {
-          migrationTest = await getCompleteSessionDataWithMigration(firebaseUser.uid, firstSessionId);
-        } catch (error: any) {
-          migrationTest = { error: error?.message || 'Unknown error' };
-        }
-      }
-
       setDebugData({
         userId: firebaseUser.uid,
         email: firebaseUser.email,
         sessions: sessions,
         reports: reports,
         journals: journals,
-        migrationTest: migrationTest,
         timestamp: new Date().toISOString()
       });
 
@@ -91,7 +79,7 @@ export default function DebugPage() {
         <CardHeader>
           <CardTitle>Session Debug Tool</CardTitle>
           <p className="text-sm text-muted-foreground">
-            This diagnostic page helps check session data and migration status.
+            This diagnostic page helps check session data and reports.
           </p>
         </CardHeader>
         <CardContent>

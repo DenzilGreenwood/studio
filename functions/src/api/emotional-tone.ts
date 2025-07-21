@@ -1,6 +1,5 @@
 /**
  * Emotional Tone Function
- * Migrated from: src/app/api/emotional-tone/route.ts
  */
 
 import { onRequest } from "firebase-functions/v2/https";

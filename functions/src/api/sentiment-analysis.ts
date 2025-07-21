@@ -1,6 +1,5 @@
 /**
  * Sentiment Analysis Function
- * Migrated from: src/app/api/sentiment-analysis/route.ts
  */
 
 import { onRequest } from "firebase-functions/v2/https";

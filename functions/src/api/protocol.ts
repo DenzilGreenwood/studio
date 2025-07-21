@@ -1,6 +1,5 @@
 /**
  * Protocol Function
- * Migrated from: src/app/api/protocol/route.ts
  */
 
 import { onRequest } from "firebase-functions/v2/https";

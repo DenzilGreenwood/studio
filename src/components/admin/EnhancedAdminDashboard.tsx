@@ -11,7 +11,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/auth-context-v2';
-import { Permission, UserRole } from '@/types';
+import { Permission } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,8 +33,7 @@ interface AdminDashboardProps {
 export function EnhancedAdminDashboard({ className = '' }: AdminDashboardProps) {
   const { 
     hasPermission, 
-    hasRole, 
-    isAdmin, 
+  
     authorityProfile, 
     authorityDataService
   } = useAuth();
@@ -42,28 +41,6 @@ export function EnhancedAdminDashboard({ className = '' }: AdminDashboardProps) 
   const [analytics, setAnalytics] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Check admin access
-  if (!isAdmin()) {
-    return (
-      <div className={`bg-red-50 border border-red-200 rounded-lg p-6 ${className}`}>
-        <div className="flex items-center gap-3">
-          <AlertTriangle className="h-5 w-5 text-red-600" />
-          <div>
-            <h2 className="text-xl font-semibold text-red-800 mb-2">Access Denied</h2>
-            <p className="text-red-600">
-              You need admin privileges to view this dashboard.
-            </p>
-            {authorityProfile && (
-              <p className="text-sm text-red-500 mt-2">
-                Current role: {authorityProfile.role}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // Load analytics data
   const loadAnalytics = async () => {
@@ -90,7 +67,7 @@ export function EnhancedAdminDashboard({ className = '' }: AdminDashboardProps) 
     if (hasPermission(Permission.READ_ANALYTICS)) {
       loadAnalytics();
     }
-  }, [hasPermission, authorityDataService]);
+  }, [hasPermission, authorityDataService, loadAnalytics]);
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -317,39 +294,6 @@ export function EnhancedAdminDashboard({ className = '' }: AdminDashboardProps) 
               >
                 Export Analytics Data
               </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Migration Tools */}
-        {hasRole(UserRole.ADMIN) && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Authority Migration
-              </CardTitle>
-              <CardDescription>
-                Manage authority system migration
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  disabled={loading}
-                >
-                  Migration Status
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  disabled={loading}
-                >
-                  Run Migration Check
-                </Button>
-              </div>
             </CardContent>
           </Card>
         )}

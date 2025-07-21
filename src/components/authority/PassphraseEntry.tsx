@@ -1,5 +1,5 @@
 /**
- * Passphrase Entry Component for Authority Migration
+ * Passphrase Entry Component for Authority System
  * Version: 1.0.0
  * Date: January 15, 2025
  * 

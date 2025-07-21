@@ -1,10 +1,9 @@
 /**
- * Updated Auth Context Integration with DataService
+ * Auth Context Integration with DataService
  * Version: 2.1.0
  * Date: September 15, 2025
  * 
- * Migration guide for integrating the authentication system
- * with the new DataService architecture and ZKE v1.1.2
+ * Authentication system with DataService architecture and ZKE v1.1.2
  */
 
 "use client";
@@ -21,7 +20,6 @@ import type { UserProfile } from '@/types';
 import { type DataService } from '@/dataservice/dataservice';
 import { deriveKey } from '@/dataservice/cryptoService';
 import { AuthorityDataService } from '@/dataservice/authorityDataService';
-import { AuthorityInitializer } from '@/dataservice/authorityMigration';
 import { UserRole, Permission, type AuthorityUserProfile } from '@/types';
 
 /**
@@ -54,15 +52,6 @@ interface AuthContextType {
 }
 
 /**
- * Service result interface for consistent error handling
- */
-interface ServiceResult<T = void> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
-
-/**
  * DataService compatible user profile interface
  */
 interface DataServiceUserProfile extends Record<string, unknown> {
@@ -79,7 +68,6 @@ interface DataServiceUserProfile extends Record<string, unknown> {
   sessionCount?: number;
   // DataService specific fields
   lastDataServiceUpdate?: Date;
-  migrationStatus?: 'pending' | 'completed' | 'failed';
   encryptionVersion?: string;
 }
 
@@ -110,24 +98,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const salt = await getUserSalt(firebaseUser.uid);
       const key = await deriveKey(passphrase, salt);
       
-      // Initialize authority system
-      const authorityResult = await AuthorityInitializer.initializeAuthoritySession(
-        firebaseUser.uid,
-        key
-      );
+      // Initialize authority system directly
+      const authorityDataService = new AuthorityDataService(firebaseUser.uid, key);
       
-      if (!authorityResult.success) {
-        throw new Error(authorityResult.error || 'Failed to initialize authority system');
+      // Try to load authority profile
+      const profileResult = await authorityDataService.getDocument('profile', 'main');
+      let authorityProfile: AuthorityUserProfile | null = null;
+      
+      if (profileResult.success && profileResult.data) {
+        authorityProfile = profileResult.data as AuthorityUserProfile;
+        authorityDataService.setAuthorityProfile(authorityProfile);
       }
       
       // Set authority system state
-      setAuthorityDataService(authorityResult.authorityDataService || null);
-      setAuthorityProfile(authorityResult.authorityProfile || null);
+      setAuthorityDataService(authorityDataService);
+      setAuthorityProfile(authorityProfile);
       
       // Set regular DataService and user profile
       setEncryptionKey(key);
-      setDataService(authorityResult.authorityDataService || null);
-      setUser(authorityResult.authorityProfile as UserProfile || null);
+      setDataService(authorityDataService);
+      setUser(authorityProfile as UserProfile || null);
       
       // DataService initialized with authority system
     } catch (error) {
@@ -192,35 +182,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(initialProfile as UserProfile);
     } else {
       throw new Error('Failed to create user profile');
-    }
-  };
-
-  /**
-   * Migrate existing user data to DataService
-   */
-  const _migrateUserDataToDataService = async (service: DataService): Promise<ServiceResult> => {
-    try {
-      // This would contain migration logic for existing users
-      // 1. Read existing data from Firestore using old structure
-      // 2. Encrypt and save using DataService
-      // 3. Mark migration as complete
-      
-      // Starting user data migration...
-      
-      // For now, just mark as completed
-      const migrationResult = await service.updateDocument('profile', 'main', {
-        migrationStatus: 'completed',
-        lastDataServiceUpdate: new Date(),
-        encryptionVersion: '1.1.2'
-      });
-
-      return migrationResult;
-    } catch (error) {
-      // Migration failed
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Migration failed'
-      };
     }
   };
 
