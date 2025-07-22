@@ -78,7 +78,7 @@ export function useAuthSubmission() {
       toast({
         variant: "destructive",
         title: "User Count Update Warning",
-        description: `Your account was created, but we encountered an issue. ${countError instanceof Error ? error.message : ""}`,
+        description: `Your account was created, but we encountered an issue. ${countError instanceof Error ? countError.message : ""}`,
       });
     }
 

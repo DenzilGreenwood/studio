@@ -232,6 +232,12 @@ export async function recoverPassphraseZeroKnowledge(userId: string, recoveryKey
   }
 }
 
+// Simple wrapper for findUserByEmail - returns just the UID string or null
+export async function findUserByEmail(email: string): Promise<string | null> {
+  const result = await findUIDByEmail(email);
+  return result.uid;
+}
+
 // STEP 1: Find UID by email for recovery initiation
 export async function findUIDByEmail(email: string): Promise<UIDRecoveryResult> {
   try {
