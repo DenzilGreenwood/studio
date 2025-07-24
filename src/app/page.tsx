@@ -1,13 +1,15 @@
 
 'use client';
 
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Brain, Lock, Shield, Sparkles, User, ArrowRight, Mail, Loader2 } from "lucide-react";
+import { Brain, Lock, Shield, Sparkles, User, ArrowRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Footer } from "@/components/layout/footer";
-import { CaseStudyCard } from "@/components/case-study/case-study-card";
+import { useToast } from "@/hooks/use-toast";
 
 interface FeatureCardProps {
   icon: React.ReactNode;
@@ -55,13 +57,16 @@ export default function HomePage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          email: email,
           type: 'interest-notification',
           data: { email: email },
         }),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to send notification.');
+        throw new Error(result.error || 'Failed to send notification.');
       }
 
       toast({
@@ -70,10 +75,11 @@ export default function HomePage() {
       });
       setEmail(''); // Clear input on success
     } catch (error) {
+      console.error('Submit error:', error);
       toast({
         variant: "destructive",
         title: "Submission Failed",
-        description: "Could not submit your email. Please try again later.",
+        description: error instanceof Error ? error.message : "Could not submit your email. Please try again later.",
       });
     } finally {
       setIsSubmitting(false);
@@ -205,10 +211,10 @@ export default function HomePage() {
                 <div className="max-w-3xl mx-auto">
                     <Shield className="h-16 w-16 text-primary mx-auto mb-6" />
                     <h2 className="font-headline text-3xl font-bold text-foreground sm:text-4xl">
-                        Privacy Isn't a Feature. It's the Foundation.
+                        Privacy Isn&apos;t a Feature. It&apos;s the Foundation.
                     </h2>
                     <p className="mt-4 text-lg text-muted-foreground">
-                        CognitiveInsight is built on the MyImaginaryFriends.ai Zero-Knowledge Encryption Framework. Your passphrase is your key. Without it, no one—not even us—can access your data. If you lose your passphrase and recovery key, your data is irretrievable. That's our promise of true privacy.
+                        CognitiveInsight is built on the MyImaginaryFriends.ai Zero-Knowledge Encryption Framework. Your passphrase is your key. Without it, no one—not even us—can access your data. If you lose your passphrase and recovery key, your data is irretrievable. That&apos;s our promise of true privacy.
                     </p>
                 </div>
             </div>
@@ -217,26 +223,6 @@ export default function HomePage() {
       </main>
 
       <Footer />
-    </div>
-  );
-}
-
-interface FeatureCardProps {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}
-
-function FeatureCard({ icon, title, description }: FeatureCardProps) {
-  return (
-    <div className="text-center">
-      <div className="flex justify-center mb-4">
-        <div className="rounded-full bg-primary/10 p-4">
-          {icon}
-        </div>
-      </div>
-      <h3 className="font-headline text-xl font-semibold mb-2">{title}</h3>
-      <p className="text-muted-foreground">{description}</p>
     </div>
   );
 }

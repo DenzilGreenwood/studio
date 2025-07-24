@@ -22,6 +22,7 @@ import { growthReportFunction } from "./api/growth-report";
 import { cleanReportFunction } from "./api/clean-report";
 import { cleanPdfFunction } from "./api/clean-pdf";
 import { genkitFunction } from "./api/genkit";
+import { sendEmailFunction } from "./api/send-email";
 
 // Set global options for cost control
 setGlobalOptions({ 
@@ -47,3 +48,4 @@ export const growthReport = growthReportFunction;
 export const cleanReport = cleanReportFunction;
 export const cleanPdf = cleanPdfFunction;
 export const genkit = genkitFunction;
+export const sendEmail = sendEmailFunction;

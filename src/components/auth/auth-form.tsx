@@ -2,8 +2,11 @@
 "use client";
 
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -19,25 +22,33 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Eye, EyeOff, Key, Shield, Copy, AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { AuthFormProps, LoginFormValues, SignupFormValues } from "@/lib/auth-schemas";
-import { useAuthForm } from "@/hooks/useAuthForm";
+import { AuthFormProps, LoginFormValues, SignupFormValues, loginSchema, signupSchema } from "@/lib/auth-schemas";
 import { useAuthSubmission } from "@/hooks/useAuthSubmission";
 import { AuthFormHeader } from "./AuthFormHeader";
 import { RecoveryModeAlert } from "./RecoveryModeAlert";
 import { PassphraseRecoveryDisplay } from "./PassphraseRecoveryDisplay";
 import { selectAllText, copyToClipboard } from "@/lib/clipboard-utils";
 import { Alert, AlertDescription } from "../ui/alert";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/auth-context-v2";
+import { findUIDByEmail, hasRecoveryData, recoverPassphraseZeroKnowledge, storeEncryptedPassphrase } from "@/services/recoveryService";
+import { canCreateNewUser, incrementUserCount } from "@/lib/user-limit";
+import { createUserProfileDocument } from "@/context/auth-context";
+import { validatePassphrase } from "@/lib/encryption";
 
 
 export function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { setPassphrase } = useEncryption();
+  const { initializeDataService } = useAuth();
+  const { handleAuthError } = useAuthSubmission();
   const [showPassphrase, setShowPassphrase] = useState(false);
   const [showConfirmPassphrase, setShowConfirmPassphrase] = useState(false);
   const [recoveryKeyDialog, setRecoveryKeyDialog] = useState<{ isOpen: boolean; recoveryKey: string; }>({ isOpen: false, recoveryKey: "" });
   const [isRecoveryMode, setIsRecoveryMode] = useState(false);
   const [recoveredPassphrase, setRecoveredPassphrase] = useState<string>("");
+
+  const toggleRecoveryMode = () => setIsRecoveryMode(!isRecoveryMode);
 
   const form = useForm<LoginFormValues | SignupFormValues>({
     resolver: zodResolver(mode === "signup" ? signupSchema : loginSchema),
@@ -54,36 +65,6 @@ export function AuthForm({ mode }: AuthFormProps) {
       }),
     },
   });
-
-  const copyRecoveryKey = async () => {
-    try {
-      // Use modern Clipboard API
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(recoveryKeyDialog.recoveryKey);
-        toast({ title: "Recovery Key Copied", description: "Save this key securely!" });
-        return;
-      }
-      
-      // If Clipboard API is not available, show manual copy instructions
-      throw new Error('Clipboard API not available');
-    } catch {
-      // Auto-select the text and show instructions for manual copying
-      const element = document.getElementById('recovery-key-text');
-      if (element) {
-        const range = document.createRange();
-        range.selectNodeContents(element);
-        const selection = window.getSelection();
-        selection?.removeAllRanges();
-        selection?.addRange(range);
-      }
-      
-      toast({ 
-        title: "Copy Manually", 
-        description: "The text is now selected. Press Ctrl+C (or Cmd+C) to copy the recovery key.",
-        duration: 5000 // Show longer to give user time to copy
-      });
-    }
-  };
 
   const handleRecoveryKeySubmit = async (recoveryKey: string, email: string) => {
     try {
@@ -114,8 +95,8 @@ export function AuthForm({ mode }: AuthFormProps) {
 
       await signInWithEmailAndPassword(auth, email, password);
       
-      // Step 5: Set the recovered passphrase in encryption context
-      await setPassphrase(decryptedPassphrase);
+      // Step 5: Initialize DataService with the recovered passphrase
+      await initializeDataService(decryptedPassphrase);
       setRecoveredPassphrase(decryptedPassphrase);
       
       // Step 6: Zero-Knowledge Success - passphrase shown in UI only (never emailed)
@@ -207,8 +188,8 @@ export function AuthForm({ mode }: AuthFormProps) {
 
         await signInWithEmailAndPassword(auth, loginValues.email, loginValues.password);
         
-        // Use encryption context to set passphrase (triggers profile refresh)
-        await setPassphrase(loginValues.passphrase);
+        // Initialize DataService with passphrase (triggers profile refresh)
+        await initializeDataService(loginValues.passphrase);
         
         toast({ title: "Login Successful", description: "Redirecting..." });
         router.push("/protocol");
@@ -248,8 +229,8 @@ export function AuthForm({ mode }: AuthFormProps) {
           await updateProfile(userCredential.user, { displayName: pseudonymToUse });
         }
         
-        // Use encryption context to set passphrase (needed for encryption and triggers profile refresh)
-        await setPassphrase(signupValues.passphrase);
+        // Initialize DataService with passphrase (needed for encryption and triggers profile refresh)
+        await initializeDataService(signupValues.passphrase);
 
         await createUserProfileDocument(userCredential.user, { 
           pseudonym: pseudonymToUse
@@ -509,7 +490,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                 Copy Key
               </Button>
               <Button onClick={handleDialogClose} className="w-full flex-1" variant="outline">
-                I've Saved It
+                I&apos;ve Saved It
               </Button>
             </div>
             <Alert variant="destructive">

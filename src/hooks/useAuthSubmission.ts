@@ -7,6 +7,7 @@ import { auth } from "@/lib/firebase";
 import { createUserProfileDocument } from "@/context/auth-context";
 import { canCreateNewUser, incrementUserCount } from "@/lib/user-limit";
 import { storeEncryptedPassphrase } from "@/services/recoveryService";
+import { validatePassphrase } from "@/lib/encryption";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useEncryption } from "@/lib/encryption-context";
@@ -71,7 +72,7 @@ export function useAuthSubmission() {
     }
 
     const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-    const recoveryKey = await recoveryOperations.storeEncryptedPassphrase(userCredential.user.uid, values.passphrase);
+    const recoveryKey = await storeEncryptedPassphrase(userCredential.user.uid, values.passphrase);
     
     const pseudonymToUse = values.pseudonym ? values.pseudonym.trim() : "";
 
@@ -85,12 +86,12 @@ export function useAuthSubmission() {
     });
 
     try {
-      await userLimitOperations.incrementUserCount();
+      await incrementUserCount();
     } catch (countError) {
       toast({
         variant: "destructive",
         title: "User Count Update Warning",
-        description: `Your account was created, but we encountered an issue. ${countError instanceof Error ? error.message : ""}`,
+        description: `Your account was created, but we encountered an issue. ${countError instanceof Error ? countError.message : ""}`,
       });
     }
 
