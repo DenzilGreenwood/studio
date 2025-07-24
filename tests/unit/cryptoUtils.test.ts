@@ -5,9 +5,9 @@
  */
 
 import {
-  generateRecoveryKey,
-  validatePassphrase
+  generateRecoveryKey
 } from '../../src/lib/cryptoUtils';
+import { validatePassphrase } from '../../src/lib/encryption';
 
 describe('CryptoUtils', () => {
   describe('generateRecoveryKey', () => {
@@ -55,7 +55,7 @@ describe('CryptoUtils', () => {
         const result = validatePassphrase(input);
         expect(result.isValid).toBe(false);
         expectedErrors.forEach(error => {
-          expect(result.errors.some(e => e.includes(error))).toBe(true);
+          expect(result.errors.some((e: string) => e.includes(error))).toBe(true);
         });
       });
     });

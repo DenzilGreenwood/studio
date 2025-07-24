@@ -89,7 +89,7 @@ export function EncryptionIntegrationExample() {
     setLoading(true);
     
     try {
-      const result = await decryptSession(mockEncryptedSession);
+      const result = await enhancedEncryption.decryptSession(mockEncryptedSession);
       setDecryptionResults(prev => ({ ...prev, session: result }));
       
       if (result.success) {
