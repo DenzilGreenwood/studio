@@ -21,6 +21,9 @@ import { type DataService } from '@/dataservice/dataservice';
 import { deriveKey } from '@/dataservice/cryptoService';
 import { AuthorityDataService } from '@/dataservice/authorityDataService';
 import { UserRole, Permission, type AuthorityUserProfile } from '@/types';
+import { checkPassphrasesWithToast, checkPassphrasesDetailed, type PassphraseCheckResult } from '@/utils/passphrase-check';
+import { encryptForStorage } from '@/lib/encryption-context';
+import { canUserProceed } from '@/utils/passphrase-utils';
 
 /**
  * Enhanced Auth Context with DataService Integration
@@ -35,8 +38,11 @@ interface AuthContextType {
   deleteUserAccountAndData: () => Promise<void>;
   refreshUserProfile: () => Promise<void>;
   checkPassphraseAvailability: () => boolean;
+  canUserProceed: () => boolean;
   handlePassphraseError: () => Promise<void>;
   initializeDataService: (passphrase: string) => Promise<void>;
+  checkPassphrasesWithToast: () => PassphraseCheckResult;
+  checkPassphrasesDetailed: () => PassphraseCheckResult;
 
   // Enhanced authority features
   authorityProfile: AuthorityUserProfile | null;
@@ -91,15 +97,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     try {
-      // Store passphrase
-      sessionStorage.setItem('userPassphrase', passphrase);
+      // Store passphrase encrypted for security
+      sessionStorage.setItem('userPassphrase', encryptForStorage(passphrase));
       
-      // Derive encryption key from passphrase
+      // Validate that the user can now proceed with the new passphrase
+      if (!canUserProceed()) {
+        throw new Error('Invalid passphrase: cannot decrypt user data');
+      }
+      
+      // Derive encryption key from passphrase (for compatibility)
       const salt = await getUserSalt(firebaseUser.uid);
       const key = await deriveKey(passphrase, salt);
       
-      // Initialize authority system directly
-      const authorityDataService = new AuthorityDataService(firebaseUser.uid, key);
+      // Initialize authority system directly with passphrase
+      const authorityDataService = new AuthorityDataService(firebaseUser.uid, passphrase);
       
       // Try to load authority profile
       const profileResult = await authorityDataService.getDocument('profile', 'main');
@@ -119,7 +130,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setDataService(authorityDataService);
       setUser(authorityProfile as UserProfile || null);
       
-      // DataService initialized with authority system
     } catch (error) {
       // Clear sensitive data on error
       sessionStorage.removeItem('userPassphrase');
@@ -215,6 +225,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!firebaseUser || !dataService) {
       throw new Error('User not authenticated or DataService not initialized');
     }
+    
+    if (!canUserProceed()) {
+      throw new Error('User passphrase validation failed - cannot proceed with account deletion');
+    }
 
     setLoading(true);
     const userId = firebaseUser.uid;
@@ -268,6 +282,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * Refresh user profile using DataService
    */
   const refreshUserProfile = async (): Promise<void> => {
+    if (!canUserProceed()) {
+      // User passphrase validation failed, cannot refresh profile
+      return;
+    }
+    
     if (!dataService) {
       // DataService not initialized, cannot refresh profile
       return;
@@ -281,10 +300,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   /**
-   * Check if passphrase is available
+   * Check if passphrase is available - using unified validation
    */
   const checkPassphraseAvailability = (): boolean => {
-    return !!dataService && !!encryptionKey;
+    return canUserProceed();
   };
 
   /**
@@ -299,6 +318,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     sessionStorage.removeItem('userPassphrase');
     
     // Redirect to login would be handled by the calling component
+  };
+
+  /**
+   * Check both user passphrase and session passphrase with toast notifications
+   */
+  const checkPassphrasesWithToastFunc = (): PassphraseCheckResult => {
+    return checkPassphrasesWithToast();
+  };
+
+  /**
+   * Check passphrases with detailed status and recommendations
+   */
+  const checkPassphrasesDetailedFunc = (): PassphraseCheckResult => {
+    return checkPassphrasesDetailed();
   };
 
   /**
@@ -344,6 +377,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * Update user role (admin operation)
    */
   const updateUserRole = async (targetUserId: string, role: UserRole): Promise<{ success: boolean; error?: string }> => {
+    if (!canUserProceed()) {
+      return { success: false, error: 'User passphrase validation failed' };
+    }
+    
     if (!authorityDataService) {
       return { success: false, error: 'Authority DataService not initialized' };
     }
@@ -355,6 +392,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * Grant permission to user (admin operation)
    */
   const grantPermission = async (targetUserId: string, permission: Permission): Promise<{ success: boolean; error?: string }> => {
+    if (!canUserProceed()) {
+      return { success: false, error: 'User passphrase validation failed' };
+    }
+    
     if (!authorityDataService) {
       return { success: false, error: 'Authority DataService not initialized' };
     }
@@ -394,8 +435,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     deleteUserAccountAndData,
     refreshUserProfile,
     checkPassphraseAvailability,
+    canUserProceed,
     handlePassphraseError,
     initializeDataService,
+    checkPassphrasesWithToast: checkPassphrasesWithToastFunc,
+    checkPassphrasesDetailed: checkPassphrasesDetailedFunc,
 
     // Enhanced authority features
     authorityProfile,
@@ -433,8 +477,11 @@ export const useAuth = (): AuthContextType => {
       deleteUserAccountAndData: async () => {},
       refreshUserProfile: async () => {},
       checkPassphraseAvailability: () => false,
+      canUserProceed: () => false,
       handlePassphraseError: async () => {},
       initializeDataService: async () => {},
+      checkPassphrasesWithToast: () => ({ userPassphraseAvailable: false, sessionPassphraseAvailable: false, bothAvailable: false, message: 'SSR not supported' }),
+      checkPassphrasesDetailed: () => ({ userPassphraseAvailable: false, sessionPassphraseAvailable: false, bothAvailable: false, message: 'SSR not supported' }),
       authorityProfile: null,
       authorityDataService: null,
       hasPermission: () => false,

@@ -4,7 +4,7 @@ import React from 'react';
 import { User } from 'firebase/auth';
 import { LoginForm, SignupForm } from './authentication';
 import { PassphraseForm, RecoveryKeyDisplay } from './encryption';
-import { createUserProfileDocument } from '@/context/auth-context';
+import { createUserProfileDocument } from '@/context/auth-context-v2';
 import { storeEncryptedPassphrase } from '@/services/recoveryService';
 import { canCreateNewUser, incrementUserCount } from '@/lib/user-limit';
 import { useAuth } from '@/context/auth-context-v2';

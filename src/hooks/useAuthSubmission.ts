@@ -4,7 +4,7 @@
 
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, type AuthError } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { createUserProfileDocument } from "@/context/auth-context";
+import { createUserProfileDocument } from "@/context/auth-context-v2";
 import { canCreateNewUser, incrementUserCount } from "@/lib/user-limit";
 import { storeEncryptedPassphrase } from "@/services/recoveryService";
 import { validatePassphrase } from "@/lib/encryption";

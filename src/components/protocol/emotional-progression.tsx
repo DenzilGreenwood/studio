@@ -136,7 +136,7 @@ export function EmotionalProgression({ emotionalProgression, keyStatements }: Em
                         </p>
                         {emotion.triggerMessage && (
                           <p className="text-xs text-muted-foreground mt-1 italic">
-                            "{emotion.triggerMessage.substring(0, 80)}..."
+                            &ldquo;{emotion.triggerMessage.substring(0, 80)}...&rdquo;
                           </p>
                         )}
                       </div>
@@ -179,7 +179,7 @@ export function EmotionalProgression({ emotionalProgression, keyStatements }: Em
                         </Badge>
                       </div>
                       <p className="text-sm text-blue-800 italic mb-2">
-                        "{keyStatements.reframedBelief.statement}"
+                        &ldquo;{keyStatements.reframedBelief.statement}&rdquo;
                       </p>
                       <div className="flex items-center gap-2 text-xs text-blue-600">
                         <Signpost className="h-3 w-3" />
@@ -205,7 +205,7 @@ export function EmotionalProgression({ emotionalProgression, keyStatements }: Em
                         </Badge>
                       </div>
                       <p className="text-sm text-purple-800 italic mb-2">
-                        "{keyStatements.legacyStatement.statement}"
+                        &ldquo;{keyStatements.legacyStatement.statement}&rdquo;
                       </p>
                       <div className="flex items-center gap-2 text-xs text-purple-600">
                         <Signpost className="h-3 w-3" />

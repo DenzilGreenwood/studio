@@ -8,7 +8,7 @@ import { useAuth } from "@/context/auth-context-v2";
 import { useAuthSubmission } from "@/hooks/useAuthSubmission";
 import { findUIDByEmail, hasRecoveryData, recoverPassphraseZeroKnowledge, storeEncryptedPassphrase } from "@/services/recoveryService";
 import { canCreateNewUser, incrementUserCount } from "@/lib/user-limit";
-import { createUserProfileDocument } from "@/context/auth-context";
+import { createUserProfileDocument } from "@/context/auth-context-v2";
 import { validatePassphrase } from "@/lib/encryption";
 import type { LoginFormValues, SignupFormValues } from "@/lib/auth-schemas";
 import { UseFormReturn } from "react-hook-form";

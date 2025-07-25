@@ -1,11 +1,16 @@
 // src/components/encryption/encryption-status.tsx
 "use client";
 
-import { Shield, Lock, AlertTriangle } from "lucide-react";
+import React from "react";
+import { Shield, Lock, AlertTriangle, Key } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useEncryption } from "@/lib/encryption-context";
 import { getEncryptionStatus } from "@/lib/data-encryption";
+import { canUserProceed } from "@/utils/passphrase-utils";
+import PassphraseForm from "@/components/auth/encryption/PassphraseForm";
 
 interface EncryptionStatusProps {
   showDetails?: boolean;
@@ -13,11 +18,10 @@ interface EncryptionStatusProps {
 }
 
 export function EncryptionStatus({ showDetails = false, className = "" }: EncryptionStatusProps) {
-  const { isPassphraseSet } = useEncryption();
   const status = getEncryptionStatus();
   
-  // Use the encryption context as the primary source, but also check sessionStorage as fallback
-  const isEncryptionActive = isPassphraseSet || status.hasPassphrase;
+  // Use canUserProceed as the definitive check for consistency with the rest of the app
+  const isEncryptionActive = canUserProceed();
 
   if (!showDetails) {
     // Compact version for headers/navigation
@@ -90,7 +94,31 @@ export function EncryptionStatus({ showDetails = false, className = "" }: Encryp
 }
 
 export function EncryptionBanner() {
-  const { isPassphraseSet } = useEncryption();
+  const { setPassphrase } = useEncryption();
+  const [showPassphraseDialog, setShowPassphraseDialog] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
+  
+  // Use canUserProceed for consistent validation
+  const isPassphraseSet = canUserProceed();
+
+  const handlePassphraseSubmit = async (passphrase: string) => {
+    setIsLoading(true);
+    try {
+      // eslint-disable-next-line no-console
+      console.log('🔑 EncryptionStatus: Attempting to set passphrase...');
+      await setPassphrase(passphrase);
+      // eslint-disable-next-line no-console
+      console.log('✅ EncryptionStatus: Passphrase set successfully');
+      setShowPassphraseDialog(false);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('❌ EncryptionStatus: Failed to set passphrase:', error);
+      // The PassphraseForm will handle showing the error to the user
+      // Error is already thrown up to the form component
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   if (isPassphraseSet) {
     return (
@@ -112,18 +140,44 @@ export function EncryptionBanner() {
   }
 
   return (
-    <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6">
-      <div className="flex items-start">
-        <AlertTriangle className="h-5 w-5 text-amber-400 mr-3 mt-0.5 flex-shrink-0" />
-        <div>
-          <p className="text-sm text-amber-800">
-            <strong>🔒 Data Encrypted - Access Locked</strong>
-          </p>
-          <p className="text-xs text-amber-700 mt-1">
-            Your data is safely encrypted in our database. Please enter your passphrase to decrypt and access your private information on this device.
-          </p>
+    <>
+      <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6">
+        <div className="flex items-start">
+          <AlertTriangle className="h-5 w-5 text-amber-400 mr-3 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm text-amber-800">
+              <strong>🔒 Data Encrypted - Access Locked</strong>
+            </p>
+            <p className="text-xs text-amber-700 mt-1">
+              Your data is safely encrypted in our database. Please enter your passphrase to decrypt and access your private information on this device.
+            </p>
+            <div className="mt-3">
+              <Button 
+                onClick={() => setShowPassphraseDialog(true)}
+                variant="outline"
+                size="sm"
+                className="bg-amber-100 border-amber-300 text-amber-800 hover:bg-amber-200"
+              >
+                <Key className="h-4 w-4 mr-2" />
+                Enter Passphrase
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+
+      <Dialog open={showPassphraseDialog} onOpenChange={setShowPassphraseDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enter Your Encryption Passphrase</DialogTitle>
+          </DialogHeader>
+          <PassphraseForm
+            onPassphraseSubmit={handlePassphraseSubmit}
+            isLoading={isLoading}
+            mode="enter"
+          />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

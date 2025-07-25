@@ -3,7 +3,21 @@
  * Version: 1.0.0
  * Date: July 9, 2025
  * 
- * Centralized TypeScript module for managing all Firestore interactions
+ * Centralized TypeScrip    try {
+      const docPath = this.getDocPath(collection, docId);
+      const encryptedJson = await encryptDataWithMetadata(JSON.stringify(data), this.passphrase);
+      const encryptedBlob = JSON.parse(encryptedJson);
+      
+      const docData: EncryptedDocument = {
+        encryptedData: encryptedBlob.encryptedData,
+        metadata: {
+          salt: encryptedBlob.salt,
+          iv: encryptedBlob.iv,
+          version: encryptedBlob.version
+        },
+        updatedAt: serverTimestamp(),
+        ...(merge ? {} : { createdAt: serverTimestamp() })
+      };anaging all Firestore interactions
  * in compliance with Zero-Knowledge Encryption (ZKE) architecture v1.1.2
  * and Firebase security rules.
  */
@@ -29,7 +43,7 @@ import {
   type WhereFilterOp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { encryptContent, decryptContent } from '@/dataservice/cryptoService';
+import { encryptDataWithMetadata, decryptDataWithMetadata } from '@/lib/encryption';
 
 /**
  * Base data types
@@ -43,25 +57,6 @@ type QueryFilter = {
   field: string;
   operator: WhereFilterOp;
   value: unknown;
-};
-
-/**
- * Query options type
- */
-type QueryOptions = {
-  orderBy?: { field: string; direction: 'asc' | 'desc' };
-  limit?: number;
-  where?: QueryFilter[];
-};
-
-/**
- * Batch operation type
- */
-type BatchOperation = {
-  type: 'set' | 'update' | 'delete';
-  collection: string;
-  docId: string;
-  data?: BaseDocument;
 };
 
 /**
@@ -88,21 +83,6 @@ interface JournalEntry extends BaseDocument {
 }
 
 /**
- * Session data interface
- */
-interface SessionData extends BaseDocument {
-  // Session-specific fields can be added here
-}
-
-/**
- * Report data interface
- */
-interface ReportData extends BaseDocument {
-  reportType: string;
-  generatedAt: string;
-}
-
-/**
  * Trash item interface
  */
 interface TrashItem extends BaseDocument {
@@ -115,11 +95,11 @@ interface TrashItem extends BaseDocument {
  */
 export class DataService {
   private userId: string;
-  private encryptionKey: CryptoKey;
+  private passphrase: string;
 
-  constructor(userId: string, encryptionKey: CryptoKey) {
+  constructor(userId: string, passphrase: string) {
     this.userId = userId;
-    this.encryptionKey = encryptionKey;
+    this.passphrase = passphrase;
   }
 
   /**
@@ -153,10 +133,16 @@ export class DataService {
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const docPath = this.getDocPath(collection, docId);
-      const encrypted = await encryptContent(data, this.encryptionKey);
+      const encryptedJson = await encryptDataWithMetadata(JSON.stringify(data), this.passphrase);
+      const encrypted = JSON.parse(encryptedJson);
       
       const docData: EncryptedDocument = {
-        ...encrypted,
+        encryptedData: encrypted.encryptedData,
+        metadata: {
+          salt: encrypted.salt,
+          iv: encrypted.iv,
+          version: encrypted.version
+        },
         updatedAt: serverTimestamp(),
         ...(merge ? {} : { createdAt: serverTimestamp() })
       };
@@ -190,7 +176,16 @@ export class DataService {
       }
 
       const encryptedData = snapshot.data() as EncryptedDocument;
-      const decrypted = await decryptContent<T>(encryptedData, this.encryptionKey);
+      const encryptionBlob = {
+        encryptedData: encryptedData.encryptedData,
+        salt: encryptedData.metadata.salt,
+        iv: encryptedData.metadata.iv,
+        version: encryptedData.metadata.version,
+        algorithm: 'AES-GCM-256',
+        timestamp: Date.now()
+      };
+      const decryptedString = await decryptDataWithMetadata(JSON.stringify(encryptionBlob), this.passphrase);
+      const decrypted = JSON.parse(decryptedString) as T;
 
       return { success: true, data: decrypted };
     } catch (error) {
@@ -289,7 +284,16 @@ export class DataService {
 
       for (const docSnapshot of querySnapshot.docs) {
         const encryptedData = docSnapshot.data() as EncryptedDocument;
-        const decrypted = await decryptContent<T>(encryptedData, this.encryptionKey);
+        const encryptionBlob = {
+          encryptedData: encryptedData.encryptedData,
+          salt: encryptedData.metadata.salt,
+          iv: encryptedData.metadata.iv,
+          version: encryptedData.metadata.version,
+          algorithm: 'AES-GCM-256',
+          timestamp: Date.now()
+        };
+        const decryptedString = await decryptDataWithMetadata(JSON.stringify(encryptionBlob), this.passphrase);
+        const decrypted = JSON.parse(decryptedString) as T;
         documents.push({ ...decrypted, id: docSnapshot.id } as T);
       }
 
@@ -323,7 +327,16 @@ export class DataService {
 
           try {
             const encryptedData = snapshot.data() as EncryptedDocument;
-            const decrypted = await decryptContent<T>(encryptedData, this.encryptionKey);
+            const encryptionBlob = {
+              encryptedData: encryptedData.encryptedData,
+              salt: encryptedData.metadata.salt,
+              iv: encryptedData.metadata.iv,
+              version: encryptedData.metadata.version,
+              algorithm: 'AES-GCM-256',
+              timestamp: Date.now()
+            };
+            const decryptedString = await decryptDataWithMetadata(JSON.stringify(encryptionBlob), this.passphrase);
+            const decrypted = JSON.parse(decryptedString) as T;
             callback(decrypted);
           } catch (error) {
             callback(null, error instanceof Error ? error.message : 'Decryption failed');
@@ -382,7 +395,16 @@ export class DataService {
 
             for (const docSnapshot of querySnapshot.docs) {
               const encryptedData = docSnapshot.data() as EncryptedDocument;
-              const decrypted = await decryptContent<T>(encryptedData, this.encryptionKey);
+              const encryptionBlob = {
+                encryptedData: encryptedData.encryptedData,
+                salt: encryptedData.metadata.salt,
+                iv: encryptedData.metadata.iv,
+                version: encryptedData.metadata.version,
+                algorithm: 'AES-GCM-256',
+                timestamp: Date.now()
+              };
+              const decryptedString = await decryptDataWithMetadata(JSON.stringify(encryptionBlob), this.passphrase);
+              const decrypted = JSON.parse(decryptedString) as T;
               documents.push({ ...decrypted, id: docSnapshot.id } as T);
             }
 
@@ -425,9 +447,15 @@ export class DataService {
             if (!operation.data) {
               throw new Error('Data required for set operation');
             }
-            const encrypted = await encryptContent(operation.data, this.encryptionKey);
+            const encryptedJson = await encryptDataWithMetadata(JSON.stringify(operation.data), this.passphrase);
+            const encrypted = JSON.parse(encryptedJson);
             const docData: EncryptedDocument = {
-              ...encrypted,
+              encryptedData: encrypted.encryptedData,
+              metadata: {
+                salt: encrypted.salt,
+                iv: encrypted.iv,
+                version: encrypted.version
+              },
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp()
             };
@@ -439,9 +467,15 @@ export class DataService {
               throw new Error('Data required for update operation');
             }
             // For updates, we need to encrypt the partial data
-            const encryptedUpdate = await encryptContent(operation.data, this.encryptionKey);
+            const encryptedUpdateJson = await encryptDataWithMetadata(JSON.stringify(operation.data), this.passphrase);
+            const encryptedUpdate = JSON.parse(encryptedUpdateJson);
             batch.update(docRef, {
-              ...encryptedUpdate,
+              encryptedData: encryptedUpdate.encryptedData,
+              metadata: {
+                salt: encryptedUpdate.salt,
+                iv: encryptedUpdate.iv,
+                version: encryptedUpdate.version
+              },
               updatedAt: serverTimestamp()
             });
             break;
@@ -539,8 +573,8 @@ export class DataService {
 /**
  * Factory function to create DataService instance
  */
-export function createDataService(userId: string, encryptionKey: CryptoKey): DataService {
-  return new DataService(userId, encryptionKey);
+export function createDataService(userId: string, passphrase: string): DataService {
+  return new DataService(userId, passphrase);
 }
 
 /**

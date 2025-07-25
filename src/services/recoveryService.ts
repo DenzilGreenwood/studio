@@ -14,15 +14,13 @@
 // 2. getEncryptedPassphraseBlob(uid) -> returns encrypted blob
 // 3. recoverPassphraseZeroKnowledge(uid, recoveryKey) -> client-side decrypt
 
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { doc, setDoc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { signInWithEmailAndPassword, type User } from "firebase/auth";
 import { 
-  decryptPassphrase, 
-  generateRecoveryKey 
-} from "@/lib/cryptoUtils";
-import { 
-  encryptPassphraseWithRecoveryKeyAndMetadata, 
-  decryptPassphraseWithRecoveryKeyAndMetadata,
+  generateRecoveryKey,
+  encryptDataWithMetadata, 
+  decryptDataWithMetadata,
   getEncryptionBlobInfo 
 } from "@/lib/encryption";
 
@@ -48,6 +46,7 @@ export interface RecoveryResult {
   passphrase: string | null;
   success: boolean;
   error?: string;
+  requiresAuth?: boolean;
   metadata?: {
     version?: string;
     algorithm?: string;
@@ -56,13 +55,20 @@ export interface RecoveryResult {
   };
 }
 
+// Authentication result interface
+export interface AuthRecoveryResult {
+  user: User | null;
+  success: boolean;
+  error?: string;
+}
+
 // Called on user signup - stores encrypted passphrase blob with recovery key
 export async function storeEncryptedPassphrase(userId: string, passphrase: string) {
   try {
     const recoveryKey = generateRecoveryKey();
     
-    // Use enhanced encryption with comprehensive metadata
-    const encryptedBlob = await encryptPassphraseWithRecoveryKeyAndMetadata(passphrase, recoveryKey);
+    // Use unified encryption with metadata
+    const encryptedBlob = await encryptDataWithMetadata(passphrase, recoveryKey);
     
     // Extract metadata for audit purposes
     const blobInfo = getEncryptionBlobInfo(encryptedBlob);
@@ -85,8 +91,19 @@ export async function storeEncryptedPassphrase(userId: string, passphrase: strin
 }
 
 // Zero-Knowledge Recovery: Returns encrypted blob for client-side decryption
+// REQUIRES AUTHENTICATION: Only authenticated users can access their recovery data
 export async function getEncryptedPassphraseBlob(userId: string): Promise<string | null> {
   try {
+    // Verify user is authenticated and accessing their own data
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error("Authentication required to access recovery data");
+    }
+    
+    if (currentUser.uid !== userId) {
+      throw new Error("Access denied: Cannot access another user's recovery data");
+    }
+
     const snapshot = await getDoc(doc(db, `users/${userId}/recovery/data`));
     if (!snapshot.exists()) {
       return null;
@@ -100,6 +117,7 @@ export async function getEncryptedPassphraseBlob(userId: string): Promise<string
 }
 
 // Get recovery data metadata without decrypting
+// REQUIRES AUTHENTICATION: Only authenticated users can access their recovery metadata
 export async function getRecoveryDataInfo(userId: string): Promise<{
   exists: boolean;
   version?: string;
@@ -108,6 +126,16 @@ export async function getRecoveryDataInfo(userId: string): Promise<{
   isLegacyFormat?: boolean;
 } | null> {
   try {
+    // Verify user is authenticated and accessing their own data
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error("Authentication required to access recovery data");
+    }
+    
+    if (currentUser.uid !== userId) {
+      throw new Error("Access denied: Cannot access another user's recovery data");
+    }
+
     const snapshot = await getDoc(doc(db, `users/${userId}/recovery/data`));
     if (!snapshot.exists()) {
       return { exists: false };
@@ -128,9 +156,72 @@ export async function getRecoveryDataInfo(userId: string): Promise<{
   }
 }
 
-// Enhanced legacy function with automatic format detection
+// AUTHENTICATED RECOVERY: Sign in with email/password to access recovery data
+export async function authenticateForRecovery(email: string, password: string): Promise<AuthRecoveryResult> {
+  try {
+    if (!email || !password) {
+      return {
+        user: null,
+        success: false,
+        error: "Email and password are required for authentication"
+      };
+    }
+
+    const userCredential = await signInWithEmailAndPassword(auth, email.toLowerCase().trim(), password);
+    
+    // Verify recovery data exists for this user
+    const hasRecovery = await hasRecoveryData(userCredential.user.uid);
+    if (!hasRecovery) {
+      return {
+        user: null,
+        success: false,
+        error: "No recovery data available for this account"
+      };
+    }
+
+    return {
+      user: userCredential.user,
+      success: true
+    };
+  } catch (error) {
+    let errorMessage = "Authentication failed";
+    
+    if (error instanceof Error) {
+      if (error.message.includes('user-not-found')) {
+        errorMessage = "No account found with this email address";
+      } else if (error.message.includes('wrong-password')) {
+        errorMessage = "Incorrect password";
+      } else if (error.message.includes('invalid-email')) {
+        errorMessage = "Invalid email format";
+      } else if (error.message.includes('too-many-requests')) {
+        errorMessage = "Too many failed attempts. Please try again later";
+      } else {
+        errorMessage = error.message;
+      }
+    }
+
+    return {
+      user: null,
+      success: false,
+      error: errorMessage
+    };
+  }
+}
+
+// Enhanced legacy function with authentication requirement
+// Enhanced legacy function with authentication requirement
 export async function recoverPassphrase(userId: string, recoveryKey: string): Promise<string | null> {
   try {
+    // Verify user is authenticated and accessing their own data
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error("Authentication required to access recovery data");
+    }
+    
+    if (currentUser.uid !== userId) {
+      throw new Error("Access denied: Cannot access another user's recovery data");
+    }
+
     // Validate recovery key format (should be 64 character hex string)
     if (!recoveryKey || recoveryKey.length !== 64 || !/^[a-f0-9]+$/i.test(recoveryKey)) {
       return null;
@@ -141,27 +232,20 @@ export async function recoverPassphrase(userId: string, recoveryKey: string): Pr
       return null;
     }
 
-    // Auto-detect format and decrypt accordingly
-    const blobInfo = getEncryptionBlobInfo(encryptedBlob);
-    
-    if (blobInfo.isLegacyFormat) {
-      // Use legacy decryption for backward compatibility
-      return await decryptPassphrase(encryptedBlob, recoveryKey);
-    } else {
-      // Use enhanced decryption for new format
-      return await decryptPassphraseWithRecoveryKeyAndMetadata(encryptedBlob, recoveryKey);
-    }
+    // Use unified decryption with automatic format detection
+    return await decryptDataWithMetadata(encryptedBlob, recoveryKey);
   } catch {
     return null;
   }
 }
 
 // Zero-Knowledge Recovery - Returns decrypted passphrase for UI display only
-// Enhanced with automatic format detection and improved error messages
+// REQUIRES AUTHENTICATION: User must be signed in to access their recovery data
 export async function recoverPassphraseZeroKnowledge(userId: string, recoveryKey: string): Promise<{
   passphrase: string | null;
   success: boolean;
   error?: string;
+  requiresAuth?: boolean;
   metadata?: {
     version?: string;
     algorithm?: string;
@@ -169,6 +253,25 @@ export async function recoverPassphraseZeroKnowledge(userId: string, recoveryKey
   };
 }> {
   try {
+    // Check authentication first
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      return {
+        passphrase: null,
+        success: false,
+        requiresAuth: true,
+        error: "Authentication required. Please sign in to access your recovery data."
+      };
+    }
+    
+    if (currentUser.uid !== userId) {
+      return {
+        passphrase: null,
+        success: false,
+        error: "Access denied: Cannot access another user's recovery data."
+      };
+    }
+
     // Validate recovery key format
     if (!recoveryKey || recoveryKey.length !== 64 || !/^[a-f0-9]+$/i.test(recoveryKey)) {
       return {
@@ -191,15 +294,8 @@ export async function recoverPassphraseZeroKnowledge(userId: string, recoveryKey
     // Auto-detect format and extract metadata
     const blobInfo = getEncryptionBlobInfo(encryptedBlob);
     
-    let decryptedPassphrase: string;
-    
-    if (blobInfo.isLegacyFormat) {
-      // Use legacy decryption for backward compatibility
-      decryptedPassphrase = await decryptPassphrase(encryptedBlob, recoveryKey);
-    } else {
-      // Use enhanced decryption for new format
-      decryptedPassphrase = await decryptPassphraseWithRecoveryKeyAndMetadata(encryptedBlob, recoveryKey);
-    }
+    // Use unified decryption with automatic format detection
+    const decryptedPassphrase = await decryptDataWithMetadata(encryptedBlob, recoveryKey);
     
     if (!decryptedPassphrase) {
       return {
@@ -274,7 +370,7 @@ export async function findUIDByEmail(email: string): Promise<UIDRecoveryResult> 
   }
 }
 
-// STEP 2: Retrieve encrypted blob by UID (Zero-Knowledge)
+// STEP 2: Retrieve encrypted blob by UID (Zero-Knowledge) - REQUIRES AUTHENTICATION
 export async function getEncryptedPassphraseBlobByUID(uid: string): Promise<{
   encryptedBlob: string | null;
   metadata?: {
@@ -289,6 +385,22 @@ export async function getEncryptedPassphraseBlobByUID(uid: string): Promise<{
       return {
         encryptedBlob: null,
         error: "Invalid UID provided"
+      };
+    }
+
+    // Verify user is authenticated and accessing their own data
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      return {
+        encryptedBlob: null,
+        error: "Authentication required to access recovery data"
+      };
+    }
+    
+    if (currentUser.uid !== uid) {
+      return {
+        encryptedBlob: null,
+        error: "Access denied: Cannot access another user's recovery data"
       };
     }
 
@@ -319,7 +431,7 @@ export async function getEncryptedPassphraseBlobByUID(uid: string): Promise<{
   }
 }
 
-// STEP 3: Complete Zero-Knowledge Recovery with UID
+// STEP 3: Complete Zero-Knowledge Recovery with UID - REQUIRES AUTHENTICATION
 export async function performZeroKnowledgeRecovery(uid: string, recoveryKey: string): Promise<RecoveryResult> {
   try {
     // Validate inputs
@@ -328,6 +440,25 @@ export async function performZeroKnowledgeRecovery(uid: string, recoveryKey: str
         passphrase: null,
         success: false,
         error: "Invalid UID provided"
+      };
+    }
+
+    // Check authentication first
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      return {
+        passphrase: null,
+        success: false,
+        requiresAuth: true,
+        error: "Authentication required to access recovery data"
+      };
+    }
+    
+    if (currentUser.uid !== uid) {
+      return {
+        passphrase: null,
+        success: false,
+        error: "Access denied: Cannot access another user's recovery data"
       };
     }
 
@@ -352,14 +483,8 @@ export async function performZeroKnowledgeRecovery(uid: string, recoveryKey: str
     // Auto-detect format and extract metadata
     const blobInfo = getEncryptionBlobInfo(blobResult.encryptedBlob);
     
-    let decryptedPassphrase: string;
-    
-    // Perform client-side decryption based on format
-    if (blobInfo.isLegacyFormat) {
-      decryptedPassphrase = await decryptPassphrase(blobResult.encryptedBlob, recoveryKey);
-    } else {
-      decryptedPassphrase = await decryptPassphraseWithRecoveryKeyAndMetadata(blobResult.encryptedBlob, recoveryKey);
-    }
+    // Use unified decryption with automatic format detection
+    const decryptedPassphrase = await decryptDataWithMetadata(blobResult.encryptedBlob, recoveryKey);
     
     if (!decryptedPassphrase) {
       return {
@@ -397,7 +522,45 @@ export async function performZeroKnowledgeRecovery(uid: string, recoveryKey: str
   }
 }
 
-// UNIFIED RECOVERY FLOW: Email -> UID -> Recovery
+// UNIFIED AUTHENTICATED RECOVERY FLOW: Email + Password + Recovery Key
+export async function recoverPassphraseWithAuthentication(
+  email: string, 
+  password: string, 
+  recoveryKey: string
+): Promise<RecoveryResult> {
+  try {
+    // Step 1: Authenticate user with email/password
+    const authResult = await authenticateForRecovery(email, password);
+    if (!authResult.success) {
+      return {
+        passphrase: null,
+        success: false,
+        requiresAuth: true,
+        error: authResult.error || "Authentication failed"
+      };
+    }
+
+    if (!authResult.user) {
+      return {
+        passphrase: null,
+        success: false,
+        requiresAuth: true,
+        error: "Authentication failed - no user returned"
+      };
+    }
+
+    // Step 2: Perform zero-knowledge recovery with authenticated user
+    return await performZeroKnowledgeRecovery(authResult.user.uid, recoveryKey);
+  } catch (error) {
+    return {
+      passphrase: null,
+      success: false,
+      error: error instanceof Error ? error.message : "Recovery failed"
+    };
+  }
+}
+
+// UNIFIED RECOVERY FLOW: Email -> UID -> Recovery (DEPRECATED - Use authenticated version)
 export async function recoverPassphraseByEmail(email: string, recoveryKey: string): Promise<RecoveryResult> {
   try {
     // Step 1: Find UID by email
@@ -421,9 +584,19 @@ export async function recoverPassphraseByEmail(email: string, recoveryKey: strin
   }
 }
 
-// Check if recovery data exists for a user
+// Check if recovery data exists for a user - REQUIRES AUTHENTICATION
 export async function hasRecoveryData(userId: string): Promise<boolean> {
   try {
+    // Verify user is authenticated and accessing their own data
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      return false;
+    }
+    
+    if (currentUser.uid !== userId) {
+      return false;
+    }
+
     const snapshot = await getDoc(doc(db, `users/${userId}/recovery/data`));
     return snapshot.exists() && snapshot.data()?.encryptedPassphrase;
   } catch {

@@ -2,6 +2,7 @@
 
 // 1. During Signup
 import { storeEncryptedPassphrase } from '@/services/recoveryService';
+import { encryptForStorage } from '@/lib/encryption-context';
 // import { useEncryption } from '@/lib/encryption-context'; // For React components
 
 async function _handleSignup(userId: string, passphrase: string) {
@@ -16,7 +17,8 @@ async function _handleSignup(userId: string, passphrase: string) {
   // setPassphrase(passphrase);
   
   // OR store passphrase in session directly (if outside React component)
-  sessionStorage.setItem('userPassphrase', passphrase);
+  // SECURITY: Always encrypt before storing in sessionStorage
+  sessionStorage.setItem('userPassphrase', encryptForStorage(passphrase));
 }
 
 // 2. During Login
@@ -26,7 +28,8 @@ async function _handleLogin(passphrase: string) {
   // setPassphrase(passphrase); // This also triggers profile refresh
   
   // OR store passphrase in session directly (if outside React component)
-  sessionStorage.setItem('userPassphrase', passphrase);
+  // SECURITY: Always encrypt before storing in sessionStorage
+  sessionStorage.setItem('userPassphrase', encryptForStorage(passphrase));
 }
 
 // 3. During Recovery
@@ -43,7 +46,8 @@ async function _handleRecovery(userId: string, recoveryKey: string) {
     // setPassphrase(recoveredPassphrase);
     
     // OR store in session for immediate use
-    sessionStorage.setItem('userPassphrase', recoveredPassphrase);
+    // SECURITY: Always encrypt before storing in sessionStorage
+    sessionStorage.setItem('userPassphrase', encryptForStorage(recoveredPassphrase));
   } else {
     console.log("Recovery failed - invalid recovery key");
   }

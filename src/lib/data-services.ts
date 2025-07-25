@@ -63,16 +63,12 @@ import {
   ERROR_CONTEXTS
 } from './error-reporter';
 
-import { decryptData } from './encryption';
 import { 
-  decryptPassphrase, 
-  generateRecoveryKey 
-} from '@/lib/cryptoUtils';
-import { 
-  encryptPassphraseWithRecoveryKeyAndMetadata, 
-  decryptPassphraseWithRecoveryKeyAndMetadata,
+  decryptDataWithMetadata,
+  generateRecoveryKey,
+  encryptDataWithMetadata,
   getEncryptionBlobInfo 
-} from '@/lib/encryption';
+} from './encryption';
 
 import type { 
   UserProfile, 
@@ -784,11 +780,9 @@ const journalOperations = {
     
     if (data.encryptedContent && userPassphrase) {
       try {
-        const decryptedContent = await decryptData(
+        const decryptedContent = await decryptDataWithMetadata(
           data.encryptedContent,
-          userPassphrase,
-          data.salt!,
-          data.iv!
+          userPassphrase
         );
         return {
           ...data,
@@ -820,11 +814,9 @@ const journalOperations = {
       
       if (data.encryptedContent && userPassphrase) {
         try {
-          const decryptedContent = await decryptData(
+          const decryptedContent = await decryptDataWithMetadata(
             data.encryptedContent,
-            userPassphrase,
-            data.salt!,
-            data.iv!
+            userPassphrase
           );
           journals.push({
             ...data,
@@ -886,11 +878,9 @@ const journalMessageOperations = {
       
       if (data.encryptedContent && userPassphrase) {
         try {
-          const decryptedContent = await decryptData(
+          const decryptedContent = await decryptDataWithMetadata(
             data.encryptedContent,
-            userPassphrase,
-            data.salt!,
-            data.iv!
+            userPassphrase
           );
           messages.push({
             ...data,
@@ -1049,8 +1039,8 @@ const recoveryOperations = {
     try {
       const recoveryKey = generateRecoveryKey();
       
-      // Use enhanced encryption with comprehensive metadata
-      const encryptedBlob = await encryptPassphraseWithRecoveryKeyAndMetadata(passphrase, recoveryKey);
+      // Use unified encryption with metadata
+      const encryptedBlob = await encryptDataWithMetadata(passphrase, recoveryKey);
       
       // Extract metadata for audit purposes
       const blobInfo = getEncryptionBlobInfo(encryptedBlob);
@@ -1147,8 +1137,8 @@ const recoveryOperations = {
       }
 
       try {
-        // Try modern enhanced encryption first
-        const decryptedPassphrase = await decryptPassphraseWithRecoveryKeyAndMetadata(encryptedBlob, recoveryKey);
+        // Use unified decryption with automatic format detection
+        const decryptedPassphrase = await decryptDataWithMetadata(encryptedBlob, recoveryKey);
         
         return {
           passphrase: decryptedPassphrase,
@@ -1160,29 +1150,14 @@ const recoveryOperations = {
             uid: uid
           }
         };
-      } catch (modernError) {
-        // Fallback to legacy decryption
-        reportError(createUserFriendlyMessage('recover passphrase'), ERROR_CONTEXTS.RECOVERY, modernError);
-        try {
-          const legacyDecryptedPassphrase = await decryptPassphrase(encryptedBlob, recoveryKey);
-          
-          return {
-            passphrase: legacyDecryptedPassphrase,
-            success: true,
-            metadata: {
-              version: '1.0.0',
-              algorithm: 'legacy',
-              isLegacyFormat: true,
-              uid: uid
-            }
-          };
-        } catch (legacyError) {
-          return {
-            passphrase: null,
-            success: false,
-            error: 'Invalid recovery key or corrupted recovery data: ' + (legacyError instanceof Error ? legacyError.message : 'Unknown error')
-          };
-        }
+      } catch (decryptionError) {
+        // Log error and return failure
+        reportError(createUserFriendlyMessage('recover passphrase'), ERROR_CONTEXTS.RECOVERY, decryptionError);
+        return {
+          passphrase: null,
+          success: false,
+          error: 'Invalid recovery key or corrupted recovery data: ' + (decryptionError instanceof Error ? decryptionError.message : 'Unknown error')
+        };
       }
     } catch (error) {
         reportError(createUserFriendlyMessage('recover passphrase'), ERROR_CONTEXTS.RECOVERY, error);

@@ -26,10 +26,10 @@ export class AuthorityDataService extends DataService implements AuthorityServic
 
   constructor(
     userId: string, 
-    encryptionKey: CryptoKey, 
+    passphrase: string, 
     authorityProfile?: AuthorityUserProfile
   ) {
-    super(userId, encryptionKey);
+    super(userId, passphrase);
     this.authorityProfile = authorityProfile || null;
   }
 
@@ -335,10 +335,10 @@ export class AuthorityDataService extends DataService implements AuthorityServic
  */
 export function createAuthorityDataService(
   userId: string, 
-  encryptionKey: CryptoKey, 
+  passphrase: string, 
   authorityProfile?: AuthorityUserProfile
 ): AuthorityDataService {
-  return new AuthorityDataService(userId, encryptionKey, authorityProfile);
+  return new AuthorityDataService(userId, passphrase, authorityProfile);
 }
 
 /**

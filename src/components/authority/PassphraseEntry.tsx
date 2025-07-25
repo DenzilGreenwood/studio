@@ -26,6 +26,7 @@ import {
   CheckCircle,
   AlertTriangle
 } from 'lucide-react';
+import { usePassphraseCheck } from '@/hooks/usePassphraseCheck';
 
 interface PassphraseEntryProps {
   onSuccess?: () => void;
@@ -34,6 +35,7 @@ interface PassphraseEntryProps {
 
 export function PassphraseEntry({ onSuccess, className = '' }: PassphraseEntryProps) {
   const { firebaseUser, initializeDataService, checkPassphraseAvailability } = useAuth();
+  const { checkWithToast } = usePassphraseCheck();
   const [passphrase, setPassphrase] = useState('');
   const [showPassphrase, setShowPassphrase] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -184,6 +186,20 @@ export function PassphraseEntry({ onSuccess, className = '' }: PassphraseEntryPr
                 disabled={isLoading}
               >
                 Cancel
+              </Button>
+            </div>
+
+            {/* Security Check Button */}
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={checkWithToast}
+                className="flex items-center gap-1 text-xs text-muted-foreground"
+              >
+                <Shield className="h-3 w-3" />
+                Check Security Status
               </Button>
             </div>
 

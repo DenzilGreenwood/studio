@@ -1,10 +1,11 @@
 // src/lib/data-encryption.ts
 "use client";
 
-import { encryptData, decryptData } from './cryptoUtils';
+import { encryptDataWithMetadata, decryptDataWithMetadata } from './encryption';
 
 /**
  * Comprehensive data encryption for all user content
+ * Uses encryption.ts with metadata format for all operations
  * Encrypts everything except email addresses for user identification
  */
 
@@ -35,41 +36,68 @@ export type EncryptableUserData = {
 
 // Helper to get current user passphrase from session
 function getCurrentPassphrase(): string {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined') {
+    throw new Error('Session storage not available during server rendering.');
+  }
+
   const passphrase = sessionStorage.getItem('userPassphrase');
   if (!passphrase) {
     throw new Error('User passphrase not available. Please log in again.');
   }
-  return passphrase;
-}
-
-// Helper to safely get passphrase with fallback
-export function getPassphraseSafely(): string | null {
+  
+  // Handle XOR-encrypted session storage (from encryption-context.tsx)
   try {
-    const storedPassphrase = sessionStorage.getItem('userPassphrase');
-    if (!storedPassphrase) return null;
-    
-    // Try to decrypt the passphrase (it may be encrypted now)
-    try {
-      // Get the same stable session key used in encryption-context
-      const sessionKey = sessionStorage.getItem('session_encryption_key');
-      if (!sessionKey) {
-        // If no session key exists, assume legacy plain text storage
-        return storedPassphrase;
-      }
-      
-      // Simple XOR decryption matching encryption-context.tsx
-      const decoded = atob(storedPassphrase);
+    const sessionKey = sessionStorage.getItem('session_encryption_key');
+    if (sessionKey) {
+      // Decrypt XOR-encrypted passphrase
+      const decoded = atob(passphrase);
       let result = '';
       for (let i = 0; i < decoded.length; i++) {
         result += String.fromCharCode(decoded.charCodeAt(i) ^ sessionKey.charCodeAt(i % sessionKey.length));
       }
       return result;
-    } catch {
-      // If decryption fails, assume it's already plain text (legacy format)
-      return storedPassphrase;
     }
   } catch {
+    // If decryption fails, assume it's plain text
+  }
+  
+  return passphrase;
+}
+
+// Helper to safely get passphrase with fallback
+export function getPassphraseSafely(): string | null {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined') {
     return null;
+  }
+
+  try {
+    return getCurrentPassphrase();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Enhanced encryption wrapper for user data
+ */
+async function encryptData(data: unknown, passphrase: string): Promise<string> {
+  return await encryptDataWithMetadata(JSON.stringify(data), passphrase);
+}
+
+/**
+ * Enhanced decryption wrapper for user data with backward compatibility
+ */
+async function decryptData(encryptedData: string, passphrase: string): Promise<unknown> {
+  try {
+    // Try new metadata format first
+    const decryptedString = await decryptDataWithMetadata(encryptedData, passphrase);
+    return JSON.parse(decryptedString);
+  } catch (error) {
+    // Provide more specific error information for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to decrypt data: ${errorMessage}. This may indicate an invalid passphrase or corrupted data.`);
   }
 }
 
@@ -125,8 +153,8 @@ export async function decryptUserProfile(encryptedProfileData: unknown): Promise
         
         // Clean up encrypted fields
         delete decrypted[`${field}_encrypted`];
-      } catch (error) {
-        console.error(`Failed to decrypt profile ${field}:`, error);
+      } catch {
+        // Failed to decrypt profile field - keep encrypted version
         decrypted[field] = '[Encrypted Data - Cannot Decrypt]';
       }
     }
@@ -185,8 +213,8 @@ export async function decryptSessionData(encryptedSessionData: unknown): Promise
         decrypted[field] = decryptedValue;
         
         delete decrypted[`${field}_encrypted`];
-      } catch (error) {
-        console.error(`Failed to decrypt session ${field}:`, error);
+      } catch {
+        // Failed to decrypt session field - keep encrypted version
         decrypted[field] = '[Encrypted Data - Cannot Decrypt]';
       }
     }
@@ -234,8 +262,8 @@ export async function decryptChatMessage(encryptedMessageData: unknown): Promise
       );
       decrypted.text = decryptedValue;
       delete decrypted.text_encrypted;
-    } catch (error) {
-      console.error('Failed to decrypt message text:', error);
+    } catch {
+      // Failed to decrypt message text - keep encrypted version
       decrypted.text = '[Encrypted Data - Cannot Decrypt]';
     }
   }
@@ -302,8 +330,8 @@ export async function decryptJournalEntry(encryptedJournalData: unknown): Promis
         );
         decrypted[field] = decryptedValue;
         delete decrypted[`${field}_encrypted`];
-      } catch (error) {
-        console.error(`Failed to decrypt journal ${field}:`, error);
+      } catch {
+        // Failed to decrypt journal field - keep encrypted version
         decrypted[field] = '[Encrypted Data - Cannot Decrypt]';
       }
     }
@@ -318,8 +346,8 @@ export async function decryptJournalEntry(encryptedJournalData: unknown): Promis
       );
       decrypted.goals = decryptedGoals;
       delete decrypted.goals_encrypted;
-    } catch (error) {
-      console.error('Failed to decrypt journal goals:', error);
+    } catch {
+      // Failed to decrypt journal goals - keep encrypted version
       decrypted.goals = '[Encrypted Data - Cannot Decrypt]';
     }
   }
@@ -337,7 +365,8 @@ export async function encryptFeedback(feedbackData: unknown): Promise<unknown> {
   if (!passphrase) {
     // If no passphrase is available, return the data unencrypted
     // This allows feedback to be submitted even if the user's session expired
-    console.warn('No passphrase available for feedback encryption, storing as plaintext');
+    // No passphrase available - feedback will be stored as plaintext
+    // This allows feedback to be submitted even if user session expired
     return feedbackData;
   }
   
@@ -356,9 +385,9 @@ export async function encryptFeedback(feedbackData: unknown): Promise<unknown> {
         );
         encrypted[`${field}_encrypted`] = encryptedField;
         delete encrypted[field];
-      } catch (error) {
-        console.error(`Failed to encrypt feedback field ${field}:`, error);
-        // Keep the original field if encryption fails
+      } catch {
+        // Failed to encrypt feedback field - keep original value
+        // This ensures feedback is never lost due to encryption issues
       }
     }
   }
@@ -388,8 +417,8 @@ export async function decryptFeedback(encryptedFeedbackData: unknown): Promise<u
         );
         decrypted[field] = decryptedValue;
         delete decrypted[`${field}_encrypted`];
-      } catch (error) {
-        console.error(`Failed to decrypt feedback ${field}:`, error);
+      } catch {
+        // Failed to decrypt feedback field - keep encrypted version
         decrypted[field] = '[Encrypted Data - Cannot Decrypt]';
       }
     }
@@ -402,8 +431,8 @@ export async function decryptFeedback(encryptedFeedbackData: unknown): Promise<u
  * Get encryption status for UI display
  */
 export function getEncryptionStatus(): { isEncrypted: boolean; hasPassphrase: boolean; message: string } {
-  const passphrase = sessionStorage.getItem('userPassphrase');
-  const hasPassphrase = !!passphrase;
+  // Use the proper passphrase checking logic that handles XOR encryption
+  const hasPassphrase = getPassphraseSafely() !== null;
   
   return {
     isEncrypted: true, // Always encrypted in this system
@@ -423,5 +452,41 @@ export function validateEncryptionAccess(): boolean {
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Check if data appears to be encrypted (contains _encrypted fields)
+ */
+export function isDataEncrypted(data: unknown): boolean {
+  if (!data || typeof data !== 'object') {
+    return false;
+  }
+  
+  const obj = data as Record<string, unknown>;
+  return Object.keys(obj).some(key => key.endsWith('_encrypted'));
+}
+
+/**
+ * Get list of encrypted fields in a data object
+ */
+export function getEncryptedFields(data: unknown): string[] {
+  if (!data || typeof data !== 'object') {
+    return [];
+  }
+  
+  const obj = data as Record<string, unknown>;
+  return Object.keys(obj).filter(key => key.endsWith('_encrypted'));
+}
+
+/**
+ * Safely attempt to decrypt data, returning original if decryption fails
+ */
+export async function safeDecryptData(encryptedData: string, passphrase: string): Promise<unknown> {
+  try {
+    return await decryptData(encryptedData, passphrase);
+  } catch {
+    // Return a placeholder if decryption fails
+    return '[Encrypted Data - Cannot Decrypt]';
   }
 }
