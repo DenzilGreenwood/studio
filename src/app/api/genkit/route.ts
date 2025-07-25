@@ -1,18 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { ai } from '@/ai/genkit';
 
-export async function GET(_request: NextRequest) {
-  try {
-    return NextResponse.json({
-      status: 'ready',
-      message: 'Genkit API endpoint is ready',
-      timestamp: new Date().toISOString()
-    });
-  } catch {
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
+// Import all flows to register them
+import '@/ai/flows/cognitive-edge-protocol';
+import '@/ai/flows/clarity-summary-generator';
+import '@/ai/flows/sentiment-analysis-flow';
+import '@/ai/flows/goal-generator-flow';
+
+export async function GET() {
+  return new Response('Genkit flows are registered and ready', { status: 200 });
 }
 
 export async function POST(request: NextRequest) {

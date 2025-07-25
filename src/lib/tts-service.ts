@@ -195,8 +195,19 @@ class TextToSpeechService {
     // First try browser Speech Synthesis API (more reliable)
     if (this.speechSynthesis) {
       try {
-        // Wait for voices to be loaded if they aren't already
-        await this.ensureVoicesLoaded();
+        // Wait for voices to be available if they aren't already
+        if (this.speechSynthesis.getVoices().length === 0) {
+          await new Promise<void>((resolve) => {
+            const checkVoices = () => {
+              if (this.speechSynthesis!.getVoices().length > 0) {
+                resolve();
+              } else {
+                setTimeout(checkVoices, 100);
+              }
+            };
+            checkVoices();
+          });
+        }
         await this.playTextWithSpeechSynthesis(text, options);
         return;
       } catch (speechError) {

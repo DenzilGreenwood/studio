@@ -28,7 +28,7 @@ export function useRecoveryFlow() {
       }
 
       // Step 2: Zero-Knowledge Recovery
-      const { passphrase: decryptedPassphrase, success, error } = await recoverPassphraseZeroKnowledge(uidResult.uid, recoveryKey);
+      const { passphrase: decryptedPassphrase, success, error } = await recoverPassphraseZeroKnowledge(userId, recoveryKey);
       
       if (!success || !decryptedPassphrase) {
         throw new Error(error || "Invalid recovery key. Please check your recovery key and try again.");
