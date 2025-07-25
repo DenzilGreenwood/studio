@@ -29,10 +29,13 @@ export default function AuthFlow({ onAuthComplete }: AuthFlowProps) {
   const { toast } = useToast();
 
   const handleAuthChoice = async (mode: AuthMode) => {
+    console.log('🔘 AuthFlow: handleAuthChoice called with mode:', mode);
+    
     if (mode === 'signup') {
       // Check user limit before allowing signup
       setIsLoading(true);
       try {
+        console.log('🔘 AuthFlow: Checking user limit for signup...');
         const limitCheck = await canCreateNewUser();
         if (!limitCheck.allowed) {
           toast({
@@ -42,7 +45,8 @@ export default function AuthFlow({ onAuthComplete }: AuthFlowProps) {
           });
           return;
         }
-      } catch {
+      } catch (error) {
+        console.error('🔘 AuthFlow: User limit check failed:', error);
         toast({
           variant: "destructive",
           title: "Registration Check Failed",
@@ -54,6 +58,7 @@ export default function AuthFlow({ onAuthComplete }: AuthFlowProps) {
       }
     }
     
+    console.log('🔘 AuthFlow: Setting mode and step to:', mode);
     setCurrentMode(mode);
     setCurrentStep(mode);
   };
@@ -186,13 +191,19 @@ export default function AuthFlow({ onAuthComplete }: AuthFlowProps) {
       {currentStep === 'choice' && (
         <div className="space-y-4">
           <button
-            onClick={() => handleAuthChoice('login')}
+            onClick={() => {
+              alert('Login button clicked!');
+              handleAuthChoice('login');
+            }}
             className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700"
           >
             Sign In
           </button>
           <button
-            onClick={() => handleAuthChoice('signup')}
+            onClick={() => {
+              alert('Signup button clicked!');
+              handleAuthChoice('signup');
+            }}
             className="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700"
           >
             Create Account

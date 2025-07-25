@@ -51,3 +51,6 @@ firestore-debug.log
 
 # service-account-key 
 service-account-key.json
+
+# doc folder 
+/docs

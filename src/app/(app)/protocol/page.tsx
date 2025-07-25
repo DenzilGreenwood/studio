@@ -989,17 +989,18 @@ export default function ProtocolPage() {
   };
 
 
-  // Simplified loading condition
-  const isReady = firebaseUser && user && currentSessionId;
+  // Loading condition: Only show loading if Firebase user is not yet loaded
+  // If firebaseUser exists but user is null, that means passphrase hasn't been entered yet
+  const isPageLoading = !firebaseUser;
   
   console.log('🔍 Protocol Page: Render condition check', {
     firebaseUser: !!firebaseUser,
     user: !!user,
     currentSessionId: !!currentSessionId,
-    isReady: !!isReady
+    isPageLoading: !!isPageLoading
   });
 
-  if (!isReady) { 
+  if (isPageLoading) { 
     console.log('📺 Protocol Page: Showing loading screen...');
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background text-primary">

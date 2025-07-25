@@ -34,6 +34,16 @@ export type EncryptableUserData = {
   feedbackContent?: unknown;
 };
 
+// Helper to get session encryption key (same logic as encryption-context.tsx)
+function getSessionEncryptionKey(): string {
+  let key = sessionStorage.getItem('session_encryption_key');
+  if (!key) {
+    key = 'user-session-key-' + Math.random().toString(36);
+    sessionStorage.setItem('session_encryption_key', key);
+  }
+  return key;
+}
+
 // Helper to get current user passphrase from session
 function getCurrentPassphrase(): string {
   // Check if we're in a browser environment
@@ -48,7 +58,7 @@ function getCurrentPassphrase(): string {
   
   // Handle XOR-encrypted session storage (from encryption-context.tsx)
   try {
-    const sessionKey = sessionStorage.getItem('session_encryption_key');
+    const sessionKey = getSessionEncryptionKey();
     if (sessionKey) {
       // Decrypt XOR-encrypted passphrase
       const decoded = atob(passphrase);
