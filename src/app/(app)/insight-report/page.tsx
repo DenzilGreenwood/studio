@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Plus, Eye, Edit, Trash2, Search, FileText, List, Clock } from 'lucide-react';
 import { InsightReportComponent } from '@/components/insight-report';
-import { useAuth } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context-v2';
 import { useEncryption } from '@/lib/encryption-context';
 import { useToast } from "@/hooks/use-toast";
 import { insightReportOperations, clarityMapOperations } from '@/lib/clarity-map-operations';

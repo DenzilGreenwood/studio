@@ -1,6 +1,5 @@
 // src/types/session-reports.ts
 import type { Timestamp } from 'firebase/firestore';
-import type { ProtocolSession } from './index';
 
 /**
  * New data structures for improved session architecture
@@ -149,13 +148,6 @@ export interface ProtocolSessionInteraction {
   isDeleted?: boolean;
   deletedAt?: Timestamp | Date;
   deletedBy?: string;
-  
-  // Legacy Support (for migration)
-  legacyData?: {
-    hadSummary: boolean;                   // Original session had summary
-    migratedAt: Timestamp | Date;         // When migrated to new structure
-    migrationVersion: number;              // Migration version
-  };
 }
 
 // Supporting types
@@ -195,13 +187,4 @@ export interface JournalAssistanceInput {
     focusAreas: string[];
     privacyLevel: 'open' | 'cautious' | 'private';
   };
-}
-
-// Migration utilities
-export interface SessionMigrationData {
-  originalSession: ProtocolSession;       // Original ProtocolSession
-  targetReport: Partial<SessionReport>;
-  targetJournal: Partial<SessionJournal>;
-  targetSession: Partial<ProtocolSessionInteraction>;
-  migrationErrors?: string[];
 }

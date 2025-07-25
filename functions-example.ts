@@ -1,9 +1,4 @@
 // functions/src/index.ts
-// This is an example file showing how to convert API routes to Firebase Functions
-// To use this, install firebase-functions and firebase-admin:
-// npm install firebase-functions firebase-admin
-
-/*
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { cognitiveEdgeProtocol } from './flows/cognitive-edge-protocol';
@@ -13,7 +8,7 @@ import { generateInsightReport } from './flows/insight-report-generator';
 admin.initializeApp();
 
 // Example: Convert protocol route to Firebase Function
-export const protocolAPI = functions.https.onRequest(async (req: any, res: any) => {
+export const protocolAPI = functions.https.onRequest(async (req, res) => {
   // Enable CORS
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -153,4 +148,3 @@ export const authenticatedFunction = functions.https.onRequest(async (req, res) 
     res.status(401).json({ error: 'Invalid token' });
   }
 });
-*/

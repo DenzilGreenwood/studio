@@ -40,16 +40,23 @@ const prompt = ai.definePrompt({
   model: 'googleai/gemini-1.5-pro-latest',
   input: {schema: ClaritySummaryInputSchema},
   output: {schema: ClaritySummaryOutputSchema},
-  prompt: `You are an AI assistant designed to generate insightful summaries of Cognitive Edge Protocol sessions.
+  prompt: `You are an AI assistant generating insight summaries for Cognitive Edge Protocol™ sessions. These summaries should reflect the transformative journey from crisis to identity-driven empowerment.
 
-  Based on the user's reframed belief, legacy statement, and top emotions, create a concise and impactful insight summary.
-  The summary should be written in a supportive and encouraging tone, and it should highlight the user's growth and progress during the session.
+  **Session Outcomes:**
+  - Reframed Belief: {{{reframedBelief}}}
+  - Legacy Statement: {{{legacyStatement}}}
+  - Top Emotions: {{{topEmotions}}}
 
-  Reframed Belief: {{{reframedBelief}}}
-  Legacy Statement: {{{legacyStatement}}}
-  Top Emotions: {{{topEmotions}}}
+  **Summary Guidelines:**
+  1. **Transformation Focus**: Highlight the journey from where they were to where they are now
+  2. **Identity Alignment**: Connect their discoveries to their core identity and unique strengths
+  3. **Agency Restoration**: Emphasize how they moved from feeling acted upon to being empowered
+  4. **Cognitive Edge**: If evident, highlight their unique thinking patterns or mental abilities
+  5. **Tangible Value**: Reference any practical assets or insights they can immediately use
 
-  Insight Summary:`,
+  **Tone**: Supportive, empowering, and focused on their unique potential. Write as if celebrating a meaningful breakthrough that connects to their deeper identity.
+
+  Create a concise yet impactful insight summary that captures the essence of their cognitive edge discovery and transformation:`,
 });
 
 export const claritySummaryFlow = ai.defineFlow(
@@ -66,7 +73,7 @@ export const claritySummaryFlow = ai.defineFlow(
       }
       return output;
     } catch (error) {
-      console.error('Error in claritySummaryFlow:', error);
+      logAIFlowExecution('claritySummaryFlow', input, undefined, error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }

@@ -9,74 +9,139 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == userId;
     }
 
-    // Deny all reads and writes by default.
-    match /{document=**} {
-      allow read, write: if false;
+    // Enhanced helper function to check admin role
+    function isAdmin() {
+      return request.auth != null && 
+             request.auth.token.admin == true;
     }
 
-    // USERS
-    // Allow users to read, update, create, and delete their own profile.
+    // Enhanced helper function to check user role
+    function hasRole(role) {
+      return request.auth != null && 
+             request.auth.token.role == role;
+    }
+
+    // Enhanced helper function to check permissions
+    function hasPermission(permission) {
+      return request.auth != null && 
+             request.auth.token.permissions != null &&
+             permission in request.auth.token.permissions;
+    }
+
+    // Helper function to validate recovery blob structure per v1.1.2 white paper
+    function isValidRecoveryBlob(data) {
+      return data.keys().hasAll(['encryptedPassphrase', 'salt', 'iv', 'iterations', 'version']) &&
+             data.encryptedPassphrase is string &&
+             data.salt is string &&
+             data.iv is string &&
+             data.iterations is number &&
+             data.iterations >= 100000 &&  // Enforce minimum PBKDF2 iterations
+             data.version is string &&
+             data.version == '1.1.2';       // Enforce current white paper version
+    }
+
+    // Helper function to validate encryption metadata for user data
+    function isValidEncryptionMetadata(data) {
+      return data.keys().hasAll(['salt', 'iv', 'version']) &&
+             data.salt is string &&
+             data.iv is string &&
+             data.version is string &&
+             data.version == '1.1.2';
+    }
+
+    // Helper function to check if data contains only encrypted fields
+    function isEncryptedData(data) {
+      return data.keys().hasAll(['encryptedData', 'metadata']) &&
+             data.encryptedData is string &&
+             isValidEncryptionMetadata(data.metadata);
+    }
+
+    // Helper function to validate feedback structure per v1.0.0 spec
+    function isValidFeedback(data) {
+      return data.keys().hasAll(['userId', 'rating', 'createdAt']) &&
+             data.userId is string &&
+             data.rating is number &&
+             data.rating >= 1 &&
+             data.rating <= 5 &&
+             data.createdAt is timestamp &&
+             // Optional fields validation
+             (!data.keys().hasAny(['message']) || data.message is string) &&
+             (!data.keys().hasAny(['pageContext']) || data.pageContext is string) &&
+             (!data.keys().hasAny(['version']) || data.version is string);
+    }
+
     match /users/{userId} {
       allow read, update, create, delete: if isOwner(userId);
+      allow read: if isAdmin() || hasPermission('read:all:users');
+      allow update: if isAdmin() && hasPermission('manage:users');
     }
 
-    // SESSIONS
-    // Allow users to manage their own session documents.
+    match /users/{userId}/recovery/{recoveryId} {
+      allow read, create, update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+
     match /users/{userId}/sessions/{sessionId} {
       allow read, write, delete: if isOwner(userId);
     }
 
-    // REPORTS (New architecture)
-    // Allow users to manage their own session reports.
-    match /users/{userId}/reports/{reportId} {
+    match /users/{userId}/sessionReports/{sessionReportId} {
       allow read, write, delete: if isOwner(userId);
     }
 
-    // JOURNALS (New architecture)
-    // Allow users to manage their own journal entries.
     match /users/{userId}/journals/{journalId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) && 
+                            isEncryptedData(request.resource.data);
+    }
+
+    match /users/{userId}/journals/{journalId}/messages/{messageId} {
       allow read, write, delete: if isOwner(userId);
     }
 
-    // CLEAN REPORTS (New clean architecture)
-    // Allow users to manage their own clean session reports.
+    match /clarityMaps/{clarityMapId} {
+      allow read, write, delete: if request.auth != null && 
+                                  resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && 
+                    request.resource.data.userId == request.auth.uid;
+    }
+
+    match /insightReports/{insightReportId} {
+      allow read, write, delete: if request.auth != null && 
+                                  resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && 
+                    request.resource.data.userId == request.auth.uid;
+    }
+
     match /users/{userId}/clean-reports/{reportId} {
       allow read, write, delete: if isOwner(userId);
     }
 
-    // MESSAGES
-    // Allow users to manage messages within their own sessions.
     match /users/{userId}/sessions/{sessionId}/messages/{messageId} {
       allow read, write, delete: if isOwner(userId);
     }
 
-    // FEEDBACK
-    // Allow any authenticated user to submit (create) feedback.
-    // Allow users to delete their own feedback (for account deletion).
-    // Prevent regular users from reading or updating other users' feedback.
     match /feedback/{feedbackId} {
       allow create: if request.auth != null;
-      allow delete: if request.auth != null && 
-                    exists(/databases/$(database)/documents/feedback/$(feedbackId)) &&
-                    get(/databases/$(database)/documents/feedback/$(feedbackId)).data.userId == request.auth.uid;
+      allow delete: if request.auth != null &&
+                    resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null &&
+                  request.auth.token.admin == true;
       allow update: if false;
     }
 
-    // SYSTEM
-    // Allow reading user count for signup validation (no auth required for checking signup limits)
-    // Allow writing to user count for authenticated operations (signup flow)
     match /system/userCount {
-      allow read: if true; // Allow anyone to check user count for signup validation
-      allow write, create, update: if true; // Allow server-side operations during signup
+      allow read: if true;
+      allow write, create, update: if true;
     }
 
-    // RECOVERY
-    // Allow users to manage their own recovery data (encrypted passphrase backup).
-    // This is used for the passphrase recovery system.
-    match /recovery/{userId} {
-      allow read, create, update: if isOwner(userId);
-      allow delete: if isOwner(userId); // Allow users to delete their recovery data
+    // Allow anyone to submit interest notifications (for "Notify Me" functionality)
+    match /interested_users/{docId} {
+      allow create: if true;
+      allow read: if isAdmin() || hasPermission('read:interested_users');
+      allow write, update, delete: if false;
     }
+
+
   }
 }
-

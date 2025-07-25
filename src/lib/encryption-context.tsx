@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
-import { useAuth } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context-v2';
 
 interface EncryptionContextType {
   userPassphrase: string | null;
@@ -80,7 +80,7 @@ function logEncryptionEvent(event: string, userId?: string) {
 export const EncryptionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [userPassphrase, setUserPassphrase] = useState<string | null>(null);
   const [inactivityTimeout, setInactivityTimeoutState] = useState<number>(DEFAULT_PASSPHRASE_TIMEOUT);
-  const { firebaseUser, refreshUserProfile } = useAuth();
+  const { firebaseUser, initializeDataService } = useAuth();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const activityListenersRef = useRef<Array<() => void>>([]);
 
@@ -205,16 +205,16 @@ export const EncryptionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     sessionStorage.setItem('userPassphrase', encryptForStorage(passphrase));
     logEncryptionEvent('passphrase_set', firebaseUser?.uid);
     
-    // Refresh user profile to decrypt data now that passphrase is available
+    // Initialize DataService with the passphrase to enable full functionality
     try {
-      await refreshUserProfile();
+      await initializeDataService(passphrase);
     } catch (error) {
-      logEncryptionEvent('profile_refresh_error', firebaseUser?.uid);
+      logEncryptionEvent('dataservice_init_error', firebaseUser?.uid);
       if (error instanceof Error) {
-        throw new Error(`Failed to refresh user profile: ${error.message}`);
+        throw new Error(`Failed to initialize data service: ${error.message}`);
       }
     }
-  }, [refreshUserProfile, firebaseUser?.uid]);
+  }, [initializeDataService, firebaseUser?.uid]);
 
   return (
     <EncryptionContext.Provider 
@@ -240,3 +240,6 @@ export const useEncryption = (): EncryptionContextType => {
   }
   return context;
 };
+
+// Export encryption utilities for use in auth contexts
+export { encryptForStorage, decryptFromStorage, getSessionEncryptionKey };

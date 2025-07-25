@@ -7,6 +7,7 @@
 import {
   generateRecoveryKey
 } from '../../src/lib/cryptoUtils';
+import { validatePassphrase } from '../../src/lib/encryption';
 
 describe('CryptoUtils', () => {
   describe('generateRecoveryKey', () => {
@@ -51,14 +52,14 @@ describe('CryptoUtils', () => {
   //       { input: 'weak', expectedErrors: ['at least 8 characters', 'uppercase letter', 'number', 'special character'] }
   //     ];
 
-  //     weakPassphrases.forEach(({ input, expectedErrors }) => {
-  //       const result = validatePassphrase(input);
-  //       expect(result.isValid).toBe(false);
-  //       expectedErrors.forEach(error => {
-  //         expect(result.errors.some((e: string) => e.includes(error))).toBe(true);
-  //       });
-  //     });
-  //   });
+      weakPassphrases.forEach(({ input, expectedErrors }) => {
+        const result = validatePassphrase(input);
+        expect(result.isValid).toBe(false);
+        expectedErrors.forEach(error => {
+          expect(result.errors.some(e => e.includes(error))).toBe(true);
+        });
+      });
+    });
 
   //   test('should provide comprehensive error messages', () => {
   //     const result = validatePassphrase('bad');

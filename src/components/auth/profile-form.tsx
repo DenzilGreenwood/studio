@@ -21,7 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Brain, Loader2, Play, BookOpen, PlusCircle } from "lucide-react";
 import Link from "next/link";
-import { useAuth, updateUserProfileDocument } from "@/context/auth-context";
+import { useAuth, updateUserProfileDocument } from "@/context/auth-context-v2";
 import React, { useEffect, useState } from "react";
 // import { serverTimestamp } from "firebase/firestore"; // Not currently used
 import type { UserProfile } from "@/types";
@@ -98,7 +98,8 @@ export function ProfileForm() {
         setActiveSession(activeSession);
         setCompletedSessionsCount(completedSessions.length);
       } catch (error) {
-        console.error("Error checking session data:", error);
+        // Error checking session data
+        void error;
       } finally {
         setCheckingSession(false);
       }
@@ -143,11 +144,11 @@ export function ProfileForm() {
       
       setActiveSession(newActiveSession);
       setCompletedSessionsCount(newCompletedSessions.length);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "Profile Update Failed",
-        description: error.message || "An unexpected error occurred.",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
       });
     }
   }

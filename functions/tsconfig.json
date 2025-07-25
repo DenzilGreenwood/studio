@@ -8,10 +8,22 @@
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
-    "target": "es2017"
+    "target": "es2020",
+    "skipLibCheck": true
   },
   "compileOnSave": true,
   "include": [
-    "src"
+    "src/**/*"
+  ],
+  "exclude": [
+    "../src",
+    "../types",
+    "../components",
+    "../app",
+    "../lib",
+    "../hooks",
+    "../context",
+    "../services",
+    "node_modules/**/*"
   ]
 }

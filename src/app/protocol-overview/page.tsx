@@ -16,10 +16,10 @@ import {
   Sparkles,
   Target,
   Zap,
-  ArrowLeft
+  ArrowLeft,
+  ArrowRight
 } from "lucide-react";
 import Link from "next/link";
-import { SignupButton } from "@/components/ui/signup-button";
 
 interface ProcessStepProps {
   step: number;
@@ -108,7 +108,11 @@ export default function ProtocolOverviewPage() {
                 Back to Home
               </Link>
             </Button>
-            <SignupButton />
+            <Button size="lg" asChild className="shadow-lg">
+              <Link href="/signup">
+                Start Your Journey <ArrowRight className="h-4 w-4 ml-2" />
+              </Link>
+            </Button>
           </div>
         </div>
       </header>
@@ -397,7 +401,11 @@ export default function ProtocolOverviewPage() {
                 Join thousands who have already discovered the power of structured cognitive development.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <SignupButton />
+                <Button size="lg" asChild className="shadow-lg">
+                  <Link href="/signup">
+                    Start Your Journey <ArrowRight className="h-4 w-4 ml-2" />
+                  </Link>
+                </Button>
                 <Button variant="outline" size="lg" asChild className="shadow-lg">
                   <Link href="/">
                     <ArrowLeft className="h-4 w-4 mr-2" />

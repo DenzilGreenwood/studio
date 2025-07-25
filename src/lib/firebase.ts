@@ -24,6 +24,7 @@ import {
   enableNetwork,
   disableNetwork
 } from 'firebase/firestore';
+import { getFunctions, httpsCallable, connectFunctionsEmulator } from 'firebase/functions';
 
 
 const firebaseConfig = {
@@ -49,6 +50,23 @@ if (getApps().length === 0) {
 
 const auth = getAuth(app);
 const db = getFirestore(app);
+const functions = getFunctions(app);
+
+// Connect to emulators in development
+if (process.env.NODE_ENV === 'development') {
+  try {
+    // Check if already connected to avoid multiple connections
+    if (!functions.app.automaticDataCollectionEnabled) {
+      // Connect to Functions emulator
+      connectFunctionsEmulator(functions, 'localhost', 5002);
+      // eslint-disable-next-line no-console
+      console.log('Connected to Firebase Functions Emulator at localhost:5002');
+    }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.warn("Error connecting to Firebase Functions Emulator:", error);
+  }
+}
 
 
 // Connect to emulators in development
@@ -71,6 +89,8 @@ export {
   app, 
   auth, 
   db, 
+  functions,
+  httpsCallable,
   collection,
   collectionGroup,
   doc,

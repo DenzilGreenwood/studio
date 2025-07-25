@@ -138,7 +138,7 @@ export const sessionReflectionFlow = ai.defineFlow(
       }
       return output;
     } catch (error) {
-      console.error('Error in sessionReflectionFlow:', error);
+      logAIFlowExecution('sessionReflectionFlow', input, undefined, error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }

@@ -1,12 +1,14 @@
 // src/app/(app)/protocol/page.tsx
 "use client";
 
+/* eslint-disable no-console */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChatInterface, type Message as UIMessage } from '@/components/protocol/chat-interface';
 import { PhaseIndicator } from '@/components/protocol/phase-indicator';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, BookOpen, Eye } from 'lucide-react';
-import { useAuth } from '@/context/auth-context';
+import { Loader2, CheckCircle, BookOpen, Eye, Lock } from 'lucide-react';
+import { useAuth } from '@/context/auth-context-v2';
 import { TTSSettings } from '@/components/ui/tts-settings';
 import Link from 'next/link';
 import { 
@@ -28,8 +30,16 @@ import type { ProtocolSession, ChatMessage as FirestoreChatMessage } from '@/typ
 import { useRouter } from 'next/navigation'; 
 import { PostSessionFeedback } from '@/components/feedback/post-session-feedback';
 import { EmotionalProgression } from '@/components/protocol/emotional-progression';
+import { SimpleDebug } from '@/components/debug/simple-debug';
+import { 
+  getClaritySummary,
+  analyzeSentiment,
+  analyzeEmotionalTone,
+  callProtocol 
+} from '@/lib/firebase-functions-client';
 import { Button } from '@/components/ui/button';
 import { encryptChatMessage, decryptChatMessage, encryptSessionData, decryptSessionData } from '@/lib/data-encryption';
+import { usePassphraseCheck } from '@/hooks/usePassphraseCheck';
 
 // Type imports from the central types file
 import type { FieldValue } from 'firebase/firestore';
@@ -121,13 +131,7 @@ async function generateAndSaveSummary(
     };
     
     // Call the API for clarity summary
-    const summaryResponse = await fetch('/api/clarity-summary', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(summaryInputForAI),
-    });
+    const summaryResponse = await getClaritySummary(summaryInputForAI);
 
     if (!summaryResponse.ok) {
       throw new Error('Failed to generate clarity summary');
@@ -154,7 +158,6 @@ async function generateAndSaveSummary(
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
-    // eslint-disable-next-line no-console
     console.error("Error generating summary:", error);
     showToast({ variant: "destructive", title: "Summary Generation Failed", description: `Could not generate the insight summary. Details: ${errorMessage}` });
     const errorSummaryToPersist: ClaritySummaryContentType = {
@@ -185,7 +188,6 @@ export default function ProtocolPage() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentCircumstance, setCurrentCircumstance] = useState<string | null>(null);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
-  const [sessionInitialized, setSessionInitialized] = useState(false); // New state to track initialization
   
   // Enhanced emotional tracking
   const [emotionalProgression, setEmotionalProgression] = useState<Array<{
@@ -223,6 +225,7 @@ export default function ProtocolPage() {
   const [isFinishing, setIsFinishing] = useState(false); // New state to trigger finalization
 
   const { toast } = useToast();
+  const { checkDetailed } = usePassphraseCheck();
 
   const handleFeedbackAndRedirect = (_feedbackId: string) => {
     if (currentSessionId && currentCircumstance) {
@@ -239,10 +242,18 @@ export default function ProtocolPage() {
   };
 
   const initializeSession = useCallback(async () => {
-    if (!firebaseUser || !user) return;
+    try {
+      if (!firebaseUser || !user) return;
+      
+      console.log('🚀 initializeSession: Starting session initialization...', {
+        firebaseUser: !!firebaseUser,
+        user: !!user,
+        passphraseAvailable: checkPassphraseAvailability()
+      });
     
     // Check passphrase availability before proceeding
     if (!checkPassphraseAvailability()) {
+      console.log('❌ initializeSession: Passphrase not available');
       toast({
         variant: "destructive",
         title: "Authentication Required",
@@ -257,12 +268,16 @@ export default function ProtocolPage() {
 
     // Check if there's already an active session
     try {
+      console.log('🔍 initializeSession: Checking for existing active sessions...');
+      
       // Get all sessions and filter in memory to avoid index requirements
       const allSessionsQuery = query(
         collection(db, `users/${firebaseUser.uid}/sessions`),
         orderBy("startTime", "desc")
       );
       const allSessionsSnap = await getDocs(allSessionsQuery);
+      
+      console.log('📄 initializeSession: Found sessions:', allSessionsSnap.docs.length);
       
       // Find the first active session (completedPhases < 6)
       const activeSessionDoc = allSessionsSnap.docs.find(doc => {
@@ -271,11 +286,13 @@ export default function ProtocolPage() {
       });
       
       if (activeSessionDoc) {
+        console.log('🔄 initializeSession: Found active session, attempting to resume...', activeSessionDoc.id);
         const encryptedSessionData = activeSessionDoc.data() as ProtocolSession;
         
         try {
           // Check passphrase availability before attempting decryption
           if (!checkPassphraseAvailability()) {
+            console.log('❌ initializeSession: Passphrase not available for decryption');
             toast({
               variant: "destructive",
               title: "Authentication Required",
@@ -285,6 +302,7 @@ export default function ProtocolPage() {
             return;
           }
 
+          console.log('🔓 initializeSession: Decrypting session data...');
           // Decrypt session data before resuming
           const sessionData = await decryptSessionData(encryptedSessionData) as ProtocolSession;
         
@@ -357,7 +375,6 @@ export default function ProtocolPage() {
               timestamp: (decryptedMessage.timestamp as Timestamp)?.toDate() || new Date(),
             });
           } catch (error) {
-            // eslint-disable-next-line no-console
             console.error('Failed to decrypt message:', error);
             // Fallback to showing encrypted data indicator
             existingMessages.push({
@@ -383,14 +400,9 @@ export default function ProtocolPage() {
           .join('\n');
         setSessionHistoryForAI(conversationHistory);
         
-        console.log('Session resumed successfully:', {
-          sessionId: activeSessionDoc.id,
-          circumstance: sessionData.circumstance,
-          phase: sessionData.completedPhases + 1,
-          messageCount: existingMessages.length,
-          hasEmotionalProgression: !!sessionData.emotionalProgression,
-          hasKeyStatements: !!sessionData.keyStatements
-        });
+        // Session resumed successfully
+        // sessionId: activeSessionDoc.id, circumstance: sessionData.circumstance,
+        // phase: sessionData.completedPhases + 1, messageCount: existingMessages.length
         
         toast({
           title: "Session Resumed",
@@ -400,8 +412,11 @@ export default function ProtocolPage() {
         
         return;
         } catch (decryptError) {
+          console.error('❌ initializeSession: Failed to decrypt session data:', decryptError);
+          
           // Handle passphrase-related errors
           if (decryptError instanceof Error && decryptError.message.includes('passphrase not available')) {
+            console.log('🔑 initializeSession: Passphrase error detected, redirecting to auth...');
             toast({
               variant: "destructive",
               title: "Authentication Required",
@@ -411,14 +426,20 @@ export default function ProtocolPage() {
             return;
           }
           
+          console.log('🆕 initializeSession: Decryption failed, will create new session instead');
+          // If decryption fails for other reasons, we'll fall through to create a new session
           // Re-throw other errors
-          throw decryptError;
+          // throw decryptError;
         }
+      } else {
+        console.log('📝 initializeSession: No active session found, will create new session');
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error("Error checking for active sessions:", error);
+      console.error("❌ initializeSession: Error checking for active sessions:", error);
+      console.log('🆕 initializeSession: Will proceed to create new session due to error');
     }
+
+    console.log('🆕 initializeSession: Creating new session...');
 
     setIsLoading(true);
     setIsProtocolComplete(false); 
@@ -477,15 +498,29 @@ export default function ProtocolPage() {
     setSessionDataForSummary({ topEmotions: "Not analyzed" }); 
     setSessionHistoryForAI(undefined);
     setIsLoading(false);
+    
+    console.log('✅ initializeSession: Session initialization completed successfully', {
+      sessionId: newSessionId,
+      phase: 1,
+      circumstance: circumstance
+    });
+    
+    } catch (error) {
+      console.error('❌ initializeSession: Critical error during session initialization:', error);
+      setIsLoading(false);
+      toast({
+        variant: "destructive",
+        title: "Session Initialization Failed",
+        description: "Unable to initialize your session. Please try refreshing the page.",
+      });
+    }
   }, [firebaseUser, user, toast, checkPassphraseAvailability, handlePassphraseError]);
 
   useEffect(() => {
-    if (firebaseUser && user && !currentSessionId && !sessionInitialized) {
-      // Session initialization logic
-      setSessionInitialized(true);
+    if (firebaseUser && user && !currentSessionId) {
       initializeSession();
     }
-  }, [firebaseUser, user, currentSessionId, sessionInitialized, initializeSession]);
+  }, [firebaseUser, user, currentSessionId, initializeSession]);
 
   // This effect runs when the protocol is marked as 'finishing' to handle async operations
   useEffect(() => {
@@ -512,8 +547,8 @@ export default function ProtocolPage() {
             try {
               const decryptedMessage = await decryptChatMessage(data) as FirestoreChatMessage;
               userMessagesTexts.push(decryptedMessage.text);
-            } catch (error) {
-              console.error('Failed to decrypt user message for sentiment analysis:', error);
+            } catch {
+              // Skip encrypted messages that can't be decrypted for sentiment analysis
               // Skip encrypted messages that can't be decrypted
             }
           }
@@ -525,13 +560,7 @@ export default function ProtocolPage() {
           const sentimentInput: SentimentAnalysisInput = { userMessages: userMessagesText };
           
           // Call the API for sentiment analysis
-          const sentimentResponse = await fetch('/api/sentiment-analysis', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(sentimentInput),
-          });
+          const sentimentResponse = await analyzeSentiment(sentimentInput);
 
           if (sentimentResponse.ok) {
             const sentimentOutput = await sentimentResponse.json();
@@ -540,8 +569,8 @@ export default function ProtocolPage() {
             throw new Error('Failed to analyze sentiment');
           }
         }
-      } catch (sentimentError) {
-        console.error("Error analyzing sentiment:", sentimentError);
+      } catch {
+        // Error analyzing sentiment - continue without sentiment data
         toast({ variant: "destructive", title: "Sentiment Analysis Failed", description: "Could not determine emotional context." });
       }
       
@@ -603,16 +632,10 @@ export default function ProtocolPage() {
         : undefined;
       
       // Call the API for emotional tone analysis
-      const emotionalToneResponse = await fetch('/api/emotional-tone', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userMessage: currentUserInputText,
-          context: `Phase: ${prevPhaseName}. Session context: ${currentCircumstance}`,
-          previousTone: previousEmotion
-        }),
+      const emotionalToneResponse = await analyzeEmotionalTone({
+        userMessage: currentUserInputText,
+        context: `Phase: ${prevPhaseName}. Session context: ${currentCircumstance}`,
+        previousTone: previousEmotion
       });
 
       let emotionalAnalysis = null;
@@ -632,7 +655,7 @@ export default function ProtocolPage() {
 
         setEmotionalProgression(prev => [...prev, newEmotionalData]);
       } else {
-        console.warn('Emotional tone analysis failed, continuing without it');
+        // Emotional tone analysis failed, continuing without it
         
         // Add a fallback emotional data entry
         const fallbackEmotionalData = {
@@ -661,13 +684,7 @@ export default function ProtocolPage() {
       };
 
       // Call the API for cognitive edge protocol
-      const response = await fetch('/api/protocol', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(input),
-      });
+      const response = await callProtocol(input);
 
       if (!response.ok) {
         // Get more detailed error information
@@ -854,13 +871,7 @@ export default function ProtocolPage() {
               const sentimentInput: SentimentAnalysisInput = { userMessages: userMessagesText };
               
               // Call the API for sentiment analysis
-              const sentimentResponse = await fetch('/api/sentiment-analysis', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(sentimentInput),
-              });
+              const sentimentResponse = await analyzeSentiment(sentimentInput);
 
               if (sentimentResponse.ok) {
                 const sentimentOutput = await sentimentResponse.json();
@@ -945,7 +956,6 @@ export default function ProtocolPage() {
       
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred. Check the server logs for more details.";
-      // eslint-disable-next-line no-console
       console.error("Error in AI protocol:", error);
       toast({
         variant: "destructive",
@@ -976,15 +986,50 @@ export default function ProtocolPage() {
     setCurrentPhaseName(PHASE_NAMES[0]);
     setSessionDataForSummary({ topEmotions: "Not analyzed" });
     setSessionHistoryForAI(undefined);
-    setSessionInitialized(false); // Reset initialization state
   };
 
 
-  if (!firebaseUser || !user || (!currentSessionId && !sessionInitialized)) { 
+  // Loading condition: Only show loading if Firebase user is not yet loaded
+  // If firebaseUser exists but user is null, that means passphrase hasn't been entered yet
+  const isPageLoading = !firebaseUser;
+  
+  console.log('🔍 Protocol Page: Render condition check', {
+    firebaseUser: !!firebaseUser,
+    user: !!user,
+    currentSessionId: !!currentSessionId,
+    isPageLoading: !!isPageLoading
+  });
+
+  if (isPageLoading) { 
+    console.log('📺 Protocol Page: Showing loading screen...');
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background text-primary">
         <Loader2 className="h-16 w-16 animate-pulse text-primary" />
         <p className="mt-4 font-headline text-xl">Loading CognitiveInsight Session...</p>
+      </div>
+    );
+  }
+
+  // If user hasn't entered passphrase (user is null), show a message to enter passphrase
+  if (!user) {
+    return (
+      <div className="container mx-auto p-4 md:p-6 max-w-4xl flex flex-col gap-4 md:gap-6 min-h-[calc(100vh-theme(spacing.32))]">
+        <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 max-w-md">
+            <div className="flex items-center justify-center mb-4">
+              <Lock className="h-12 w-12 text-amber-600" />
+            </div>
+            <h2 className="text-xl font-semibold text-amber-800 mb-2">
+              Passphrase Required
+            </h2>
+            <p className="text-amber-700 mb-4">
+              Please enter your encryption passphrase to access your CognitiveInsight session.
+            </p>
+            <p className="text-sm text-amber-600">
+              Look for the &ldquo;Enter Passphrase&rdquo; button in the banner above.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1001,6 +1046,16 @@ export default function ProtocolPage() {
           isLoadingNextPhase={isLoading && !isProtocolComplete && currentPhase <= TOTAL_PHASES}
         />
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={checkDetailed}
+            className="flex items-center gap-1"
+            title="Check security status"
+          >
+            <Lock className="h-4 w-4" />
+            Security
+          </Button>
           <TTSSettings />
           {!isProtocolComplete && currentSessionId && (
             <Button
@@ -1073,6 +1128,7 @@ export default function ProtocolPage() {
         />
       )}
 
+      <SimpleDebug />
     </div>
   );
 }

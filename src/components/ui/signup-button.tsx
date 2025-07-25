@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { checkUserLimit } from '@/lib/firebase-functions-client';
 
 interface UserLimitStatus {
   allowed: boolean;
@@ -18,13 +19,26 @@ export function SignupButton() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    async function checkUserLimit() {
+    // Don't make API calls during build/SSG
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    async function checkLimit() {
       try {
-        const response = await fetch('/api/user-limit');
+        const response = await checkUserLimit();
         const data = await response.json();
         setLimitStatus(data);
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error('Error checking user limit:', error);
+        // eslint-disable-next-line no-console
+        console.error('Error details:', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined,
+          type: typeof error,
+          error
+        });
         // Default to allowing signup if check fails
         setLimitStatus({ 
           allowed: true, 
@@ -38,7 +52,7 @@ export function SignupButton() {
       }
     }
 
-    checkUserLimit();
+    checkLimit();
   }, []);
 
   if (isLoading) {

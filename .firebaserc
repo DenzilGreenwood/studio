@@ -1,7 +1,7 @@
 {
   "projects": {
-    "default": "cognitiveinsight-e5c40",
-    "starting": "cognitiveinsight-e5c40"
+    "default": "cognitiveinsight-ai-2f52b",
+    "starting": "cognitiveinsight-ai-2f52b"
   },
   "targets": {},
   "etags": {}

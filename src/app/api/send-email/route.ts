@@ -2,7 +2,10 @@
 // src/app/api/send-email/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-import { db, collection, addDoc, serverTimestamp } from '@/lib/firebase';
+import { adminDb, admin } from '@/lib/firebase-admin';
+
+// For fallback, store emails in memory if Firebase isn't available
+const interestedEmails: { email: string; timestamp: string; }[] = [];
 
 // Email types and their configurations
 const emailConfigs = {
@@ -27,25 +30,81 @@ const emailConfigs = {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, type, data } = await request.json();
+    // Debug: Check if Firebase credentials are available
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+    
+    if (!projectId || !clientEmail || !privateKey) {
+      return NextResponse.json({ 
+        error: 'Firebase configuration missing',
+        debug: { projectId: !!projectId, clientEmail: !!clientEmail, privateKey: !!privateKey }
+      }, { status: 500 });
+    }
+
+    const body = await request.json();
+    const { email, type, data } = body;
 
     if (!email || !type) {
       return NextResponse.json({ error: 'Missing required fields: email and type' }, { status: 400 });
     }
 
-    // Handle 'interest-notification' by writing to Firestore
+    // Handle 'interest-notification' by trying Firebase first, fallback to memory
     if (type === 'interest-notification') {
       if (!data || !data.email) {
         return NextResponse.json({ error: 'Missing email for interest notification' }, { status: 400 });
       }
 
-      const interestedUsersRef = collection(db, 'interested_users');
-      await addDoc(interestedUsersRef, {
-        email: data.email,
-        submittedAt: serverTimestamp(),
-      });
-      
-      return NextResponse.json({ success: true, message: 'Interest logged successfully' });
+      try {
+        if (adminDb) {
+          // Store email in Firestore
+          const docRef = await adminDb.collection('interested_users').add({
+            email: data.email,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+            userAgent: request.headers.get('user-agent') || 'unknown',
+          });
+          
+          return NextResponse.json({ 
+            success: true, 
+            message: 'Interest logged successfully in Firestore',
+            docId: docRef.id,
+            storage: 'firestore'
+          });
+        } else {
+          // Fallback: Store email in memory
+          interestedEmails.push({
+            email: data.email,
+            timestamp: new Date().toISOString(),
+          });
+          
+          return NextResponse.json({ 
+            success: true, 
+            message: 'Interest logged successfully in memory (Firebase unavailable)',
+            count: interestedEmails.length,
+            storage: 'memory'
+          });
+        }
+      } catch (firebaseError) {
+        // If Firebase fails, try memory fallback
+        // Log the error for debugging but don't expose it to client
+        if (process.env.NODE_ENV !== 'production') {
+          // eslint-disable-next-line no-console
+          console.warn('Firebase error, falling back to memory storage:', firebaseError);
+        }
+        
+        interestedEmails.push({
+          email: data.email,
+          timestamp: new Date().toISOString(),
+        });
+        
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Interest logged successfully (Firebase failed, using memory)',
+          count: interestedEmails.length,
+          storage: 'memory-fallback'
+        });
+      }
     }
     
     // Handle other email types
@@ -57,7 +116,6 @@ export async function POST(request: NextRequest) {
     // Validate environment variables for sending emails
     const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
     if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS || !SMTP_FROM) {
-      console.error('Email service not configured. Please set SMTP variables in .env.local');
       return NextResponse.json({ error: 'Email service is not configured on the server.' }, { status: 503 });
     }
 
@@ -82,7 +140,11 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ success: true, message: 'Email sent successfully' });
   } catch (error) {
-    console.error('Error in API route:', error);
+    // Log error details for debugging in development only
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.error('Error in API route:', error);
+    }
     return NextResponse.json(
       { error: 'Failed to process request' },
       { status: 500 }

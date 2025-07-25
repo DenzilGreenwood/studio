@@ -29,7 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Save, Download, Trash2, Eye, EyeOff } from 'lucide-react';
 import { ClarityMapNode, ClarityMapEdge, ClarityMap } from '@/types';
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context-v2';
 import { useEncryption } from '@/lib/encryption-context';
 import { encryptData } from '@/lib/encryption';
 import { v4 as uuidv4 } from 'uuid';

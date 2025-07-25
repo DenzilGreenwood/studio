@@ -1,15 +1,37 @@
 
 'use client';
 
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Brain, Lock, Shield, Sparkles, User, ArrowRight, Mail, Loader2 } from "lucide-react";
+import { Brain, Lock, Shield, Sparkles, User, ArrowRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Footer } from "@/components/layout/footer";
-import { Badge } from "@/components/ui/badge";
-import React, { useState } from 'react';
 import { useToast } from "@/hooks/use-toast";
+
+interface FeatureCardProps {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}
+
+function FeatureCard({ icon, title, description }: FeatureCardProps) {
+  return (
+    <Card className="transform transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+      <CardHeader className="items-center">
+        <div className="rounded-full bg-primary/10 p-4 mb-4">
+          {icon}
+        </div>
+        <CardTitle className="font-headline text-2xl">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <CardDescription className="text-center text-base">{description}</CardDescription>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function HomePage() {
   const [email, setEmail] = useState('');
@@ -35,13 +57,16 @@ export default function HomePage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          email: email,
           type: 'interest-notification',
           data: { email: email },
         }),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to send notification.');
+        throw new Error(result.error || 'Failed to send notification.');
       }
 
       toast({
@@ -50,10 +75,11 @@ export default function HomePage() {
       });
       setEmail(''); // Clear input on success
     } catch (error) {
+      console.error('Submit error:', error);
       toast({
         variant: "destructive",
         title: "Submission Failed",
-        description: "Could not submit your email. Please try again later.",
+        description: error instanceof Error ? error.message : "Could not submit your email. Please try again later.",
       });
     } finally {
       setIsSubmitting(false);
@@ -61,17 +87,36 @@ export default function HomePage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-secondary/30 text-foreground">
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-secondary/30">
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="w-full px-4 sm:px-6 flex h-16 items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Brain className="h-8 w-8 text-primary" />
             <span className="font-headline text-2xl font-semibold text-primary">CognitiveInsight</span>
           </Link>
-          <nav className="flex items-center gap-4">
-            <Button variant="ghost" asChild>
-              <a href="mailto:founder@CognitiveInsight.ai">Contact</a>
-            </Button>
+          <nav className="flex items-center gap-6">
+            <div className="hidden md:flex items-center gap-6">
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="#ai">AI Companion</Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="#1on1">1:1 Guidance</Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="#case-study">Case Study</Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="#contact">Contact</Link>
+              </Button>
+            </div>
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" asChild>
+                <Link href="/login">Login</Link>
+              </Button>
+              <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                <Link href="/signup">Get Started</Link>
+              </Button>
+            </div>
           </nav>
         </div>
       </header>
@@ -166,10 +211,10 @@ export default function HomePage() {
                 <div className="max-w-3xl mx-auto">
                     <Shield className="h-16 w-16 text-primary mx-auto mb-6" />
                     <h2 className="font-headline text-3xl font-bold text-foreground sm:text-4xl">
-                        Privacy Isn't a Feature. It's the Foundation.
+                        Privacy Isn&apos;t a Feature. It&apos;s the Foundation.
                     </h2>
                     <p className="mt-4 text-lg text-muted-foreground">
-                        CognitiveInsight is built on the MyImaginaryFriends.ai Zero-Knowledge Encryption Framework. Your passphrase is your key. Without it, no one—not even us—can access your data. If you lose your passphrase and recovery key, your data is irretrievable. That's our promise of true privacy.
+                        CognitiveInsight is built on the MyImaginaryFriends.ai Zero-Knowledge Encryption Framework. Your passphrase is your key. Without it, no one—not even us—can access your data. If you lose your passphrase and recovery key, your data is irretrievable. That&apos;s our promise of true privacy.
                     </p>
                 </div>
             </div>
@@ -178,26 +223,6 @@ export default function HomePage() {
       </main>
 
       <Footer />
-    </div>
-  );
-}
-
-interface FeatureCardProps {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}
-
-function FeatureCard({ icon, title, description }: FeatureCardProps) {
-  return (
-    <div className="text-center">
-      <div className="flex justify-center mb-4">
-        <div className="rounded-full bg-primary/10 p-4">
-          {icon}
-        </div>
-      </div>
-      <h3 className="font-headline text-xl font-semibold mb-2">{title}</h3>
-      <p className="text-muted-foreground">{description}</p>
     </div>
   );
 }

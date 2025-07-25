@@ -1,60 +1,31 @@
-// lib/cryptoUtils.ts
-const encoder = new TextEncoder();
-const decoder = new TextDecoder();
+// lib/cryptoUtils.ts - DEPRECATED: Use encryption.ts instead
+// This file is kept for backward compatibility only
+// All new code should use encryption.ts with metadata format
 
-export function generateRecoveryKey(): string {
-  const array = new Uint8Array(48);
-  crypto.getRandomValues(array);
-  return Array.from(array)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-    .slice(0, 64);
-}
+import { 
+  generateRecoveryKey as newGenerateRecoveryKey,
+  encryptDataWithMetadata,
+  decryptDataWithMetadata
+} from './encryption';
 
-export async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKey> {
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(passphrase),
-    { name: "PBKDF2" },
-    false,
-    ["deriveKey"]
-  );
-  return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: 310000, hash: "SHA-256" }, // Updated to OWASP 2024 recommendation
-    keyMaterial,
-    { name: "AES-GCM", length: 256 },
-    true,
-    ["encrypt", "decrypt"]
-  );
-}
+// Re-export the new functions for compatibility
+export const generateRecoveryKey = newGenerateRecoveryKey;
 
+// Updated to use metadata format for all operations
 export async function encryptData(data: unknown, passphrase: string): Promise<string> {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await deriveKey(passphrase, salt);
-  const encoded = encoder.encode(JSON.stringify(data));
-  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
-  const result = new Uint8Array([...salt, ...iv, ...new Uint8Array(encrypted)]);
-  return btoa(String.fromCharCode(...result));
+  return await encryptDataWithMetadata(JSON.stringify(data), passphrase);
 }
 
 export async function decryptData(ciphertext: string, passphrase: string): Promise<unknown> {
-  const binary = atob(ciphertext).split("").map((c) => c.charCodeAt(0));
-  const data = new Uint8Array(binary);
-  const salt = data.slice(0, 16);
-  const iv = data.slice(16, 28);
-  const encrypted = data.slice(28);
-  const key = await deriveKey(passphrase, salt);
-  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, encrypted);
-  return JSON.parse(decoder.decode(decrypted));
+  const decryptedString = await decryptDataWithMetadata(ciphertext, passphrase);
+  return JSON.parse(decryptedString);
 }
 
-// Backup Passphrase (encrypted with recovery key)
+// Backup Passphrase (encrypted with recovery key) - now uses metadata format
 export async function encryptPassphrase(passphrase: string, recoveryKey: string): Promise<string> {
-  return await encryptData(passphrase, recoveryKey);
+  return await encryptDataWithMetadata(passphrase, recoveryKey);
 }
 
 export async function decryptPassphrase(encryptedPassphrase: string, recoveryKey: string): Promise<string> {
-  const result = await decryptData(encryptedPassphrase, recoveryKey);
-  return result as string;
+  return await decryptDataWithMetadata(encryptedPassphrase, recoveryKey);
 }
