@@ -1,6 +1,14 @@
 // src/lib/firebase.ts
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth, type Auth } from 'firebase/auth'; // Added connectAuthEmulator
+import { 
+  getAuth, 
+  type Auth,
+  GoogleAuthProvider,
+  OAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult
+} from 'firebase/auth';
 import { 
   getFirestore, 
   type Firestore,
@@ -50,6 +58,15 @@ if (getApps().length === 0) {
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// Configure OAuth providers
+const googleProvider = new GoogleAuthProvider();
+googleProvider.addScope('email');
+googleProvider.addScope('profile');
+
+const microsoftProvider = new OAuthProvider('microsoft.com');
+microsoftProvider.addScope('email');
+microsoftProvider.addScope('profile');
+
 
 // Connect to emulators in development
 /*
@@ -90,5 +107,13 @@ export {
   onSnapshot,
   enableNetwork,
   disableNetwork,
+  // OAuth providers and methods
+  GoogleAuthProvider,
+  OAuthProvider,
+  googleProvider,
+  microsoftProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   /*, storage */ 
 };

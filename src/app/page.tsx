@@ -3,62 +3,12 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Brain, Lock, Shield, Sparkles, User, ArrowRight, Mail, Loader2 } from "lucide-react";
+import { Brain, Lock, Shield, Sparkles, User, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Footer } from "@/components/layout/footer";
 import { Badge } from "@/components/ui/badge";
-import React, { useState } from 'react';
-import { useToast } from "@/hooks/use-toast";
 
 export default function HomePage() {
-  const [email, setEmail] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
-
-  const handleInterestSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!email || !email.includes('@')) {
-      toast({
-        variant: "destructive",
-        title: "Invalid Email",
-        description: "Please enter a valid email address.",
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const response = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          type: 'interest-notification',
-          data: { email: email },
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to send notification.');
-      }
-
-      toast({
-        title: "Thank You!",
-        description: "You've been added to our notification list.",
-      });
-      setEmail(''); // Clear input on success
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Submission Failed",
-        description: "Could not submit your email. Please try again later.",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-secondary/30 text-foreground">
@@ -87,32 +37,12 @@ export default function HomePage() {
           <p className="mt-6 max-w-3xl text-lg text-muted-foreground md:text-xl">
             CognitiveInsight is a new kind of thought partner. Using a structured AI conversation based on the Cognitive Edge Protocol™, we help you navigate challenges, reframe beliefs, and build your legacy. All with absolute, zero-knowledge privacy.
           </p>
-          <Card className="mt-10 w-full max-w-md p-6 bg-card/80 backdrop-blur-sm shadow-xl">
-            <CardHeader className="p-0 pb-4">
-              <CardTitle>Be the First to Know</CardTitle>
-              <CardDescription>Enter your email to get notified when we launch.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <form className="flex flex-col sm:flex-row gap-2" onSubmit={handleInterestSubmit}>
-                <Input 
-                  type="email" 
-                  placeholder="you@example.com" 
-                  className="flex-1"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isSubmitting}
-                />
-                <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending...
-                    </>
-                  ) : "Notify Me"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+          <Button asChild size="lg" className="mt-10">
+            <Link href="/signup">
+              Sign Up
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
         </section>
 
         <section id="features" className="py-16 bg-background/50">
@@ -166,10 +96,10 @@ export default function HomePage() {
                 <div className="max-w-3xl mx-auto">
                     <Shield className="h-16 w-16 text-primary mx-auto mb-6" />
                     <h2 className="font-headline text-3xl font-bold text-foreground sm:text-4xl">
-                        Privacy Isn't a Feature. It's the Foundation.
+                        Privacy Isn&apos;t a Feature. It&apos;s the Foundation.
                     </h2>
                     <p className="mt-4 text-lg text-muted-foreground">
-                        CognitiveInsight is built on the MyImaginaryFriends.ai Zero-Knowledge Encryption Framework. Your passphrase is your key. Without it, no one—not even us—can access your data. If you lose your passphrase and recovery key, your data is irretrievable. That's our promise of true privacy.
+                        CognitiveInsight is built on the MyImaginaryFriends.ai Zero-Knowledge Encryption Framework. Your passphrase is your key. Without it, no one—not even us—can access your data. If you lose your passphrase and recovery key, your data is irretrievable. That&apos;s our promise of true privacy.
                     </p>
                 </div>
             </div>

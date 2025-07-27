@@ -396,3 +396,24 @@ export function clearSessionAuditLog(): void {
     sessionStorage.removeItem('encryption_audit');
   }
 }
+
+// Compatibility wrappers for data-encryption.ts (matches cryptoUtils interface)
+export async function encryptDataCompat(data: unknown, passphrase: string): Promise<string> {
+  const dataString = JSON.stringify(data);
+  return await encryptDataWithMetadata(dataString, passphrase);
+}
+
+export async function decryptDataCompat(ciphertext: string, passphrase: string): Promise<unknown> {
+  const decryptedString = await decryptDataWithMetadata(ciphertext, passphrase);
+  return JSON.parse(decryptedString);
+}
+
+// Compatibility wrappers for recoveryService.ts (matches cryptoUtils interface)
+export async function encryptPassphrase(passphrase: string, recoveryKey: string): Promise<string> {
+  return await encryptDataWithMetadata(passphrase, recoveryKey);
+}
+
+export async function decryptPassphrase(encryptedPassphrase: string, recoveryKey: string): Promise<string> {
+  const result = await decryptDataWithMetadata(encryptedPassphrase, recoveryKey);
+  return result;
+}

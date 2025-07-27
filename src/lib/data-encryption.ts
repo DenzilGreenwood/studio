@@ -1,7 +1,7 @@
 // src/lib/data-encryption.ts
 "use client";
 
-import { encryptData, decryptData } from './cryptoUtils';
+import { encryptDataCompat as encryptData, decryptDataCompat as decryptData } from './encryption';
 
 /**
  * Comprehensive data encryption for all user content

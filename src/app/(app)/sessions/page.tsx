@@ -33,14 +33,10 @@ import { Loader2, BookOpen, PlusCircle, Eye, CheckCircle, Hourglass, Sparkles, P
 import Link from 'next/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { encryptData } from '@/lib/cryptoUtils';
+import { encryptDataCompat as encryptData } from '@/lib/encryption';
+import { toDate } from '@/lib/timestamp-utils';
 
 type SessionWithId = ProtocolSession & { sessionId: string };
-
-// Helper function to convert timestamps to dates
-const toDate = (timestamp: Timestamp | Date): Date => {
-  return timestamp instanceof Timestamp ? timestamp.toDate() : timestamp;
-};
 
 const SessionCard = ({ session, onDelete, onQuickReflect }: { 
   session: SessionWithId; 

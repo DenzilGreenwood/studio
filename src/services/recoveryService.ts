@@ -19,7 +19,7 @@ import { doc, setDoc, getDoc, collection, query, where, getDocs } from "firebase
 import { 
   decryptPassphrase, 
   generateRecoveryKey 
-} from "@/lib/cryptoUtils";
+} from "@/lib/encryption";
 import { 
   encryptPassphraseWithRecoveryKeyAndMetadata, 
   decryptPassphraseWithRecoveryKeyAndMetadata,

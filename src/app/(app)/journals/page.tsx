@@ -14,11 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { journalOperations } from '@/lib/journal-operations';
 import { JournalEntry } from '@/types/journals';
 import { Timestamp } from 'firebase/firestore';
-
-// Helper function to convert timestamps to dates
-const toDate = (timestamp: Timestamp | Date): Date => {
-  return timestamp instanceof Timestamp ? timestamp.toDate() : timestamp;
-};
+import { toDate } from '@/lib/timestamp-utils';
 
 export default function JournalsPage() {
   const [journals, setJournals] = useState<JournalEntry[]>([]);
